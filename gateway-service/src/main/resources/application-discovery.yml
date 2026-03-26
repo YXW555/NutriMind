@@ -1,0 +1,25 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        enabled: true
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service-auth
+              uri: lb://user-service
+              predicates:
+                - Path=/api/auth/**,/api/profile/**,/api/test/**
+            - id: food-service
+              uri: lb://food-service
+              predicates:
+                - Path=/api/foods/**
+            - id: ai-service
+              uri: lb://ai-service
+              predicates:
+                - Path=/api/vision/**
+            - id: meal-service
+              uri: lb://meal-service
+              predicates:
+                - Path=/api/meals/**,/api/reports/**,/api/advisor/**,/api/community/**

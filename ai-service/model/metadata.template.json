@@ -1,0 +1,20 @@
+{
+  "model_version": "food-cls-v1",
+  "status": "template",
+  "created_at": "2026-03-21",
+  "task_type": "single-label-image-classification",
+  "retrieval_ready": true,
+  "backbone": "resnet18",
+  "image_size": 224,
+  "class_count": 32,
+  "labels_file": "labels.json",
+  "category_manifest_file": "category_manifest.json",
+  "retrieval_bank_file": "retrieval_bank.json",
+  "clip_text_bank_file": "clip_text_bank.npz",
+  "export_format": "onnx",
+  "notes": [
+    "这是模板文件，训练完成后请复制为 metadata.json 并填写真实指标。",
+    "建议同时记录分类模型权重、检索标签库版本、公开数据集来源和手机采集数据版本。",
+    "如果后续接入 CLIP 或 SigLIP，请把 text encoder、pretrained 名称和 prompt 策略也写进去。"
+  ]
+}

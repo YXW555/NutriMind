@@ -1,0 +1,108 @@
+{
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^app-(.*)": "@/components/app-$1.vue"
+    }
+  },
+  "pages": [
+    {
+      "path": "pages/auth/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "登录"
+      }
+    },
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "首页"
+      }
+    },
+    {
+      "path": "pages/meals/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "饮食记录"
+      }
+    },
+    {
+      "path": "pages/meals/plan",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "饮食计划"
+      }
+    },
+    {
+      "path": "pages/capture/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "智能识别"
+      }
+    },
+    {
+      "path": "pages/community/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "食刻社区"
+      }
+    },
+    {
+      "path": "pages/community/publish",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "发布动态"
+      }
+    },
+    {
+      "path": "pages/community/detail",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "社区详情"
+      }
+    },
+    {
+      "path": "pages/profile/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/foods/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "食物库"
+      }
+    },
+    {
+      "path": "pages/report/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "营养报告"
+      }
+    },
+    {
+      "path": "pages/advisor/index",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "营养顾问"
+      }
+    },
+    {
+      "path": "pages/advisor/history",
+      "style": {
+        "navigationStyle": "custom",
+        "navigationBarTitleText": "历史对话"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "知食分子",
+    "navigationBarBackgroundColor": "#f6f5ef",
+    "backgroundColor": "#f6f5ef"
+  },
+  "uniIdRouter": {}
+}

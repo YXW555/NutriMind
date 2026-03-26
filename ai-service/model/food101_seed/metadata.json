@@ -1,0 +1,31 @@
+{
+  "bundle_name": "food101_seed",
+  "model_version": "food101-seed-v1",
+  "status": "ready",
+  "created_at": "2026-03-21",
+  "task_type": "single-label-image-classification",
+  "retrieval_ready": true,
+  "backbone": "resnet18",
+  "image_size": 160,
+  "class_count": 6,
+  "onnx_file": "food_classifier_seed.onnx",
+  "labels_file": "checkpoints/labels.json",
+  "checkpoint_file": "checkpoints/best.pth",
+  "category_manifest_file": "../category_manifest.json",
+  "retrieval_bank_file": "../retrieval_bank.json",
+  "source_datasets": [
+    "Food-101 reviewed subset"
+  ],
+  "source_class_count": 13,
+  "target_concept_count": 6,
+  "train_samples": 2730,
+  "val_samples": 780,
+  "test_samples": 390,
+  "best_val_acc": 0.8885,
+  "recommended_backend": "classifier",
+  "notes": [
+    "This seed model is intended for current project integration and demo validation.",
+    "The reviewed Food-101 subset maps 13 source classes into 6 NutriMind food concepts.",
+    "If you continue expanding categories, prefer adding a new bundle instead of overwriting this one."
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "version": "clip-text-bank-v1",
+  "model_name": "ViT-B-32",
+  "pretrained": "openai",
+  "language": "both",
+  "concept_count": 32,
+  "source_manifest": "category_manifest.json",
+  "source_bank": "retrieval_bank.json",
+  "output_file": "clip_text_bank.npz"
+}

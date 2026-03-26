@@ -1,0 +1,1265 @@
+{
+  "version": "retrieval-bank-v1",
+  "concept_count": 32,
+  "source_manifest": "category_manifest.json",
+  "concepts": [
+    {
+      "concept_id": "rice",
+      "canonical_label": "米饭",
+      "english_name": "rice",
+      "group": "staple",
+      "group_zh": "主食",
+      "priority": 1,
+      "aliases": [
+        "白米饭",
+        "熟米饭"
+      ],
+      "search_keywords": [
+        "米饭",
+        "白米饭",
+        "熟米饭"
+      ],
+      "clip_prompts_zh": [
+        "一碗米饭",
+        "蒸熟的白米饭",
+        "家常主食米饭",
+        "一份米饭",
+        "餐桌上的米饭",
+        "主食里的米饭",
+        "一份白米饭",
+        "一份熟米饭"
+      ],
+      "clip_prompts_en": [
+        "a bowl of rice",
+        "cooked white rice",
+        "steamed rice",
+        "a photo of rice",
+        "a close-up photo of rice"
+      ],
+      "normalized_terms": [
+        "米饭",
+        "rice",
+        "白米饭",
+        "熟米饭"
+      ],
+      "notes": "主食基础类"
+    },
+    {
+      "concept_id": "noodles",
+      "canonical_label": "面条",
+      "english_name": "noodles",
+      "group": "staple",
+      "group_zh": "主食",
+      "priority": 2,
+      "aliases": [
+        "挂面",
+        "汤面"
+      ],
+      "search_keywords": [
+        "面条",
+        "挂面",
+        "汤面"
+      ],
+      "clip_prompts_zh": [
+        "一碗面条",
+        "家常面条",
+        "煮好的汤面",
+        "一份面条",
+        "餐桌上的面条",
+        "主食里的面条",
+        "一份挂面",
+        "一份汤面"
+      ],
+      "clip_prompts_en": [
+        "a bowl of noodles",
+        "cooked noodles",
+        "homestyle noodle dish",
+        "a photo of noodles",
+        "a close-up photo of noodles"
+      ],
+      "normalized_terms": [
+        "面条",
+        "noodles",
+        "挂面",
+        "汤面"
+      ],
+      "notes": "主食基础类"
+    },
+    {
+      "concept_id": "egg",
+      "canonical_label": "鸡蛋",
+      "english_name": "egg",
+      "group": "protein",
+      "group_zh": "蛋白质",
+      "priority": 3,
+      "aliases": [
+        "蛋",
+        "水煮蛋"
+      ],
+      "search_keywords": [
+        "鸡蛋",
+        "蛋",
+        "水煮蛋"
+      ],
+      "clip_prompts_zh": [
+        "一个鸡蛋",
+        "煮熟的鸡蛋",
+        "餐盘里的鸡蛋",
+        "一份鸡蛋",
+        "餐桌上的鸡蛋",
+        "蛋白质里的鸡蛋",
+        "一份蛋",
+        "一份水煮蛋"
+      ],
+      "clip_prompts_en": [
+        "an egg",
+        "a boiled egg",
+        "egg on a plate",
+        "a photo of egg",
+        "a close-up photo of egg"
+      ],
+      "normalized_terms": [
+        "鸡蛋",
+        "egg",
+        "蛋",
+        "水煮蛋"
+      ],
+      "notes": "高频基础食物"
+    },
+    {
+      "concept_id": "milk",
+      "canonical_label": "牛奶",
+      "english_name": "milk",
+      "group": "dairy",
+      "group_zh": "乳制品",
+      "priority": 4,
+      "aliases": [
+        "纯牛奶",
+        "鲜奶"
+      ],
+      "search_keywords": [
+        "牛奶",
+        "纯牛奶",
+        "鲜奶"
+      ],
+      "clip_prompts_zh": [
+        "一杯牛奶",
+        "玻璃杯里的牛奶",
+        "早餐牛奶",
+        "一份牛奶",
+        "餐桌上的牛奶",
+        "乳制品里的牛奶",
+        "一份纯牛奶",
+        "一份鲜奶"
+      ],
+      "clip_prompts_en": [
+        "a glass of milk",
+        "fresh milk",
+        "milk drink",
+        "a photo of milk",
+        "a close-up photo of milk"
+      ],
+      "normalized_terms": [
+        "牛奶",
+        "milk",
+        "纯牛奶",
+        "鲜奶"
+      ],
+      "notes": "乳制品"
+    },
+    {
+      "concept_id": "yogurt",
+      "canonical_label": "酸奶",
+      "english_name": "yogurt",
+      "group": "dairy",
+      "group_zh": "乳制品",
+      "priority": 5,
+      "aliases": [
+        "原味酸奶",
+        "发酵乳"
+      ],
+      "search_keywords": [
+        "酸奶",
+        "原味酸奶",
+        "发酵乳"
+      ],
+      "clip_prompts_zh": [
+        "一杯酸奶",
+        "盒装酸奶",
+        "早餐酸奶",
+        "一份酸奶",
+        "餐桌上的酸奶",
+        "乳制品里的酸奶",
+        "一份原味酸奶",
+        "一份发酵乳"
+      ],
+      "clip_prompts_en": [
+        "a cup of yogurt",
+        "plain yogurt",
+        "packaged yogurt",
+        "a photo of yogurt",
+        "a close-up photo of yogurt"
+      ],
+      "normalized_terms": [
+        "酸奶",
+        "yogurt",
+        "原味酸奶",
+        "发酵乳"
+      ],
+      "notes": "乳制品"
+    },
+    {
+      "concept_id": "bread",
+      "canonical_label": "面包",
+      "english_name": "bread",
+      "group": "breakfast",
+      "group_zh": "早餐",
+      "priority": 6,
+      "aliases": [
+        "吐司",
+        "白面包"
+      ],
+      "search_keywords": [
+        "面包",
+        "吐司",
+        "白面包"
+      ],
+      "clip_prompts_zh": [
+        "一片吐司面包",
+        "餐桌上的面包",
+        "早餐面包",
+        "一份面包",
+        "早餐里的面包",
+        "一份吐司",
+        "一份白面包"
+      ],
+      "clip_prompts_en": [
+        "a slice of bread",
+        "toast bread",
+        "breakfast bread",
+        "a photo of bread",
+        "a close-up photo of bread"
+      ],
+      "normalized_terms": [
+        "面包",
+        "bread",
+        "吐司",
+        "白面包"
+      ],
+      "notes": "早餐常见"
+    },
+    {
+      "concept_id": "sandwich",
+      "canonical_label": "三明治",
+      "english_name": "sandwich",
+      "group": "breakfast",
+      "group_zh": "早餐",
+      "priority": 7,
+      "aliases": [
+        "夹心三明治"
+      ],
+      "search_keywords": [
+        "三明治",
+        "夹心三明治",
+        "面包"
+      ],
+      "clip_prompts_zh": [
+        "一个三明治",
+        "早餐三明治",
+        "夹心面包三明治",
+        "一份三明治",
+        "餐桌上的三明治",
+        "早餐里的三明治",
+        "一份夹心三明治"
+      ],
+      "clip_prompts_en": [
+        "a sandwich",
+        "breakfast sandwich",
+        "filled sandwich",
+        "a photo of sandwich",
+        "a close-up photo of sandwich"
+      ],
+      "normalized_terms": [
+        "三明治",
+        "sandwich",
+        "夹心三明治",
+        "面包"
+      ],
+      "notes": "早餐常见"
+    },
+    {
+      "concept_id": "mantou",
+      "canonical_label": "馒头",
+      "english_name": "steamed bun",
+      "group": "staple",
+      "group_zh": "主食",
+      "priority": 8,
+      "aliases": [
+        "白馒头"
+      ],
+      "search_keywords": [
+        "馒头",
+        "白馒头"
+      ],
+      "clip_prompts_zh": [
+        "一个馒头",
+        "蒸好的白馒头",
+        "早餐馒头",
+        "一份馒头",
+        "餐桌上的馒头",
+        "主食里的馒头",
+        "一份白馒头"
+      ],
+      "clip_prompts_en": [
+        "a steamed bun",
+        "plain steamed bun",
+        "breakfast steamed bun",
+        "a photo of steamed bun",
+        "a close-up photo of steamed bun"
+      ],
+      "normalized_terms": [
+        "馒头",
+        "steamedbun",
+        "白馒头"
+      ],
+      "notes": "主食基础类"
+    },
+    {
+      "concept_id": "baozi",
+      "canonical_label": "包子",
+      "english_name": "baozi",
+      "group": "breakfast",
+      "group_zh": "早餐",
+      "priority": 9,
+      "aliases": [
+        "肉包",
+        "菜包"
+      ],
+      "search_keywords": [
+        "包子",
+        "肉包",
+        "菜包"
+      ],
+      "clip_prompts_zh": [
+        "一个包子",
+        "蒸笼里的包子",
+        "早餐包子",
+        "一份包子",
+        "餐桌上的包子",
+        "早餐里的包子",
+        "一份肉包",
+        "一份菜包"
+      ],
+      "clip_prompts_en": [
+        "a baozi",
+        "steamed stuffed bun",
+        "Chinese steamed bun",
+        "a photo of baozi",
+        "a close-up photo of baozi"
+      ],
+      "normalized_terms": [
+        "包子",
+        "baozi",
+        "肉包",
+        "菜包"
+      ],
+      "notes": "早餐常见"
+    },
+    {
+      "concept_id": "dumpling",
+      "canonical_label": "饺子",
+      "english_name": "dumpling",
+      "group": "staple",
+      "group_zh": "主食",
+      "priority": 10,
+      "aliases": [
+        "水饺"
+      ],
+      "search_keywords": [
+        "饺子",
+        "水饺"
+      ],
+      "clip_prompts_zh": [
+        "一盘饺子",
+        "水煮饺子",
+        "家常饺子",
+        "一份饺子",
+        "餐桌上的饺子",
+        "主食里的饺子",
+        "一份水饺"
+      ],
+      "clip_prompts_en": [
+        "a plate of dumplings",
+        "boiled dumplings",
+        "homemade dumplings",
+        "a photo of dumpling",
+        "a close-up photo of dumpling"
+      ],
+      "normalized_terms": [
+        "饺子",
+        "dumpling",
+        "水饺"
+      ],
+      "notes": "主食延伸类"
+    },
+    {
+      "concept_id": "oatmeal",
+      "canonical_label": "燕麦",
+      "english_name": "oatmeal",
+      "group": "breakfast",
+      "group_zh": "早餐",
+      "priority": 11,
+      "aliases": [
+        "燕麦片",
+        "即食燕麦"
+      ],
+      "search_keywords": [
+        "燕麦",
+        "燕麦片",
+        "即食燕麦"
+      ],
+      "clip_prompts_zh": [
+        "一碗燕麦",
+        "早餐燕麦片",
+        "牛奶燕麦",
+        "一份燕麦",
+        "餐桌上的燕麦",
+        "早餐里的燕麦",
+        "一份燕麦片",
+        "一份即食燕麦"
+      ],
+      "clip_prompts_en": [
+        "a bowl of oatmeal",
+        "oat flakes",
+        "breakfast oatmeal",
+        "a photo of oatmeal",
+        "a close-up photo of oatmeal"
+      ],
+      "normalized_terms": [
+        "燕麦",
+        "oatmeal",
+        "燕麦片",
+        "即食燕麦"
+      ],
+      "notes": "早餐谷物"
+    },
+    {
+      "concept_id": "banana",
+      "canonical_label": "香蕉",
+      "english_name": "banana",
+      "group": "fruit",
+      "group_zh": "水果",
+      "priority": 12,
+      "aliases": [
+        "香蕉切片"
+      ],
+      "search_keywords": [
+        "香蕉",
+        "香蕉切片"
+      ],
+      "clip_prompts_zh": [
+        "一根香蕉",
+        "切开的香蕉",
+        "水果香蕉",
+        "一份香蕉",
+        "餐桌上的香蕉",
+        "水果里的香蕉",
+        "一份香蕉切片"
+      ],
+      "clip_prompts_en": [
+        "a banana",
+        "sliced banana",
+        "fresh banana",
+        "a photo of banana",
+        "a close-up photo of banana"
+      ],
+      "normalized_terms": [
+        "香蕉",
+        "banana",
+        "香蕉切片"
+      ],
+      "notes": "水果"
+    },
+    {
+      "concept_id": "apple",
+      "canonical_label": "苹果",
+      "english_name": "apple",
+      "group": "fruit",
+      "group_zh": "水果",
+      "priority": 13,
+      "aliases": [
+        "苹果切片"
+      ],
+      "search_keywords": [
+        "苹果",
+        "苹果切片"
+      ],
+      "clip_prompts_zh": [
+        "一个苹果",
+        "切好的苹果",
+        "水果苹果",
+        "一份苹果",
+        "餐桌上的苹果",
+        "水果里的苹果",
+        "一份苹果切片"
+      ],
+      "clip_prompts_en": [
+        "an apple",
+        "sliced apple",
+        "fresh apple",
+        "a photo of apple",
+        "a close-up photo of apple"
+      ],
+      "normalized_terms": [
+        "苹果",
+        "apple",
+        "苹果切片"
+      ],
+      "notes": "水果"
+    },
+    {
+      "concept_id": "orange",
+      "canonical_label": "橙子",
+      "english_name": "orange",
+      "group": "fruit",
+      "group_zh": "水果",
+      "priority": 14,
+      "aliases": [
+        "橙",
+        "脐橙"
+      ],
+      "search_keywords": [
+        "橙子",
+        "橙",
+        "脐橙"
+      ],
+      "clip_prompts_zh": [
+        "一个橙子",
+        "切开的橙子",
+        "水果橙子",
+        "一份橙子",
+        "餐桌上的橙子",
+        "水果里的橙子",
+        "一份橙",
+        "一份脐橙"
+      ],
+      "clip_prompts_en": [
+        "an orange",
+        "sliced orange",
+        "fresh orange fruit",
+        "a photo of orange",
+        "a close-up photo of orange"
+      ],
+      "normalized_terms": [
+        "橙子",
+        "orange",
+        "橙",
+        "脐橙"
+      ],
+      "notes": "水果"
+    },
+    {
+      "concept_id": "broccoli",
+      "canonical_label": "西兰花",
+      "english_name": "broccoli",
+      "group": "vegetable",
+      "group_zh": "蔬菜",
+      "priority": 15,
+      "aliases": [
+        "西蓝花"
+      ],
+      "search_keywords": [
+        "西兰花",
+        "西蓝花"
+      ],
+      "clip_prompts_zh": [
+        "一份西兰花",
+        "清蒸西兰花",
+        "餐盘里的西兰花",
+        "餐桌上的西兰花",
+        "蔬菜里的西兰花",
+        "一份西蓝花"
+      ],
+      "clip_prompts_en": [
+        "broccoli",
+        "steamed broccoli",
+        "broccoli on a plate",
+        "a photo of broccoli",
+        "a close-up photo of broccoli"
+      ],
+      "normalized_terms": [
+        "西兰花",
+        "broccoli",
+        "西蓝花"
+      ],
+      "notes": "蔬菜"
+    },
+    {
+      "concept_id": "cucumber",
+      "canonical_label": "黄瓜",
+      "english_name": "cucumber",
+      "group": "vegetable",
+      "group_zh": "蔬菜",
+      "priority": 16,
+      "aliases": [
+        "青瓜"
+      ],
+      "search_keywords": [
+        "黄瓜",
+        "青瓜"
+      ],
+      "clip_prompts_zh": [
+        "一根黄瓜",
+        "切片黄瓜",
+        "凉拌黄瓜",
+        "一份黄瓜",
+        "餐桌上的黄瓜",
+        "蔬菜里的黄瓜",
+        "一份青瓜"
+      ],
+      "clip_prompts_en": [
+        "a cucumber",
+        "sliced cucumber",
+        "cucumber salad",
+        "a photo of cucumber",
+        "a close-up photo of cucumber"
+      ],
+      "normalized_terms": [
+        "黄瓜",
+        "cucumber",
+        "青瓜"
+      ],
+      "notes": "蔬菜"
+    },
+    {
+      "concept_id": "tomato",
+      "canonical_label": "番茄",
+      "english_name": "tomato",
+      "group": "vegetable",
+      "group_zh": "蔬菜",
+      "priority": 17,
+      "aliases": [
+        "西红柿"
+      ],
+      "search_keywords": [
+        "番茄",
+        "西红柿"
+      ],
+      "clip_prompts_zh": [
+        "一个番茄",
+        "切开的番茄",
+        "新鲜西红柿",
+        "一份番茄",
+        "餐桌上的番茄",
+        "蔬菜里的番茄",
+        "一份西红柿"
+      ],
+      "clip_prompts_en": [
+        "a tomato",
+        "sliced tomato",
+        "fresh tomato",
+        "a photo of tomato",
+        "a close-up photo of tomato"
+      ],
+      "normalized_terms": [
+        "番茄",
+        "tomato",
+        "西红柿"
+      ],
+      "notes": "蔬菜"
+    },
+    {
+      "concept_id": "potato",
+      "canonical_label": "土豆",
+      "english_name": "potato",
+      "group": "vegetable",
+      "group_zh": "蔬菜",
+      "priority": 18,
+      "aliases": [
+        "马铃薯"
+      ],
+      "search_keywords": [
+        "土豆",
+        "马铃薯"
+      ],
+      "clip_prompts_zh": [
+        "一个土豆",
+        "切块土豆",
+        "烹饪前的土豆",
+        "一份土豆",
+        "餐桌上的土豆",
+        "蔬菜里的土豆",
+        "一份马铃薯"
+      ],
+      "clip_prompts_en": [
+        "a potato",
+        "cut potato",
+        "raw potato",
+        "a photo of potato",
+        "a close-up photo of potato"
+      ],
+      "normalized_terms": [
+        "土豆",
+        "potato",
+        "马铃薯"
+      ],
+      "notes": "蔬菜"
+    },
+    {
+      "concept_id": "corn",
+      "canonical_label": "玉米",
+      "english_name": "corn",
+      "group": "staple",
+      "group_zh": "主食",
+      "priority": 19,
+      "aliases": [
+        "甜玉米"
+      ],
+      "search_keywords": [
+        "玉米",
+        "甜玉米"
+      ],
+      "clip_prompts_zh": [
+        "一根玉米",
+        "煮熟的玉米",
+        "甜玉米",
+        "一份玉米",
+        "餐桌上的玉米",
+        "主食里的玉米",
+        "一份甜玉米"
+      ],
+      "clip_prompts_en": [
+        "corn",
+        "boiled corn",
+        "sweet corn",
+        "a photo of corn",
+        "a close-up photo of corn"
+      ],
+      "normalized_terms": [
+        "玉米",
+        "corn",
+        "甜玉米"
+      ],
+      "notes": "主食蔬菜交叉类"
+    },
+    {
+      "concept_id": "tofu",
+      "canonical_label": "豆腐",
+      "english_name": "tofu",
+      "group": "protein",
+      "group_zh": "蛋白质",
+      "priority": 20,
+      "aliases": [
+        "嫩豆腐",
+        "北豆腐"
+      ],
+      "search_keywords": [
+        "豆腐",
+        "嫩豆腐",
+        "北豆腐"
+      ],
+      "clip_prompts_zh": [
+        "一块豆腐",
+        "切块豆腐",
+        "家常豆腐",
+        "一份豆腐",
+        "餐桌上的豆腐",
+        "蛋白质里的豆腐",
+        "一份嫩豆腐",
+        "一份北豆腐"
+      ],
+      "clip_prompts_en": [
+        "tofu",
+        "cubed tofu",
+        "plain tofu",
+        "a photo of tofu",
+        "a close-up photo of tofu"
+      ],
+      "normalized_terms": [
+        "豆腐",
+        "tofu",
+        "嫩豆腐",
+        "北豆腐"
+      ],
+      "notes": "豆制品"
+    },
+    {
+      "concept_id": "chicken_breast",
+      "canonical_label": "鸡胸肉",
+      "english_name": "chicken breast",
+      "group": "protein",
+      "group_zh": "蛋白质",
+      "priority": 21,
+      "aliases": [
+        "鸡肉",
+        "鸡排"
+      ],
+      "search_keywords": [
+        "鸡胸肉",
+        "鸡肉",
+        "鸡排"
+      ],
+      "clip_prompts_zh": [
+        "一份鸡胸肉",
+        "煎鸡胸肉",
+        "餐盒里的鸡肉",
+        "餐桌上的鸡胸肉",
+        "蛋白质里的鸡胸肉",
+        "一份鸡肉",
+        "一份鸡排"
+      ],
+      "clip_prompts_en": [
+        "chicken breast",
+        "grilled chicken breast",
+        "cooked chicken breast",
+        "a photo of chicken breast",
+        "a close-up photo of chicken breast"
+      ],
+      "normalized_terms": [
+        "鸡胸肉",
+        "chickenbreast",
+        "鸡肉",
+        "鸡排"
+      ],
+      "notes": "蛋白质来源"
+    },
+    {
+      "concept_id": "beef",
+      "canonical_label": "牛肉",
+      "english_name": "beef",
+      "group": "protein",
+      "group_zh": "蛋白质",
+      "priority": 22,
+      "aliases": [
+        "牛排",
+        "熟牛肉"
+      ],
+      "search_keywords": [
+        "牛肉",
+        "牛排",
+        "熟牛肉"
+      ],
+      "clip_prompts_zh": [
+        "一份牛肉",
+        "切片牛肉",
+        "餐盘里的牛肉",
+        "餐桌上的牛肉",
+        "蛋白质里的牛肉",
+        "一份牛排",
+        "一份熟牛肉"
+      ],
+      "clip_prompts_en": [
+        "beef",
+        "sliced beef",
+        "cooked beef dish",
+        "a photo of beef",
+        "a close-up photo of beef"
+      ],
+      "normalized_terms": [
+        "牛肉",
+        "beef",
+        "牛排",
+        "熟牛肉"
+      ],
+      "notes": "蛋白质来源"
+    },
+    {
+      "concept_id": "fish",
+      "canonical_label": "鱼",
+      "english_name": "fish",
+      "group": "protein",
+      "group_zh": "蛋白质",
+      "priority": 23,
+      "aliases": [
+        "鱼肉",
+        "鱼排"
+      ],
+      "search_keywords": [
+        "鱼",
+        "鱼肉",
+        "鱼排"
+      ],
+      "clip_prompts_zh": [
+        "一份鱼肉",
+        "煎鱼排",
+        "餐盘里的鱼",
+        "一份鱼",
+        "餐桌上的鱼",
+        "蛋白质里的鱼",
+        "一份鱼排"
+      ],
+      "clip_prompts_en": [
+        "fish",
+        "fish fillet",
+        "cooked fish dish",
+        "a photo of fish",
+        "a close-up photo of fish"
+      ],
+      "normalized_terms": [
+        "鱼",
+        "fish",
+        "鱼肉",
+        "鱼排"
+      ],
+      "notes": "蛋白质来源"
+    },
+    {
+      "concept_id": "shrimp",
+      "canonical_label": "虾",
+      "english_name": "shrimp",
+      "group": "protein",
+      "group_zh": "蛋白质",
+      "priority": 24,
+      "aliases": [
+        "虾仁"
+      ],
+      "search_keywords": [
+        "虾",
+        "虾仁"
+      ],
+      "clip_prompts_zh": [
+        "一份虾",
+        "熟虾仁",
+        "餐盘里的虾",
+        "餐桌上的虾",
+        "蛋白质里的虾",
+        "一份虾仁"
+      ],
+      "clip_prompts_en": [
+        "shrimp",
+        "peeled shrimp",
+        "cooked shrimp dish",
+        "a photo of shrimp",
+        "a close-up photo of shrimp"
+      ],
+      "normalized_terms": [
+        "虾",
+        "shrimp",
+        "虾仁"
+      ],
+      "notes": "蛋白质来源"
+    },
+    {
+      "concept_id": "salad",
+      "canonical_label": "沙拉",
+      "english_name": "salad",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 25,
+      "aliases": [
+        "蔬菜沙拉",
+        "鸡肉沙拉"
+      ],
+      "search_keywords": [
+        "沙拉",
+        "蔬菜沙拉",
+        "鸡肉沙拉"
+      ],
+      "clip_prompts_zh": [
+        "一份沙拉",
+        "轻食沙拉",
+        "蔬菜鸡肉沙拉",
+        "餐桌上的沙拉",
+        "复合菜品里的沙拉",
+        "一份蔬菜沙拉",
+        "一份鸡肉沙拉"
+      ],
+      "clip_prompts_en": [
+        "a salad",
+        "vegetable salad",
+        "healthy salad bowl",
+        "a photo of salad",
+        "a close-up photo of salad"
+      ],
+      "normalized_terms": [
+        "沙拉",
+        "salad",
+        "蔬菜沙拉",
+        "鸡肉沙拉"
+      ],
+      "notes": "组合餐"
+    },
+    {
+      "concept_id": "fried_rice",
+      "canonical_label": "炒饭",
+      "english_name": "fried rice",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 26,
+      "aliases": [
+        "蛋炒饭"
+      ],
+      "search_keywords": [
+        "炒饭",
+        "蛋炒饭",
+        "米饭"
+      ],
+      "clip_prompts_zh": [
+        "一盘炒饭",
+        "蛋炒饭",
+        "家常炒饭",
+        "一份炒饭",
+        "餐桌上的炒饭",
+        "复合菜品里的炒饭",
+        "一份蛋炒饭"
+      ],
+      "clip_prompts_en": [
+        "fried rice",
+        "egg fried rice",
+        "a plate of fried rice",
+        "a photo of fried rice",
+        "a close-up photo of fried rice"
+      ],
+      "normalized_terms": [
+        "炒饭",
+        "friedrice",
+        "蛋炒饭",
+        "米饭"
+      ],
+      "notes": "中餐复合类"
+    },
+    {
+      "concept_id": "fried_noodles",
+      "canonical_label": "炒面",
+      "english_name": "fried noodles",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 27,
+      "aliases": [
+        "拌面",
+        "炒面条"
+      ],
+      "search_keywords": [
+        "炒面",
+        "拌面",
+        "面条"
+      ],
+      "clip_prompts_zh": [
+        "一盘炒面",
+        "家常炒面",
+        "炒面条",
+        "一份炒面",
+        "餐桌上的炒面",
+        "复合菜品里的炒面",
+        "一份拌面",
+        "一份炒面条"
+      ],
+      "clip_prompts_en": [
+        "fried noodles",
+        "stir-fried noodles",
+        "a plate of fried noodles",
+        "a photo of fried noodles",
+        "a close-up photo of fried noodles"
+      ],
+      "normalized_terms": [
+        "炒面",
+        "friednoodles",
+        "拌面",
+        "炒面条",
+        "面条"
+      ],
+      "notes": "中餐复合类"
+    },
+    {
+      "concept_id": "porridge",
+      "canonical_label": "粥",
+      "english_name": "porridge",
+      "group": "breakfast",
+      "group_zh": "早餐",
+      "priority": 28,
+      "aliases": [
+        "白粥",
+        "稀饭"
+      ],
+      "search_keywords": [
+        "粥",
+        "白粥",
+        "稀饭"
+      ],
+      "clip_prompts_zh": [
+        "一碗粥",
+        "早餐白粥",
+        "热粥",
+        "一份粥",
+        "餐桌上的粥",
+        "早餐里的粥",
+        "一份白粥",
+        "一份稀饭"
+      ],
+      "clip_prompts_en": [
+        "a bowl of porridge",
+        "plain porridge",
+        "rice porridge",
+        "a photo of porridge",
+        "a close-up photo of porridge"
+      ],
+      "normalized_terms": [
+        "粥",
+        "porridge",
+        "白粥",
+        "稀饭"
+      ],
+      "notes": "早餐高频"
+    },
+    {
+      "concept_id": "hot_sour_potato",
+      "canonical_label": "酸辣土豆丝",
+      "english_name": "hot and sour shredded potato",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 29,
+      "aliases": [
+        "土豆丝"
+      ],
+      "search_keywords": [
+        "酸辣土豆丝",
+        "土豆丝",
+        "土豆"
+      ],
+      "clip_prompts_zh": [
+        "一盘酸辣土豆丝",
+        "家常土豆丝",
+        "酸辣口味土豆丝",
+        "一份酸辣土豆丝",
+        "餐桌上的酸辣土豆丝",
+        "复合菜品里的酸辣土豆丝",
+        "一份土豆丝"
+      ],
+      "clip_prompts_en": [
+        "hot and sour shredded potato",
+        "stir-fried shredded potato",
+        "potato strips dish",
+        "a photo of hot and sour shredded potato",
+        "a close-up photo of hot and sour shredded potato"
+      ],
+      "normalized_terms": [
+        "酸辣土豆丝",
+        "hotandsourshreddedpotato",
+        "土豆丝",
+        "土豆"
+      ],
+      "notes": "中餐复合类"
+    },
+    {
+      "concept_id": "tomato_egg",
+      "canonical_label": "西红柿炒蛋",
+      "english_name": "tomato scrambled eggs",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 30,
+      "aliases": [
+        "番茄炒蛋"
+      ],
+      "search_keywords": [
+        "西红柿炒蛋",
+        "番茄炒蛋",
+        "鸡蛋",
+        "番茄"
+      ],
+      "clip_prompts_zh": [
+        "一盘西红柿炒蛋",
+        "番茄炒鸡蛋",
+        "家常番茄鸡蛋",
+        "一份西红柿炒蛋",
+        "餐桌上的西红柿炒蛋",
+        "复合菜品里的西红柿炒蛋",
+        "一份番茄炒蛋"
+      ],
+      "clip_prompts_en": [
+        "tomato scrambled eggs",
+        "stir-fried tomato and egg",
+        "Chinese tomato egg dish",
+        "a photo of tomato scrambled eggs",
+        "a close-up photo of tomato scrambled eggs"
+      ],
+      "normalized_terms": [
+        "西红柿炒蛋",
+        "tomatoscrambledeggs",
+        "番茄炒蛋",
+        "鸡蛋",
+        "番茄"
+      ],
+      "notes": "中餐复合类"
+    },
+    {
+      "concept_id": "kung_pao_chicken",
+      "canonical_label": "宫保鸡丁",
+      "english_name": "kung pao chicken",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 31,
+      "aliases": [
+        "宫保鸡"
+      ],
+      "search_keywords": [
+        "宫保鸡丁",
+        "宫保鸡",
+        "鸡肉"
+      ],
+      "clip_prompts_zh": [
+        "一盘宫保鸡丁",
+        "川味宫保鸡丁",
+        "中式炒鸡丁",
+        "一份宫保鸡丁",
+        "餐桌上的宫保鸡丁",
+        "复合菜品里的宫保鸡丁",
+        "一份宫保鸡"
+      ],
+      "clip_prompts_en": [
+        "kung pao chicken",
+        "diced chicken with peanuts",
+        "Chinese kung pao chicken",
+        "a photo of kung pao chicken",
+        "a close-up photo of kung pao chicken"
+      ],
+      "normalized_terms": [
+        "宫保鸡丁",
+        "kungpaochicken",
+        "宫保鸡",
+        "鸡肉"
+      ],
+      "notes": "中餐复合类"
+    },
+    {
+      "concept_id": "stir_fried_vegetables",
+      "canonical_label": "清炒时蔬",
+      "english_name": "stir-fried vegetables",
+      "group": "mixed_meal",
+      "group_zh": "复合菜品",
+      "priority": 32,
+      "aliases": [
+        "炒青菜"
+      ],
+      "search_keywords": [
+        "清炒时蔬",
+        "炒青菜",
+        "西兰花",
+        "黄瓜"
+      ],
+      "clip_prompts_zh": [
+        "一盘清炒时蔬",
+        "炒青菜",
+        "家常清炒蔬菜",
+        "一份清炒时蔬",
+        "餐桌上的清炒时蔬",
+        "复合菜品里的清炒时蔬",
+        "一份炒青菜"
+      ],
+      "clip_prompts_en": [
+        "stir-fried vegetables",
+        "fried green vegetables",
+        "Chinese mixed vegetables dish",
+        "a photo of stir-fried vegetables",
+        "a close-up photo of stir-fried vegetables"
+      ],
+      "normalized_terms": [
+        "清炒时蔬",
+        "stirfriedvegetables",
+        "炒青菜",
+        "西兰花",
+        "黄瓜"
+      ],
+      "notes": "中餐复合类"
+    }
+  ]
+}
