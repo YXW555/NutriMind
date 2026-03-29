@@ -294,9 +294,9 @@ const calorieCompletionPercent = computed(() => {
   return Math.max(0, Math.round((totalCaloriesNumber.value / referenceCalories.value) * 100))
 })
 const calorieRingPercent = computed(() => Math.min(calorieCompletionPercent.value, 100))
-const calorieAccentColor = computed(() => (calorieCompletionPercent.value > 100 ? '#ff8d7e' : '#bbffd8'))
+const calorieAccentColor = computed(() => (calorieCompletionPercent.value > 100 ? '#c27d58' : '#6ba27b'))
 const calorieRingStyle = computed(() => ({
-  background: `conic-gradient(from -90deg, ${calorieAccentColor.value} 0 ${calorieRingPercent.value}%, rgba(255, 255, 255, 0.16) ${calorieRingPercent.value}% 100%)`
+  background: `conic-gradient(from -90deg, ${calorieAccentColor.value} 0 ${calorieRingPercent.value}%, rgba(31, 41, 55, 0.08) ${calorieRingPercent.value}% 100%)`
 }))
 const calorieStatusText = computed(() => {
   if (totalCaloriesNumber.value <= 0) {
@@ -504,7 +504,7 @@ onShow(() => {
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 48rpx 28rpx 220rpx;
+  padding: 40rpx 24rpx 176rpx;
 }
 
 .top-bar,
@@ -541,30 +541,29 @@ onShow(() => {
 }
 
 .brand-wrap {
-  gap: 18rpx;
+  gap: 14rpx;
   align-items: center;
 }
 
 .brand-logo {
-  width: 84rpx;
-  height: 84rpx;
-  border-radius: 24rpx;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
   background: var(--nm-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 14rpx 24rpx rgba(14, 165, 109, 0.18);
 }
 
 .brand-logo-text {
-  font-size: 40rpx;
+  font-size: 36rpx;
   font-weight: 800;
   color: #ffffff;
 }
 
 .brand-title {
   display: block;
-  font-size: 50rpx;
+  font-size: 42rpx;
   font-weight: 800;
   color: var(--nm-text);
 }
@@ -593,21 +592,20 @@ onShow(() => {
 }
 
 .avatar {
-  width: 86rpx;
-  height: 86rpx;
+  width: 72rpx;
+  height: 72rpx;
   border-radius: 50%;
   background: var(--nm-card);
-  border: 2rpx solid rgba(14, 165, 109, 0.14);
+  border: 1rpx solid var(--nm-line);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: var(--nm-shadow);
 }
 
 .avatar-text {
-  font-size: 34rpx;
+  font-size: 30rpx;
   font-weight: 700;
-  color: var(--nm-primary);
+  color: var(--nm-text);
 }
 
 .hero-card,
@@ -616,14 +614,15 @@ onShow(() => {
 .insight-card,
 .empty-card,
 .record-card {
-  border-radius: 36rpx;
+  border-radius: 22rpx;
   box-shadow: var(--nm-shadow);
 }
 
 .hero-card {
   margin-top: 30rpx;
   padding: 30rpx;
-  background: linear-gradient(140deg, #0ea56d 0%, #1bbf83 100%);
+  background: linear-gradient(160deg, #edf7ef 0%, #ffffff 100%);
+  border: 1rpx solid var(--nm-line);
 }
 
 .hero-copy {
@@ -639,19 +638,20 @@ onShow(() => {
 .hero-stat-label,
 .hero-stat-value,
 .hero-stat-unit {
-  color: rgba(255, 255, 255, 0.96);
+  color: var(--nm-text);
 }
 
 .hero-kicker {
   display: block;
-  font-size: 28rpx;
+  font-size: 24rpx;
   font-weight: 700;
+  color: var(--nm-primary);
 }
 
 .hero-title {
   display: block;
   margin-top: 10rpx;
-  font-size: 48rpx;
+  font-size: 42rpx;
   line-height: 1.2;
   font-weight: 800;
 }
@@ -660,22 +660,23 @@ onShow(() => {
   display: block;
   margin-top: 10rpx;
   line-height: 1.65;
-  color: rgba(255, 255, 255, 0.74);
+  color: var(--nm-muted);
 }
 
 .hero-pill {
   flex-shrink: 0;
   margin-left: 18rpx;
   padding: 18rpx 22rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.16);
+  border-radius: 16rpx;
+  background: rgba(255, 252, 247, 0.86);
+  border: 1rpx solid var(--nm-line);
   text-align: center;
 }
 
 .hero-pill-value {
   display: block;
   margin-top: 6rpx;
-  font-size: 34rpx;
+  font-size: 30rpx;
   font-weight: 800;
 }
 
@@ -698,18 +699,19 @@ onShow(() => {
   height: 220rpx;
   padding: 16rpx;
   border-radius: 50%;
-  box-shadow: inset 0 0 0 1rpx rgba(255, 255, 255, 0.08);
+  background: #e7f2ea;
 }
 
 .ring-inner {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.94);
+  background: #ffffff;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  border: 1rpx solid rgba(31, 41, 55, 0.06);
 }
 
 .ring-percent {
@@ -720,7 +722,7 @@ onShow(() => {
 
 .ring-label {
   margin-top: 10rpx;
-  color: #627061;
+  color: var(--nm-muted);
 }
 
 .ring-status {
@@ -740,9 +742,9 @@ onShow(() => {
 .hero-stat-card {
   min-height: 120rpx;
   padding: 20rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.14);
-  backdrop-filter: blur(10rpx);
+  border-radius: 16rpx;
+  background: rgba(255, 251, 246, 0.9);
+  border: 1rpx solid rgba(31, 41, 55, 0.05);
 }
 
 .hero-stat-value {
@@ -756,13 +758,14 @@ onShow(() => {
 .hero-stat-unit {
   display: block;
   margin-top: 8rpx;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--nm-muted);
 }
 
 .macro-panel {
   margin-top: 28rpx;
   padding: 30rpx;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--nm-card);
+  border: 1rpx solid var(--nm-line);
 }
 
 .panel-title {
@@ -805,27 +808,27 @@ onShow(() => {
 }
 
 .macro-status.idle {
-  background: rgba(143, 137, 123, 0.12);
+  background: rgba(107, 114, 128, 0.12);
 }
 
 .macro-status.low,
 .macro-status.high {
-  background: rgba(244, 165, 22, 0.16);
+  background: rgba(180, 83, 9, 0.12);
 }
 
 .macro-status.good {
-  background: rgba(14, 165, 109, 0.14);
+  background: rgba(47, 125, 107, 0.12);
 }
 
 .macro-status-text {
   font-size: 24rpx;
   font-weight: 700;
-  color: #6f685c;
+  color: var(--nm-muted);
 }
 
 .macro-status.low .macro-status-text,
 .macro-status.high .macro-status-text {
-  color: #b87412;
+  color: var(--nm-danger);
 }
 
 .macro-status.good .macro-status-text {
@@ -838,7 +841,7 @@ onShow(() => {
   height: 18rpx;
   margin-top: 18rpx;
   border-radius: 999rpx;
-  background: #ece9e2;
+  background: #e5e7eb;
 }
 
 .macro-range,
@@ -852,8 +855,8 @@ onShow(() => {
 .macro-range {
   top: 2rpx;
   bottom: 2rpx;
-  background: rgba(14, 165, 109, 0.1);
-  border: 2rpx solid rgba(14, 165, 109, 0.18);
+  background: rgba(47, 125, 107, 0.08);
+  border: 2rpx solid rgba(47, 125, 107, 0.16);
 }
 
 .macro-fill {
@@ -861,15 +864,15 @@ onShow(() => {
 }
 
 .macro-fill.protein {
-  background: linear-gradient(90deg, #18bc84 0%, #1da56d 100%);
+  background: #6ba27b;
 }
 
 .macro-fill.carbohydrate {
-  background: linear-gradient(90deg, #4a82f2 0%, #3f72e3 100%);
+  background: #7ea8c7;
 }
 
 .macro-fill.fat {
-  background: linear-gradient(90deg, #f7b216 0%, #ef9c12 100%);
+  background: #d0a763;
 }
 
 .macro-foot {
@@ -890,33 +893,33 @@ onShow(() => {
   display: flex;
   gap: 18rpx;
   align-items: flex-start;
-  border: 1rpx solid rgba(22, 20, 16, 0.04);
+  border: 1rpx solid var(--nm-line);
 }
 
 .action-card.capture {
-  background: linear-gradient(160deg, #ecfff5 0%, #ffffff 100%);
+  background: #edf7ef;
 }
 
 .action-card.meals {
-  background: linear-gradient(160deg, #fff6e7 0%, #ffffff 100%);
+  background: #f8f4ea;
 }
 
 .action-card.report {
-  background: linear-gradient(160deg, #edf4ff 0%, #ffffff 100%);
+  background: #eef5fb;
 }
 
 .action-card.plan {
-  background: linear-gradient(160deg, #eefbf4 0%, #ffffff 100%);
+  background: #eef8f1;
 }
 
 .action-card.advisor {
-  background: linear-gradient(160deg, #f4fbf8 0%, #ffffff 100%);
+  background: #f4f8f5;
 }
 
 .action-badge {
   width: 70rpx;
   height: 70rpx;
-  border-radius: 22rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -924,23 +927,23 @@ onShow(() => {
 }
 
 .action-badge.capture {
-  background: rgba(14, 165, 109, 0.14);
+  background: rgba(47, 125, 107, 0.12);
 }
 
 .action-badge.meals {
-  background: rgba(246, 163, 19, 0.14);
+  background: rgba(183, 121, 31, 0.12);
 }
 
 .action-badge.report {
-  background: rgba(66, 132, 243, 0.14);
+  background: rgba(72, 110, 155, 0.12);
 }
 
 .action-badge.plan {
-  background: rgba(14, 165, 109, 0.14);
+  background: rgba(47, 125, 107, 0.12);
 }
 
 .action-badge.advisor {
-  background: rgba(27, 165, 131, 0.12);
+  background: rgba(24, 34, 47, 0.08);
 }
 
 .action-badge-text {
@@ -971,14 +974,15 @@ onShow(() => {
 .insight-card {
   margin-top: 28rpx;
   padding: 28rpx;
-  background: linear-gradient(155deg, #fff8e7 0%, #ffffff 100%);
+  background: linear-gradient(160deg, #f4faef 0%, #ffffff 100%);
+  border: 1rpx solid var(--nm-line);
 }
 
 .insight-kicker {
   display: block;
   font-size: 24rpx;
   font-weight: 700;
-  color: #bb7f16;
+  color: #a6792d;
 }
 
 .insight-title {
@@ -993,7 +997,7 @@ onShow(() => {
 .insight-rate {
   padding: 12rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(14, 165, 109, 0.12);
+  background: rgba(47, 125, 107, 0.12);
   font-size: 28rpx;
   font-weight: 800;
   color: var(--nm-primary);
@@ -1014,8 +1018,8 @@ onShow(() => {
 
 .insight-pill {
   padding: 18rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16rpx;
+  background: rgba(255, 252, 247, 0.9);
 }
 
 .insight-pill-value {
@@ -1034,7 +1038,7 @@ onShow(() => {
 
 .section-title {
   display: block;
-  font-size: 54rpx;
+  font-size: 42rpx;
   font-weight: 800;
   color: var(--nm-text);
 }
@@ -1048,6 +1052,7 @@ onShow(() => {
 .empty-card {
   padding: 28rpx;
   background: var(--nm-card);
+  border: 1rpx solid var(--nm-line);
 }
 
 .empty-title {
@@ -1068,12 +1073,13 @@ onShow(() => {
   margin-top: 18rpx;
   padding: 22rpx;
   background: var(--nm-card);
+  border: 1rpx solid var(--nm-line);
 }
 
 .record-cover {
   width: 116rpx;
   height: 116rpx;
-  border-radius: 28rpx;
+  border-radius: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1081,25 +1087,25 @@ onShow(() => {
 }
 
 .record-cover.breakfast {
-  background: linear-gradient(135deg, #ffe6bb 0%, #ffd088 100%);
+  background: #f4ead7;
 }
 
 .record-cover.lunch {
-  background: linear-gradient(135deg, #d7f4e5 0%, #b7e9cf 100%);
+  background: #e3f0ea;
 }
 
 .record-cover.dinner {
-  background: linear-gradient(135deg, #dce9ff 0%, #bfd4ff 100%);
+  background: #e6edf5;
 }
 
 .record-cover.snack {
-  background: linear-gradient(135deg, #f1dfd0 0%, #ead0b5 100%);
+  background: #eee5dc;
 }
 
 .record-cover-text {
   font-size: 24rpx;
   font-weight: 700;
-  color: #544a3a;
+  color: #4b5563;
 }
 
 .record-main {
@@ -1135,6 +1141,6 @@ onShow(() => {
   display: block;
   margin-top: 10rpx;
   font-size: 24rpx;
-  color: #b0a99b;
+  color: var(--nm-muted);
 }
 </style>

@@ -1,9 +1,5 @@
 <template>
   <view class="page">
-    <view class="bg-orb orb-left"></view>
-    <view class="bg-orb orb-right"></view>
-    <view class="bg-grid"></view>
-
     <view class="auth-shell">
       <view class="auth-card">
         <view class="auth-brand">
@@ -459,60 +455,20 @@ onShow(() => {
 
 <style scoped>
 .page {
-  position: relative;
   min-height: 100vh;
-  padding: 36rpx 28rpx 48rpx;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(14, 165, 109, 0.14) 0%, rgba(14, 165, 109, 0) 36%),
-    radial-gradient(circle at top right, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0) 30%),
-    linear-gradient(180deg, #f4f2ea 0%, #eef7f1 100%);
-}
-
-.bg-orb {
-  position: absolute;
-  border-radius: 999rpx;
-  filter: blur(26rpx);
-  opacity: 0.8;
-}
-
-.orb-left {
-  top: 140rpx;
-  left: -80rpx;
-  width: 240rpx;
-  height: 240rpx;
-  background: rgba(14, 165, 109, 0.14);
-}
-
-.orb-right {
-  top: 420rpx;
-  right: -70rpx;
-  width: 220rpx;
-  height: 220rpx;
-  background: rgba(251, 191, 36, 0.16);
-}
-
-.bg-grid {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(15, 23, 42, 0.03) 1rpx, transparent 1rpx),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.03) 1rpx, transparent 1rpx);
-  background-size: 36rpx 36rpx;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent 70%);
+  padding: 44rpx 28rpx 56rpx;
+  background: linear-gradient(180deg, #fbfefc 0%, #eef7f1 100%);
 }
 
 .auth-shell {
-  position: relative;
-  z-index: 1;
-  min-height: calc(100vh - 84rpx);
+  min-height: calc(100vh - 100rpx);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 }
 
 .auth-card {
-  border-radius: 36rpx;
+  border-radius: 24rpx;
   box-shadow: var(--nm-shadow);
 }
 
@@ -530,19 +486,18 @@ onShow(() => {
 }
 
 .brand-icon {
-  width: 96rpx;
-  height: 96rpx;
-  border-radius: 30rpx;
-  background: linear-gradient(135deg, #0ea56d 0%, #18bf82 100%);
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 20rpx;
+  background: var(--nm-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 20rpx 34rpx rgba(14, 165, 109, 0.2);
   flex-shrink: 0;
 }
 
 .brand-icon-text {
-  font-size: 50rpx;
+  font-size: 42rpx;
   font-weight: 800;
   color: #ffffff;
 }
@@ -553,13 +508,13 @@ onShow(() => {
 }
 
 .auth-brand {
-  gap: 18rpx;
-  margin-bottom: 28rpx;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
 }
 
 .brand-title {
   display: block;
-  font-size: 52rpx;
+  font-size: 44rpx;
   font-weight: 800;
   color: var(--nm-text);
 }
@@ -575,35 +530,34 @@ onShow(() => {
 .auth-card {
   width: 100%;
   max-width: 760rpx;
-  padding: 36rpx 32rpx 32rpx;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1rpx solid rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(18rpx);
+  padding: 32rpx 28rpx 28rpx;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1rpx solid var(--nm-line);
 }
 
 .mode-switch {
   display: flex;
-  gap: 12rpx;
-  padding: 10rpx;
-  border-radius: 24rpx;
-  background: #eef2f4;
+  gap: 8rpx;
+  padding: 8rpx;
+  border-radius: 18rpx;
+  background: var(--nm-surface);
 }
 
 .mode-chip {
   flex: 1;
-  padding: 18rpx 0;
-  border-radius: 18rpx;
+  padding: 16rpx 0;
+  border-radius: 14rpx;
   text-align: center;
   font-size: 28rpx;
-  font-weight: 800;
-  color: #64748b;
+  font-weight: 700;
+  color: var(--nm-muted);
   transition: all 0.2s ease;
 }
 
 .mode-chip.active {
-  background: #172033;
+  background: var(--nm-primary);
   color: #ffffff;
-  box-shadow: 0 10rpx 22rpx rgba(23, 32, 51, 0.18);
+  box-shadow: none;
 }
 
 .field-list {
@@ -634,7 +588,7 @@ onShow(() => {
 .field-label {
   font-size: 27rpx;
   font-weight: 800;
-  color: #334155;
+  color: var(--nm-text);
 }
 
 .field-tip {
@@ -646,18 +600,18 @@ onShow(() => {
 .field-input {
   width: 100%;
   min-height: 94rpx;
-  padding: 24rpx;
-  border-radius: 24rpx;
-  background: #f7faf9;
-  border: 1rpx solid rgba(14, 165, 109, 0.08);
+  padding: 24rpx 22rpx;
+  border-radius: 18rpx;
+  background: #f1f8f3;
+  border: 1rpx solid var(--nm-line);
   box-sizing: border-box;
   font-size: 28rpx;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .field-input:focus {
-  border-color: rgba(14, 165, 109, 0.36);
-  box-shadow: 0 0 0 6rpx rgba(14, 165, 109, 0.08);
+  border-color: rgba(47, 125, 107, 0.35);
+  box-shadow: 0 0 0 4rpx rgba(47, 125, 107, 0.08);
 }
 
 .password-wrap {
@@ -675,7 +629,7 @@ onShow(() => {
   transform: translateY(-50%);
   font-size: 24rpx;
   font-weight: 700;
-  color: var(--nm-primary-dark);
+  color: var(--nm-primary);
 }
 
 .feedback-text {
@@ -683,19 +637,19 @@ onShow(() => {
 }
 
 .feedback-good {
-  color: #0f9f6d;
+  color: var(--nm-primary);
 }
 
 .feedback-warn {
-  color: #c2410c;
+  color: var(--nm-danger);
 }
 
 .strength-card {
   margin-top: 24rpx;
   padding: 24rpx;
-  border-radius: 26rpx;
-  background: linear-gradient(160deg, #f7faf9 0%, #ffffff 100%);
-  border: 1rpx solid rgba(14, 165, 109, 0.08);
+  border-radius: 18rpx;
+  background: #f4faf5;
+  border: 1rpx solid var(--nm-line);
 }
 
 .strength-head {
@@ -706,7 +660,7 @@ onShow(() => {
 .strength-title {
   font-size: 28rpx;
   font-weight: 800;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .strength-label {
@@ -718,18 +672,18 @@ onShow(() => {
 
 .strength-label.level-0,
 .strength-label.level-1 {
-  background: rgba(194, 65, 12, 0.1);
-  color: #c2410c;
+  background: rgba(180, 83, 9, 0.12);
+  color: var(--nm-danger);
 }
 
 .strength-label.level-2 {
-  background: rgba(245, 158, 11, 0.12);
-  color: #b45309;
+  background: rgba(183, 121, 31, 0.12);
+  color: var(--nm-orange);
 }
 
 .strength-label.level-3 {
-  background: rgba(14, 165, 109, 0.12);
-  color: #0f9f6d;
+  background: rgba(47, 125, 107, 0.12);
+  color: var(--nm-primary);
 }
 
 .strength-track {
@@ -742,11 +696,11 @@ onShow(() => {
 .strength-segment {
   height: 12rpx;
   border-radius: 999rpx;
-  background: #e5e7eb;
+  background: #dbe3ea;
 }
 
 .strength-segment.active {
-  background: linear-gradient(90deg, #18bc84 0%, #1da56d 100%);
+  background: var(--nm-primary);
 }
 
 .strength-desc {
@@ -758,12 +712,11 @@ onShow(() => {
   width: 100%;
   height: 94rpx;
   margin-top: 26rpx;
-  border-radius: 28rpx;
-  background: linear-gradient(135deg, #172033 0%, #213149 100%);
+  border-radius: 18rpx;
+  background: var(--nm-primary);
   color: #ffffff;
   font-size: 30rpx;
   font-weight: 800;
-  box-shadow: 0 16rpx 28rpx rgba(23, 32, 51, 0.18);
 }
 
 .submit-button::after {
@@ -782,7 +735,7 @@ onShow(() => {
 
 @media screen and (min-width: 960px) {
   .page {
-    padding: 64rpx 40rpx 72rpx;
+    padding: 72rpx 40rpx 80rpx;
   }
 
   .auth-shell {

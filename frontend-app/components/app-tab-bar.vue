@@ -83,48 +83,45 @@ function navigate(item) {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 0 20rpx calc(20rpx + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   z-index: 90;
 }
 
 .tabbar-panel {
-  position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
-  height: 164rpx;
-  padding: 26rpx 18rpx 18rpx;
-  border-top: 1rpx solid rgba(23, 22, 18, 0.06);
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(16rpx);
-  box-shadow: 0 -8rpx 26rpx rgba(19, 18, 15, 0.04);
-  border-radius: 34rpx 34rpx 0 0;
+  align-items: center;
+  height: 116rpx;
+  padding: 10rpx 12rpx;
+  border-top: 1rpx solid var(--nm-line);
+  background: rgba(252, 255, 253, 0.98);
+  box-shadow: 0 -6rpx 16rpx rgba(15, 23, 42, 0.03);
 }
 
 .tab-item {
-  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
-  gap: 10rpx;
+  justify-content: center;
+  gap: 8rpx;
   height: 100%;
+  border-radius: 18rpx;
 }
 
 .tab-item.center {
-  transform: translateY(-26rpx);
+  transform: none;
 }
 
 .icon-box {
   position: relative;
-  width: 58rpx;
-  height: 52rpx;
+  width: 52rpx;
+  height: 46rpx;
 }
 
 .tab-label {
   font-size: 24rpx;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--nm-muted);
 }
 
@@ -133,19 +130,19 @@ function navigate(item) {
 }
 
 .capture-fab {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 32rpx;
-  background: var(--nm-primary);
-  box-shadow: 0 18rpx 30rpx rgba(14, 165, 109, 0.28);
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
+  background: #eef6f0;
+  border: 1rpx solid var(--nm-line);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .capture-fab.active {
-  background: var(--nm-primary-dark);
-  box-shadow: 0 18rpx 30rpx rgba(24, 23, 17, 0.22);
+  background: var(--nm-primary);
+  border-color: var(--nm-primary);
 }
 
 .camera-icon {
@@ -161,7 +158,7 @@ function navigate(item) {
   width: 16rpx;
   height: 8rpx;
   border-radius: 8rpx 8rpx 0 0;
-  background: #ffffff;
+  background: var(--nm-muted);
 }
 
 .camera-body {
@@ -170,7 +167,7 @@ function navigate(item) {
   right: 0;
   bottom: 0;
   height: 32rpx;
-  border: 4rpx solid #ffffff;
+  border: 4rpx solid var(--nm-muted);
   border-radius: 12rpx;
 }
 
@@ -183,7 +180,16 @@ function navigate(item) {
   margin-left: -7rpx;
   margin-top: -7rpx;
   border-radius: 50%;
-  border: 4rpx solid #ffffff;
+  border: 4rpx solid var(--nm-muted);
+}
+
+.tab-item.active .camera-top {
+  background: #ffffff;
+}
+
+.tab-item.active .camera-body,
+.tab-item.active .camera-lens {
+  border-color: #ffffff;
 }
 
 .home-roof {

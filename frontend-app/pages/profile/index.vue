@@ -792,20 +792,21 @@ onShow(() => {
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 32rpx 28rpx 220rpx;
+  padding: 32rpx 24rpx 176rpx;
 }
 
 .hero-card,
 .panel {
   margin-top: 24rpx;
   padding: 30rpx 28rpx;
-  border-radius: 34rpx;
+  border-radius: 22rpx;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--nm-shadow);
+  border: 1rpx solid var(--nm-line);
 }
 
 .hero-card {
-  background: linear-gradient(145deg, #fff3d7 0%, #fffaf0 100%);
+  background: linear-gradient(160deg, #edf7ef 0%, #ffffff 100%);
 }
 
 .hero-main,
@@ -823,9 +824,9 @@ onShow(() => {
 
 .hero-name {
   display: block;
-  font-size: 52rpx;
+  font-size: 42rpx;
   font-weight: 800;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .hero-role {
@@ -833,9 +834,9 @@ onShow(() => {
   margin-top: 12rpx;
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--nm-card-soft);
   font-size: 24rpx;
-  color: #9a3412;
+  color: var(--nm-muted);
 }
 
 .avatar-wrap {
@@ -849,7 +850,8 @@ onShow(() => {
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--nm-card-soft);
+  border: 1rpx solid var(--nm-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -863,12 +865,12 @@ onShow(() => {
 .avatar-text {
   font-size: 42rpx;
   font-weight: 800;
-  color: #c2410c;
+  color: var(--nm-text);
 }
 
 .avatar-tip {
   font-size: 22rpx;
-  color: #7c5b33;
+  color: var(--nm-muted);
 }
 
 .hero-metrics {
@@ -881,9 +883,9 @@ onShow(() => {
 .account-sheet {
   margin-top: 24rpx;
   padding: 24rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1rpx solid rgba(194, 132, 12, 0.08);
+  border-radius: 18rpx;
+  background: var(--nm-card-soft);
+  border: 1rpx solid var(--nm-line);
 }
 
 .account-sheet-head {
@@ -897,13 +899,13 @@ onShow(() => {
   display: block;
   font-size: 30rpx;
   font-weight: 800;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .account-sheet-desc,
 .account-sheet-link {
   font-size: 24rpx;
-  color: #7c5b33;
+  color: var(--nm-muted);
 }
 
 .account-sheet-desc {
@@ -919,8 +921,8 @@ onShow(() => {
 
 .metric-pill {
   padding: 20rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.88);
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .metric-label,
@@ -930,7 +932,7 @@ onShow(() => {
 .empty-inline-desc,
 .weight-log-meta {
   font-size: 24rpx;
-  color: #64748b;
+  color: var(--nm-muted);
 }
 
 .metric-value {
@@ -938,14 +940,14 @@ onShow(() => {
   margin-top: 10rpx;
   font-size: 28rpx;
   font-weight: 800;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .section-title {
   display: block;
   font-size: 36rpx;
   font-weight: 800;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .section-desc {
@@ -958,15 +960,15 @@ onShow(() => {
   flex-shrink: 0;
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(14, 165, 109, 0.12);
+  background: rgba(47, 125, 107, 0.12);
   font-size: 24rpx;
   font-weight: 700;
   color: var(--nm-primary-dark);
 }
 
 .section-status.editing {
-  background: rgba(59, 130, 246, 0.12);
-  color: #1d4ed8;
+  background: rgba(72, 110, 155, 0.12);
+  color: var(--nm-blue);
 }
 
 .form-grid {
@@ -993,7 +995,7 @@ onShow(() => {
   flex: 1;
   text-align: right;
   font-size: 26rpx;
-  color: #111827;
+  color: var(--nm-text);
   word-break: break-all;
 }
 
@@ -1018,11 +1020,11 @@ onShow(() => {
   box-sizing: border-box;
   margin-top: 16rpx;
   padding: 24rpx;
-  border-radius: 24rpx;
-  background: #f5f4ef;
+  border-radius: 18rpx;
+  background: var(--nm-card-soft);
   font-size: 28rpx;
-  color: #111827;
-  border: 1rpx solid rgba(15, 23, 42, 0.04);
+  color: var(--nm-text);
+  border: 1rpx solid var(--nm-line);
 }
 
 .field-input,
@@ -1043,9 +1045,9 @@ onShow(() => {
 .field-input.readonly,
 .picker-field.readonly,
 .textarea-field.readonly {
-  background: #eef2f7;
-  color: #64748b;
-  border-color: rgba(100, 116, 139, 0.12);
+  background: #eef5f1;
+  color: var(--nm-muted);
+  border-color: rgba(107, 114, 128, 0.14);
 }
 
 .form-grid .field-input,
@@ -1081,13 +1083,13 @@ onShow(() => {
 .danger-button {
   margin-top: 20rpx;
   height: 88rpx;
-  border-radius: 24rpx;
+  border-radius: 18rpx;
   font-size: 28rpx;
   font-weight: 700;
 }
 
 .primary-button {
-  background: var(--nm-primary-dark);
+  background: var(--nm-primary);
   color: #ffffff;
 }
 
@@ -1098,13 +1100,13 @@ onShow(() => {
 }
 
 .secondary-button {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #edf5ef;
+  color: var(--nm-primary-dark);
 }
 
 .danger-button {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #f7ebe2;
+  color: var(--nm-danger);
 }
 
 .danger-button.small {
@@ -1122,22 +1124,22 @@ onShow(() => {
 .empty-inline-card {
   margin-top: 20rpx;
   padding: 24rpx;
-  border-radius: 24rpx;
-  background: #f7f5ef;
+  border-radius: 18rpx;
+  background: var(--nm-card-soft);
 }
 
 .empty-inline-title {
   display: block;
   font-size: 30rpx;
   font-weight: 700;
-  color: #111827;
+  color: var(--nm-text);
 }
 
 .weight-log-card {
   margin-top: 18rpx;
   padding: 22rpx;
-  border-radius: 24rpx;
-  background: #f8fafc;
+  border-radius: 18rpx;
+  background: var(--nm-card-soft);
 }
 
 .weight-log-main {
@@ -1149,6 +1151,6 @@ onShow(() => {
   display: block;
   font-size: 32rpx;
   font-weight: 800;
-  color: #111827;
+  color: var(--nm-text);
 }
 </style>

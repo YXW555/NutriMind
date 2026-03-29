@@ -220,16 +220,17 @@ onShow(() => {
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 32rpx 28rpx 220rpx;
+  padding: 32rpx 24rpx 176rpx;
 }
 
 .search-card,
 .empty-card,
 .post-card {
   margin-top: 28rpx;
-  border-radius: 34rpx;
+  border-radius: 22rpx;
   background: var(--nm-card);
   box-shadow: var(--nm-shadow);
+  border: 1rpx solid var(--nm-line);
 }
 
 .search-card,
@@ -253,18 +254,19 @@ onShow(() => {
 }
 
 .publish-button {
-  min-width: 120rpx;
-  height: 72rpx;
+  min-width: 96rpx;
+  height: 64rpx;
   padding: 0 24rpx;
-  border-radius: 999rpx;
-  background: rgba(14, 165, 109, 0.14);
+  border-radius: 16rpx;
+  background: var(--nm-card-soft);
+  border: 1rpx solid var(--nm-line);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .publish-button-text {
-  font-size: 26rpx;
+  font-size: 24rpx;
   font-weight: 700;
   color: var(--nm-primary);
 }
@@ -273,9 +275,10 @@ onShow(() => {
   flex: 1;
   height: 88rpx;
   padding: 0 24rpx;
-  border-radius: 24rpx;
-  background: #f5f4ef;
+  border-radius: 18rpx;
+  background: #f1f8f3;
   font-size: 28rpx;
+  color: var(--nm-text);
 }
 
 .search-button,
@@ -288,8 +291,9 @@ onShow(() => {
 .search-button,
 .empty-action {
   height: 88rpx;
-  background: var(--nm-primary-dark);
+  background: var(--nm-primary);
   color: #ffffff;
+  border-radius: 18rpx;
 }
 
 .search-button {
@@ -310,22 +314,22 @@ onShow(() => {
 .top-tag {
   padding: 14rpx 22rpx;
   border-radius: 999rpx;
-  background: #f1eee7;
+  background: var(--nm-card-soft);
 }
 
 .tag-chip.active {
-  background: var(--nm-primary);
+  background: rgba(47, 125, 107, 0.12);
 }
 
 .tag-chip-text,
 .top-tag-text {
   font-size: 24rpx;
   font-weight: 700;
-  color: #685f50;
+  color: var(--nm-muted);
 }
 
 .tag-chip.active .tag-chip-text {
-  color: #ffffff;
+  color: var(--nm-primary);
 }
 
 .empty-title,
@@ -369,7 +373,7 @@ onShow(() => {
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: #ece8df;
+  background: var(--nm-card-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -378,7 +382,7 @@ onShow(() => {
 .author-avatar-text {
   font-size: 30rpx;
   font-weight: 700;
-  color: #8b826f;
+  color: var(--nm-muted);
 }
 
 .author-main {
@@ -398,7 +402,7 @@ onShow(() => {
   display: block;
   margin-top: 14rpx;
   line-height: 1.8;
-  color: #5f594d;
+  color: var(--nm-text);
 }
 
 .post-image-grid {
@@ -419,8 +423,8 @@ onShow(() => {
 .post-image {
   width: 100%;
   height: 240rpx;
-  border-radius: 24rpx;
-  background: #ece8df;
+  border-radius: 18rpx;
+  background: var(--nm-card-soft);
 }
 
 .post-image-grid.count-1 .post-image {
@@ -431,33 +435,33 @@ onShow(() => {
   height: 260rpx;
   margin-top: 22rpx;
   padding: 24rpx;
-  border-radius: 30rpx;
+  border-radius: 18rpx;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
 }
 
 .cover-green {
-  background: linear-gradient(135deg, #d4f3e4 0%, #89d4af 100%);
+  background: #e7f4ea;
 }
 
 .cover-blue {
-  background: linear-gradient(135deg, #dfeaff 0%, #91b7ff 100%);
+  background: #ebf3fb;
 }
 
 .cover-warm {
-  background: linear-gradient(135deg, #f6ead7 0%, #dfc4a1 100%);
+  background: #f8f1e5;
 }
 
 .cover-gold {
-  background: linear-gradient(135deg, #f8edc6 0%, #f1c168 100%);
+  background: #f6efd9;
 }
 
 .post-cover-tag {
   align-self: flex-start;
   padding: 10rpx 18rpx;
   border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.72);
   font-size: 24rpx;
   font-weight: 700;
   color: var(--nm-text);
@@ -482,18 +486,18 @@ onShow(() => {
   min-width: 140rpx;
   height: 72rpx;
   padding: 0 22rpx;
-  border-radius: 999rpx;
-  background: #f4f1ea;
-  color: #5f594d;
+  border-radius: 16rpx;
+  background: var(--nm-card-soft);
+  color: var(--nm-text);
 }
 
 .ghost-button.active {
-  background: rgba(14, 165, 109, 0.14);
+  background: rgba(47, 125, 107, 0.12);
   color: var(--nm-primary);
 }
 
 .ghost-button.favorite {
-  background: rgba(245, 158, 11, 0.14);
-  color: #b45309;
+  background: rgba(183, 121, 31, 0.12);
+  color: var(--nm-orange);
 }
 </style>

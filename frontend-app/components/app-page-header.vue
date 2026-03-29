@@ -73,7 +73,7 @@ onMounted(() => {
   align-items: flex-start;
   justify-content: space-between;
   gap: 20rpx;
-  padding-top: calc(env(safe-area-inset-top) + 12rpx);
+  padding-top: calc(env(safe-area-inset-top) + 8rpx);
 }
 
 .header-left {
@@ -85,11 +85,11 @@ onMounted(() => {
 }
 
 .back-button {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: var(--nm-shadow);
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
+  background: var(--nm-card);
+  border: 1rpx solid var(--nm-line);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -111,16 +111,16 @@ onMounted(() => {
 
 .page-title {
   display: block;
-  font-size: 56rpx;
+  font-size: 48rpx;
   font-weight: 800;
   color: var(--nm-text);
 }
 
 .page-subtitle {
   display: block;
-  margin-top: 10rpx;
-  font-size: 26rpx;
-  line-height: 1.7;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
   color: var(--nm-muted);
 }
 

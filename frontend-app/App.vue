@@ -14,22 +14,21 @@ export default {
 
 <style>
 page {
-  --nm-bg: #f6f5ef;
+  --nm-bg: #f2f8f4;
   --nm-card: #ffffff;
-  --nm-card-soft: rgba(255, 255, 255, 0.82);
-  --nm-text: #181711;
-  --nm-muted: #8f897b;
-  --nm-line: rgba(36, 34, 28, 0.08);
-  --nm-primary: #0ea56d;
-  --nm-primary-dark: #12110f;
-  --nm-blue: #4284f3;
-  --nm-orange: #f6a313;
-  --nm-shadow: 0 20rpx 44rpx rgba(26, 29, 24, 0.08);
+  --nm-card-soft: #f0f7f2;
+  --nm-surface: #e4f0e7;
+  --nm-text: #243428;
+  --nm-muted: #78887c;
+  --nm-line: rgba(82, 117, 92, 0.12);
+  --nm-primary: #6ba27b;
+  --nm-primary-dark: #43715a;
+  --nm-blue: #7ea8c7;
+  --nm-orange: #d0a763;
+  --nm-danger: #c27d58;
+  --nm-shadow: 0 12rpx 30rpx rgba(88, 126, 100, 0.08);
   min-height: 100%;
-  background:
-    radial-gradient(circle at top left, rgba(16, 165, 109, 0.09) 0%, transparent 20%),
-    radial-gradient(circle at top right, rgba(66, 132, 243, 0.06) 0%, transparent 18%),
-    linear-gradient(180deg, #faf9f4 0%, #f4f3ed 100%);
+  background: linear-gradient(180deg, #fbfefc 0%, var(--nm-bg) 100%);
   color: var(--nm-text);
   font-family: "Source Han Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
 }
@@ -46,7 +45,7 @@ scroll-view {
 
 button {
   border: none;
-  border-radius: 28rpx;
+  border-radius: 20rpx;
 }
 
 button::after {
