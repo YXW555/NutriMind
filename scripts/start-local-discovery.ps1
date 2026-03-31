@@ -79,6 +79,73 @@ function Assert-RequiredEnv {
     return $value
 }
 
+function Test-TcpPort {
+    param(
+        [string]$Host,
+        [int]$Port
+    )
+
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $async = $client.BeginConnect($Host, $Port, $null, $null)
+        if (-not $async.AsyncWaitHandle.WaitOne(1000, $false)) {
+            return $false
+        }
+
+        $client.EndConnect($async)
+        return $true
+    } catch {
+        return $false
+    } finally {
+        $client.Close()
+    }
+}
+
+function Wait-ForTcpPort {
+    param(
+        [string]$Host,
+        [int]$Port,
+        [string]$DisplayName,
+        [int]$TimeoutSeconds = 120
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        if (Test-TcpPort -Host $Host -Port $Port) {
+            Write-Host ($DisplayName + " is ready at " + $Host + ":" + $Port)
+            return
+        }
+
+        Start-Sleep -Seconds 2
+    }
+
+    throw ($DisplayName + " did not become ready within " + $TimeoutSeconds + " seconds.")
+}
+
+function Wait-ForHttpReady {
+    param(
+        [string]$Uri,
+        [string]$DisplayName,
+        [int]$TimeoutSeconds = 120
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $response = Invoke-WebRequest -Uri $Uri -UseBasicParsing -TimeoutSec 5
+            if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 500) {
+                Write-Host ($DisplayName + " is ready at " + $Uri)
+                return
+            }
+        } catch {
+        }
+
+        Start-Sleep -Seconds 2
+    }
+
+    throw ($DisplayName + " did not become ready within " + $TimeoutSeconds + " seconds.")
+}
+
 $loadedEnvFiles = @()
 foreach ($fileName in @(".env", ".env.local")) {
     $filePath = Join-Path $root $fileName
@@ -121,6 +188,22 @@ Write-Host ("MySQL target: " + (Resolve-EnvValue "MYSQL_HOST") + ":" + (Resolve-
 if (-not $SkipInfra) {
     docker compose -f (Join-Path $root "docker-compose.dev.yml") up -d
 }
+
+$mysqlHost = Resolve-EnvValue "MYSQL_HOST"
+$mysqlPort = [int](Resolve-EnvValue "MYSQL_PORT")
+$nacosServerAddr = Resolve-EnvValue "NACOS_SERVER_ADDR"
+$nacosHost = $nacosServerAddr
+$nacosPort = 8848
+if ($nacosServerAddr.Contains(":")) {
+    $nacosParts = $nacosServerAddr.Split(":", 2)
+    $nacosHost = $nacosParts[0]
+    $nacosPort = [int]$nacosParts[1]
+}
+
+Write-Host "Waiting for infrastructure to become ready..."
+Wait-ForTcpPort -Host $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
+Wait-ForTcpPort -Host $nacosHost -Port $nacosPort -DisplayName "Nacos port"
+Wait-ForHttpReady -Uri ("http://" + $nacosServerAddr + "/nacos/") -DisplayName "Nacos console"
 
 $services = @(
     @{

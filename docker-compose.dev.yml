@@ -79,6 +79,9 @@ services:
     environment:
       MODE: standalone
       NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_TOKEN: "${NACOS_AUTH_TOKEN:-bmFjb3MtbG9jYWwtZGV2LXRva2VuLXBsZWFzZS1jaGFuZ2U=}"
+      NACOS_AUTH_IDENTITY_KEY: "${NACOS_AUTH_IDENTITY_KEY:-serverIdentity}"
+      NACOS_AUTH_IDENTITY_VALUE: "${NACOS_AUTH_IDENTITY_VALUE:-security}"
     ports:
       - "8848:8848"
       - "9848:9848"

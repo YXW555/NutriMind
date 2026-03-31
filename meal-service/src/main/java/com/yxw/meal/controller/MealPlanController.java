@@ -4,10 +4,14 @@ import com.yxw.common.core.ApiResponse;
 import com.yxw.common.core.security.SecurityContextUtils;
 import com.yxw.meal.dto.MealPlanApplyRequest;
 import com.yxw.meal.dto.MealPlanDaySummaryResponse;
+import com.yxw.meal.dto.MealPlanGenerateDailyRequest;
+import com.yxw.meal.dto.MealPlanGenerateWeekRequest;
 import com.yxw.meal.dto.MealPlanResponse;
 import com.yxw.meal.dto.MealPlanSaveRequest;
 import com.yxw.meal.dto.MealRecordResponse;
+import com.yxw.meal.dto.GeneratedMealPlanWeekResponse;
 import com.yxw.meal.service.MealPlanService;
+import com.yxw.meal.service.MealPlanningAgentService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,9 +30,12 @@ import java.util.List;
 public class MealPlanController {
 
     private final MealPlanService mealPlanService;
+    private final MealPlanningAgentService mealPlanningAgentService;
 
-    public MealPlanController(MealPlanService mealPlanService) {
+    public MealPlanController(MealPlanService mealPlanService,
+                              MealPlanningAgentService mealPlanningAgentService) {
         this.mealPlanService = mealPlanService;
+        this.mealPlanningAgentService = mealPlanningAgentService;
     }
 
     @GetMapping("/daily")
@@ -55,5 +62,17 @@ public class MealPlanController {
     public ApiResponse<MealRecordResponse> applyDailyPlan(@Valid @RequestBody MealPlanApplyRequest request) {
         Long currentUserId = SecurityContextUtils.requireCurrentUserId();
         return ApiResponse.success("meal plan applied", mealPlanService.applyDailyPlan(currentUserId, request));
+    }
+
+    @PostMapping("/generate/daily")
+    public ApiResponse<Object> generateDailyPlan(@Valid @RequestBody MealPlanGenerateDailyRequest request) {
+        Long currentUserId = SecurityContextUtils.requireCurrentUserId();
+        return ApiResponse.success(mealPlanningAgentService.generateDaily(currentUserId, request));
+    }
+
+    @PostMapping("/generate/week")
+    public ApiResponse<GeneratedMealPlanWeekResponse> generateWeekPlan(@Valid @RequestBody MealPlanGenerateWeekRequest request) {
+        Long currentUserId = SecurityContextUtils.requireCurrentUserId();
+        return ApiResponse.success(mealPlanningAgentService.generateWeek(currentUserId, request));
     }
 }
