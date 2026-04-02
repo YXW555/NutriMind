@@ -13,9 +13,75 @@
 3. 训练与检索标签库层
 负责准备数据集、构建 `retrieval_bank.json`、导出分类模型和后续的 CLIP 文本向量库。
 
+## 2026-04 更新说明
+
+本次更新把 Python 推理层接成了：
+
+- `LLaVA-NeXT` 作为核心多模态后端
+- 独立 Python 推理服务继续对外暴露 `/predict`
+- Java 侧继续沿用 `PythonInferenceResponse / PythonInferencePrediction` 契约
+- Java 主干、前端调用链、候选映射链路保持不变
+
+`/predict` 返回结构仍然保持兼容：
+
+```json
+{
+  "mode": "llava_next_retrieval",
+  "model_version": "llava-next-v1.6-mistral-7b",
+  "predictions": [
+    {
+      "label": "米饭",
+      "canonical_label": "米饭",
+      "confidence": 0.82,
+      "match_reason": "LLaVA-NeXT matched the catalog concept 米饭",
+      "source": "llava_next",
+      "aliases": ["白米饭", "熟米饭"],
+      "search_keywords": ["米饭", "白米饭", "熟米饭"]
+    }
+  ]
+}
+```
+
+LLaVA 的输出不会直接透传到 Java。Python 侧现在会先做：
+
+- prompt 约束
+- JSON 提取
+- 字段校验
+- 概念归一化
+- 空结果 / 非法结果失败回退
+
 ## 当前支持的识别模式
 
-### 1. `manifest_retrieval`
+### 1. `llava_next_retrieval`
+
+当本地安装了 `requirements-llava.txt` 中的依赖，并且能加载 `VISION_LLAVA_MODEL_ID` 指向的模型时，Python 推理层会优先使用 LLaVA-NeXT。
+
+它的职责不是直接生成任意自然语言，而是：
+
+- 在受限 prompt 内只从已知概念清单中做选择
+- 输出固定 JSON 结构
+- 把结果归一化成 Java 已兼容的候选字段
+- 如果输出不合法或解析失败，自动回退到下游检索后端
+
+### 2. `hybrid_retrieval`
+
+当 CLIP 和 ONNX 同时可用，但 LLaVA 不可用或 LLaVA 失败回退时，系统会使用 hybrid 策略。
+
+### 3. `clip_retrieval`
+
+当本地已经准备好：
+
+- `clip_text_bank.npz`
+- `clip_text_bank.meta.json`
+- `open-clip-torch`
+
+Python 推理层就可以直接把图片编码成向量，再和文本向量库做相似度检索，返回开放类别候选。
+
+### 4. `onnx_retrieval`
+
+当本地存在 `food_classifier.onnx` 时，系统先跑分类模型，再把预测标签补充成“可检索候选”输出。
+
+### 5. `manifest_retrieval`
 
 当本地还没有 ONNX 模型，或者没有安装 `onnxruntime` 时，系统会走“类别清单候选召回”模式。
 
@@ -27,21 +93,13 @@
 
 先返回一组候选，再由 Java 服务映射到食物库。
 
-### 2. `onnx_retrieval`
+`auto` 模式下的实际优先级现在是：
 
-当本地存在 `food_classifier.onnx` 时，系统先跑分类模型，再把预测标签补充成“可检索候选”输出。
-
-这意味着即使底层还是分类模型，上层接口也已经是检索式架构了，后面替换成 `CLIP / SigLIP` 时不用重做前后端接口。
-
-### 3. `clip_retrieval`
-
-当本地已经准备好：
-
-- `clip_text_bank.npz`
-- `clip_text_bank.meta.json`
-- `open-clip-torch`
-
-Python 推理层就可以直接把图片编码成向量，再和文本向量库做相似度检索，返回开放类别候选。
+1. `llava_next_retrieval`
+2. `hybrid_retrieval`
+3. `clip_retrieval`
+4. `onnx_retrieval`
+5. `manifest_retrieval`
 
 ## 新增的 CLIP-ready 基础设施
 
@@ -105,7 +163,7 @@ Java `ai-service` 配置：
 
 ```properties
 app.vision.engine=python
-app.vision.python.base-url=http://localhost:8090
+app.vision.python.base-url=http://localhost:8091
 app.vision.python.predict-path=/predict
 ```
 
@@ -113,12 +171,14 @@ app.vision.python.predict-path=/predict
 
 ```powershell
 $env:APP_VISION_ENGINE="python"
-$env:APP_VISION_PYTHON_BASE_URL="http://localhost:8090"
+$env:APP_VISION_PYTHON_BASE_URL="http://localhost:8091"
 ```
 
 Python 推理层后端选择通过 `VISION_BACKEND` 控制，支持：
 
 - `auto`
+- `llava`
+- `hybrid`
 - `classifier`
 - `clip`
 - `manifest`
@@ -134,7 +194,22 @@ $env:VISION_BACKEND="clip"
 ```powershell
 cd ai-service/inference/python
 pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8090 --reload
+uvicorn app.main:app --host 0.0.0.0 --port 8091 --reload
+```
+
+如果要启动 LLaVA-NeXT 后端，推荐这样做：
+
+```powershell
+cd ai-service/inference/python
+pip install -r requirements-llava.txt
+Copy-Item .env.example .env
+.\start-llava-next.ps1
+```
+
+如果是国内网络环境，首次拉取 Hugging Face 模型前可以先设置：
+
+```powershell
+$env:HF_ENDPOINT="https://hf-mirror.com"
 ```
 
 如果要直接启动当前已经接好的 `food101_seed` 模型包，可以在同一目录运行：
@@ -147,21 +222,15 @@ uvicorn app.main:app --host 0.0.0.0 --port 8090 --reload
 
 ```powershell
 $env:VISION_MODEL_BUNDLE="food101_seed"
-$env:VISION_BACKEND="auto"
+$env:VISION_BACKEND="classifier"
 ```
 
 这样就不需要再手动填写 ONNX 路径、标签路径和输入尺寸了。
 
-如果要启用 CLIP 检索后端，再额外安装：
+如果要只启用 CLIP 检索后端，再额外安装：
 
 ```powershell
 pip install -r requirements-clip.txt
-```
-
-如果下载 CLIP 预训练权重时在国内网络环境里超时，可以先设置：
-
-```powershell
-$env:HF_ENDPOINT="https://hf-mirror.com"
 ```
 
 ## 构建检索标签库
@@ -170,6 +239,45 @@ $env:HF_ENDPOINT="https://hf-mirror.com"
 cd ai-service/training
 python build_retrieval_bank.py --manifest ../model/category_manifest.json --output ../model/retrieval_bank.json
 ```
+
+## 队长部署步骤
+
+### 1. 部署 Python 推理服务
+
+```powershell
+cd ai-service/inference/python
+Copy-Item .env.example .env
+pip install -r requirements-llava.txt
+.\start-llava-next.ps1 -Port 8091
+```
+
+如果你希望只装轻量回退链路，而不装 LLaVA，可以改成：
+
+```powershell
+pip install -r requirements.txt
+```
+
+### 2. 配置 Java `ai-service`
+
+在根目录 `.env` 或部署环境变量里设置：
+
+```env
+APP_VISION_ENGINE=python
+APP_VISION_PYTHON_BASE_URL=http://localhost:8091
+APP_VISION_PYTHON_PREDICT_PATH=/predict
+```
+
+### 3. 验证联通性
+
+- 先访问 Python 服务 `GET /health`
+- 再启动 Java `ai-service`
+- 确认 Java 仍然消费 `mode / model_version / predictions[]`
+
+### 4. 重要说明
+
+- `auto` 模式已经改成 LLaVA 优先
+- 如果 LLaVA 依赖缺失、模型加载失败、输出不是合法 JSON、字段不完整，Python 会自动回退
+- Java 侧不需要改 DTO，也不需要改前端请求链路
 
 ## 接入公开数据集
 

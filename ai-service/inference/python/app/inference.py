@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import hashlib
+import json
+import re
 from collections import OrderedDict
 from io import BytesIO
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+from pydantic import BaseModel, ConfigDict, Field
 
 from .config import Settings
-from .model_registry import ClipRuntime, FoodConcept, ModelRegistry
+from .model_registry import ClipRuntime, FoodConcept, LlavaRuntime, ModelRegistry
 from .schemas import PredictionItem, PredictionResponse
 
 try:
@@ -39,6 +42,26 @@ FILENAME_HINTS = {
     "potato": "土豆",
 }
 
+JSON_BLOCK_PATTERN = re.compile(r"```(?:json)?\s*(\{.*?\}|\[.*?\])\s*```", re.IGNORECASE | re.DOTALL)
+
+
+class LlavaDraftPrediction(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    label: str | None = None
+    canonical_label: str | None = None
+    confidence: float | int | str | None = None
+    match_reason: str | None = None
+    source: str | None = None
+    aliases: list[str] | str | None = None
+    search_keywords: list[str] | str | None = None
+
+
+class LlavaDraftEnvelope(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    predictions: list[LlavaDraftPrediction] = Field(default_factory=list)
+
 
 class PredictionService:
     def __init__(self, settings: Settings, registry: ModelRegistry) -> None:
@@ -46,12 +69,14 @@ class PredictionService:
         self.registry = registry
 
     def health_payload(self) -> dict:
+        llava_runtime = self.registry.get_llava_runtime()
         return {
             "status": "ok",
             "backend_preference": self.settings.backend,
             "active_backend": self.registry.resolve_backend(),
             "model_bundle": self.settings.resolved_model_bundle,
             "model_version": self.settings.model_version,
+            "llava_model_version": self.settings.llava_model_version,
             "model_path": str(self.settings.model_path),
             "labels_path": str(self.settings.labels_path),
             "model_metadata_path": str(self.settings.model_metadata_path),
@@ -62,27 +87,314 @@ class PredictionService:
             "classifier_preferred": self.settings.prefers_classifier,
             "classifier_available": self.registry.classifier_available(),
             "clip_available": self.registry.clip_available(),
+            "llava_available": llava_runtime is not None,
+            "llava_model_id": "" if llava_runtime is None else llava_runtime.model_id,
             "concept_count": self.registry.concept_count(),
         }
 
     def predict(self, image_bytes: bytes, filename: str, top_k: int) -> PredictionResponse:
         top_k = max(1, min(top_k or self.settings.top_k_default, 5))
-        backend = self.registry.resolve_backend()
-
-        if backend == "hybrid_retrieval":
-            predictions = self._hybrid_predict(image_bytes, top_k)
-        elif backend == "clip_retrieval":
-            predictions = self._clip_retrieval_predict(image_bytes, top_k)
-        elif backend == "onnx_retrieval":
-            predictions = self._classifier_predict(image_bytes, top_k)
-        else:
-            predictions = self._manifest_retrieval_predict(filename, image_bytes, top_k)
+        preferred_backend = self.registry.resolve_backend()
+        backend, predictions = self._predict_with_fallback(preferred_backend, image_bytes, filename, top_k)
 
         return PredictionResponse(
             mode=backend,
-            model_version=self.settings.model_version,
+            model_version=self.settings.model_version_for_backend(backend),
             predictions=predictions,
         )
+
+    def _predict_with_fallback(
+        self,
+        preferred_backend: str,
+        image_bytes: bytes,
+        filename: str,
+        top_k: int,
+    ) -> tuple[str, list[PredictionItem]]:
+        last_error: Exception | None = None
+
+        for backend in self._build_backend_chain(preferred_backend):
+            try:
+                predictions = self._dispatch_backend(backend, image_bytes, filename, top_k)
+            except Exception as exc:  # pragma: no cover - runtime-only fallback protection
+                last_error = exc
+                self._clear_cuda_cache()
+                continue
+
+            if predictions:
+                return backend, predictions[:top_k]
+
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("python inference returned no predictions")
+
+    def _build_backend_chain(self, preferred_backend: str) -> list[str]:
+        chain_by_backend = {
+            "llava_next_retrieval": [
+                "llava_next_retrieval",
+                "hybrid_retrieval",
+                "clip_retrieval",
+                "onnx_retrieval",
+                "manifest_retrieval",
+            ],
+            "hybrid_retrieval": [
+                "hybrid_retrieval",
+                "clip_retrieval",
+                "onnx_retrieval",
+                "manifest_retrieval",
+            ],
+            "clip_retrieval": [
+                "clip_retrieval",
+                "onnx_retrieval",
+                "manifest_retrieval",
+            ],
+            "onnx_retrieval": [
+                "onnx_retrieval",
+                "manifest_retrieval",
+            ],
+            "manifest_retrieval": [
+                "manifest_retrieval",
+            ],
+        }
+
+        ordered = chain_by_backend.get(preferred_backend, ["manifest_retrieval"])
+        deduplicated: list[str] = []
+        for backend in ordered:
+            if backend not in deduplicated:
+                deduplicated.append(backend)
+        return deduplicated
+
+    def _dispatch_backend(
+        self,
+        backend: str,
+        image_bytes: bytes,
+        filename: str,
+        top_k: int,
+    ) -> list[PredictionItem]:
+        if backend == "llava_next_retrieval":
+            return self._llava_next_predict(image_bytes, filename, top_k)
+        if backend == "hybrid_retrieval":
+            return self._hybrid_predict(image_bytes, top_k)
+        if backend == "clip_retrieval":
+            return self._clip_retrieval_predict(image_bytes, top_k)
+        if backend == "onnx_retrieval":
+            return self._classifier_predict(image_bytes, top_k)
+        return self._manifest_retrieval_predict(filename, image_bytes, top_k)
+
+    def _llava_next_predict(self, image_bytes: bytes, filename: str, top_k: int) -> list[PredictionItem]:
+        runtime = self.registry.get_llava_runtime()
+        if runtime is None:
+            return []
+
+        image = self._load_rgb_image(image_bytes)
+        prompt = self._build_llava_prompt(filename, image_bytes, top_k)
+        raw_output = self._run_llava_generation(runtime, image, prompt)
+        predictions = self._normalize_llava_output(raw_output)
+        if not predictions:
+            raise ValueError("llava_next returned no valid predictions")
+        return predictions[:top_k]
+
+    def _run_llava_generation(self, runtime: LlavaRuntime, image: Image.Image, prompt: str) -> str:
+        processor = runtime.processor
+        conversation = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+
+        if hasattr(processor, "apply_chat_template"):
+            rendered_prompt = processor.apply_chat_template(
+                conversation,
+                add_generation_prompt=True,
+                tokenize=False,
+            )
+            model_inputs = processor(images=image, text=rendered_prompt, return_tensors="pt")
+        else:
+            model_inputs = processor(images=image, text=prompt, return_tensors="pt")
+
+        prepared_inputs: dict[str, object] = {}
+        for key, value in model_inputs.items():
+            prepared_inputs[key] = value.to(runtime.device) if hasattr(value, "to") else value
+
+        generate_kwargs: dict[str, object] = {
+            "max_new_tokens": self.settings.llava_max_new_tokens,
+            "do_sample": self.settings.llava_do_sample,
+        }
+        if self.settings.llava_do_sample:
+            generate_kwargs["temperature"] = self.settings.llava_temperature
+            generate_kwargs["top_p"] = self.settings.llava_top_p
+
+        tokenizer = getattr(processor, "tokenizer", None)
+        if tokenizer is not None and getattr(tokenizer, "eos_token_id", None) is not None:
+            generate_kwargs["pad_token_id"] = tokenizer.eos_token_id
+
+        with torch.inference_mode():
+            output_ids = runtime.model.generate(**prepared_inputs, **generate_kwargs)
+
+        prompt_length = prepared_inputs["input_ids"].shape[1] if "input_ids" in prepared_inputs else 0
+        generated_ids = output_ids[:, prompt_length:] if prompt_length else output_ids
+        decoded = processor.batch_decode(
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=True,
+        )
+        if not decoded:
+            raise ValueError("llava_next generation returned empty text")
+        return decoded[0].strip()
+
+    def _build_llava_prompt(self, filename: str, image_bytes: bytes, top_k: int) -> str:
+        catalog_limit = max(1, min(self.settings.llava_catalog_limit, self.registry.concept_count()))
+        catalog = self.registry.ordered_concepts()[:catalog_limit]
+        heuristic_hints = self._manifest_retrieval_predict(filename, image_bytes, min(top_k + 1, 4))
+        hint_text = ", ".join(item.canonical_label for item in heuristic_hints) or "none"
+
+        catalog_lines: list[str] = []
+        for concept in catalog:
+            aliases = ", ".join(concept.aliases[: self.settings.llava_alias_limit]) or "none"
+            keywords = ", ".join(concept.search_keywords[: self.settings.llava_alias_limit]) or concept.label
+            group_name = concept.group_zh or concept.group or "other"
+            catalog_lines.append(
+                f"- canonical_label: {concept.label}; aliases: {aliases}; search_keywords: {keywords}; group: {group_name}"
+            )
+
+        schema_example = json.dumps(
+            {
+                "predictions": [
+                    {
+                        "label": catalog[0].label if catalog else "米饭",
+                        "canonical_label": catalog[0].label if catalog else "米饭",
+                        "confidence": 0.82,
+                        "match_reason": "one short sentence grounded in the image",
+                        "source": "llava_next",
+                        "aliases": list(catalog[0].aliases) if catalog and catalog[0].aliases else ["白米饭"],
+                        "search_keywords": (
+                            list(catalog[0].search_keywords)
+                            if catalog and catalog[0].search_keywords
+                            else ["米饭"]
+                        ),
+                    }
+                ]
+            },
+            ensure_ascii=False,
+        )
+
+        return (
+            "You are NutriMind's multimodal food retrieval backend.\n"
+            f"Inspect the image and return at most {top_k} predictions.\n"
+            "You must select concepts only from the allowed catalog below.\n"
+            "Return JSON only. Do not include markdown, commentary, or code fences.\n"
+            "Every prediction object must contain exactly these keys: "
+            "label, canonical_label, confidence, match_reason, source, aliases, search_keywords.\n"
+            "Rules:\n"
+            '- label and canonical_label must exactly match one catalog canonical_label.\n'
+            '- confidence must be a number between 0 and 1.\n'
+            '- source must be "llava_next".\n'
+            "- aliases and search_keywords must be JSON string arrays copied from the chosen catalog item.\n"
+            "- If the image is uncertain, still choose the closest allowed catalog concepts instead of inventing a new one.\n"
+            "- Keep match_reason to one short sentence.\n"
+            f"Weak filename hint: {Path(filename or 'uploaded-image.jpg').name}\n"
+            f"Weak heuristic hints from fallback retrieval: {hint_text}\n"
+            "Allowed catalog:\n"
+            f"{chr(10).join(catalog_lines)}\n"
+            f"Return this JSON shape exactly: {schema_example}"
+        )
+
+    def _normalize_llava_output(self, raw_output: str) -> list[PredictionItem]:
+        payload = self._extract_json_payload(raw_output)
+        if isinstance(payload, list):
+            payload = {"predictions": payload}
+        elif isinstance(payload, dict) and "predictions" not in payload:
+            for alternate_key in ("items", "results", "candidates"):
+                if isinstance(payload.get(alternate_key), list):
+                    payload = {"predictions": payload[alternate_key]}
+                    break
+
+        envelope = LlavaDraftEnvelope.model_validate(payload)
+        normalized: list[PredictionItem] = []
+        for index, item in enumerate(envelope.predictions):
+            normalized_item = self._normalize_llava_prediction(item, index)
+            if normalized_item is not None:
+                normalized.append(normalized_item)
+
+        return self._deduplicate_predictions(normalized)
+
+    def _normalize_llava_prediction(
+        self,
+        prediction: LlavaDraftPrediction,
+        index: int,
+    ) -> PredictionItem | None:
+        candidate_terms = [
+            prediction.canonical_label,
+            prediction.label,
+            *self._coerce_string_list(prediction.aliases),
+            *self._coerce_string_list(prediction.search_keywords),
+        ]
+
+        concept = None
+        for term in candidate_terms:
+            concept = self.registry.find_concept(term)
+            if concept is not None:
+                break
+
+        if concept is None:
+            return None
+
+        confidence = self._normalize_confidence(prediction.confidence, default=max(0.45, 0.8 - index * 0.1))
+        aliases = list(concept.aliases) or self._coerce_string_list(prediction.aliases)
+        search_keywords = list(concept.search_keywords) or self._coerce_string_list(prediction.search_keywords)
+        if not search_keywords:
+            search_keywords = [concept.label]
+
+        reason = (prediction.match_reason or "").strip()
+        if not reason:
+            reason = f"LLaVA-NeXT matched the catalog concept {concept.label}"
+
+        return PredictionItem(
+            label=concept.label,
+            canonical_label=concept.label,
+            confidence=confidence,
+            source="llava_next",
+            match_reason=reason,
+            aliases=self._normalize_terms(aliases),
+            search_keywords=self._normalize_terms(search_keywords),
+        )
+
+    def _extract_json_payload(self, raw_output: str) -> dict | list:
+        cleaned = raw_output.strip()
+        if not cleaned:
+            raise ValueError("llava_next returned empty output")
+
+        direct = self._try_json_loads(cleaned)
+        if direct is not None:
+            return direct
+
+        fenced_match = JSON_BLOCK_PATTERN.search(cleaned)
+        if fenced_match:
+            fenced_payload = self._try_json_loads(fenced_match.group(1).strip())
+            if fenced_payload is not None:
+                return fenced_payload
+
+        for opener, closer in (("{", "}"), ("[", "]")):
+            start = cleaned.find(opener)
+            end = cleaned.rfind(closer)
+            if start == -1 or end == -1 or end <= start:
+                continue
+            candidate = cleaned[start : end + 1]
+            parsed = self._try_json_loads(candidate)
+            if parsed is not None:
+                return parsed
+
+        raise ValueError("failed to extract JSON from llava_next output")
+
+    def _try_json_loads(self, value: str) -> dict | list | None:
+        try:
+            parsed = json.loads(value)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, (dict, list)) else None
 
     def _hybrid_predict(self, image_bytes: bytes, top_k: int) -> list[PredictionItem]:
         internal_top_k = max(top_k, self.settings.hybrid_internal_top_k)
@@ -97,13 +409,13 @@ class PredictionService:
         if self._should_prioritize_classifier(classifier_predictions, clip_predictions):
             primary = self._annotate_predictions(
                 self._select_classifier_predictions(classifier_predictions, clip_predictions),
-                "分类模型与 CLIP 检索结果一致，优先采用分类结果",
+                "Classifier and CLIP agreed on the dominant concept, so the classifier result was preferred.",
             )
             secondary = clip_predictions
         else:
             primary = self._annotate_predictions(
                 clip_predictions,
-                "分类模型与 CLIP 检索结果不一致，已回退到 CLIP 检索",
+                "Classifier and CLIP disagreed, so the service fell back to CLIP retrieval.",
             )
             secondary = self._filter_supported_classifier_predictions(classifier_predictions, clip_predictions)
 
@@ -112,7 +424,7 @@ class PredictionService:
     def _classifier_predict(self, image_bytes: bytes, top_k: int) -> list[PredictionItem]:
         session = self.registry.get_classifier_session()
         if session is None:
-            return self._manifest_retrieval_predict("uploaded-image.jpg", image_bytes, top_k)
+            return []
 
         image_tensor = self._preprocess_classifier(image_bytes)
         input_name = session.get_inputs()[0].name
@@ -132,7 +444,7 @@ class PredictionService:
                     label=label,
                     confidence=float(round(float(probs[index]), 4)),
                     source="onnx_classifier",
-                    match_reason="分类模型命中高置信候选",
+                    match_reason="Top confidence candidate from the ONNX classifier.",
                 )
             )
         return predictions
@@ -157,9 +469,9 @@ class PredictionService:
     def _clip_retrieval_predict(self, image_bytes: bytes, top_k: int) -> list[PredictionItem]:
         runtime = self.registry.get_clip_runtime()
         if runtime is None or torch is None:
-            return self._manifest_retrieval_predict("uploaded-image.jpg", image_bytes, top_k)
+            return []
 
-        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        image = self._load_rgb_image(image_bytes)
         image_tensor = runtime.preprocess(image).unsqueeze(0).to(runtime.device)
 
         with torch.no_grad():
@@ -236,7 +548,7 @@ class PredictionService:
         return list(candidates.values())[:top_k]
 
     def _preprocess_classifier(self, image_bytes: bytes) -> np.ndarray:
-        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        image = self._load_rgb_image(image_bytes)
         image = image.resize((self.settings.image_size, self.settings.image_size))
         image_array = np.asarray(image).astype("float32") / 255.0
         mean = np.array([0.485, 0.456, 0.406], dtype="float32")
@@ -246,7 +558,7 @@ class PredictionService:
         return np.expand_dims(image_array, axis=0)
 
     def _visual_hint_labels(self, image_bytes: bytes) -> list[tuple[str, str]]:
-        image = Image.open(BytesIO(image_bytes)).convert("RGB")
+        image = self._load_rgb_image(image_bytes)
         image.thumbnail((96, 96))
         image_array = np.asarray(image).astype("float32") / 255.0
         mean_rgb = image_array.mean(axis=(0, 1))
@@ -327,7 +639,7 @@ class PredictionService:
         annotated: list[PredictionItem] = []
         for item in predictions:
             reason = item.match_reason or ""
-            combined_reason = f"{reason}；{reason_suffix}" if reason else reason_suffix
+            combined_reason = f"{reason} {reason_suffix}".strip() if reason else reason_suffix
             annotated.append(item.model_copy(update={"match_reason": combined_reason}))
         return annotated
 
@@ -346,9 +658,9 @@ class PredictionService:
                 item.model_copy(
                     update={
                         "match_reason": (
-                            f"{item.match_reason}；分类模型结果被 CLIP 检索支持，作为补充候选保留"
+                            f"{item.match_reason} Confirmed by CLIP retrieval and kept as a supporting candidate."
                             if item.match_reason
-                            else "分类模型结果被 CLIP 检索支持，作为补充候选保留"
+                            else "Confirmed by CLIP retrieval and kept as a supporting candidate."
                         )
                     }
                 )
@@ -393,21 +705,63 @@ class PredictionService:
         canonical_label = resolved_concept.label if resolved_concept else label.strip()
         aliases = list(resolved_concept.aliases) if resolved_concept else []
         search_keywords = list(resolved_concept.search_keywords) if resolved_concept else []
+        if not search_keywords and canonical_label:
+            search_keywords = [canonical_label]
         return PredictionItem(
             label=canonical_label,
             canonical_label=canonical_label,
             confidence=float(round(max(0.0, min(confidence, 1.0)), 4)),
             source=source,
             match_reason=match_reason,
-            aliases=aliases,
-            search_keywords=search_keywords,
+            aliases=self._normalize_terms(aliases),
+            search_keywords=self._normalize_terms(search_keywords),
         )
 
     def _build_clip_reason(self, runtime: ClipRuntime, concept: FoodConcept | None) -> str:
         model_name = str(runtime.metadata.get("model_name") or self.settings.clip_model_name).strip()
         if concept and concept.group_zh:
-            return f"CLIP 图文向量相似度召回，命中{concept.group_zh}候选（{model_name}）"
-        return f"CLIP 图文向量相似度召回（{model_name}）"
+            return f"CLIP image-text retrieval matched the {concept.group_zh} group ({model_name})."
+        return f"CLIP image-text retrieval matched this concept ({model_name})."
+
+    def _normalize_terms(self, terms: list[str]) -> list[str]:
+        normalized: list[str] = []
+        for term in terms:
+            text = str(term).strip()
+            if text and text not in normalized:
+                normalized.append(text)
+        return normalized
+
+    def _coerce_string_list(self, value: list[str] | str | None) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return self._normalize_terms([str(item) for item in value])
+        if isinstance(value, str):
+            return self._normalize_terms([value])
+        return self._normalize_terms([str(value)])
+
+    def _normalize_confidence(self, value: float | int | str | None, default: float) -> float:
+        try:
+            confidence = float(value)
+        except (TypeError, ValueError):
+            confidence = default
+        return float(round(max(0.0, min(confidence, 1.0)), 4))
+
+    def _deduplicate_predictions(self, predictions: list[PredictionItem]) -> list[PredictionItem]:
+        merged: OrderedDict[str, PredictionItem] = OrderedDict()
+        for item in predictions:
+            key = self._prediction_key(item)
+            current = merged.get(key)
+            if current is None or item.confidence > current.confidence:
+                merged[key] = item
+        return list(merged.values())
+
+    def _load_rgb_image(self, image_bytes: bytes) -> Image.Image:
+        return Image.open(BytesIO(image_bytes)).convert("RGB")
+
+    def _clear_cuda_cache(self) -> None:
+        if torch is not None and torch.cuda.is_available():  # pragma: no cover - runtime only
+            torch.cuda.empty_cache()
 
     @staticmethod
     def _softmax(logits: np.ndarray) -> np.ndarray:

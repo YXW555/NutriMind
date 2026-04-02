@@ -36,6 +36,18 @@ class Settings(BaseSettings):
     clip_language: str = "both"
     clip_device: str = ""
 
+    llava_model_id: str = "llava-hf/llava-v1.6-mistral-7b-hf"
+    llava_model_revision: str = "main"
+    llava_model_version: str = "llava-next-v1.6-mistral-7b"
+    llava_device: str = ""
+    llava_torch_dtype: str = "auto"
+    llava_max_new_tokens: int = 256
+    llava_temperature: float = 0.0
+    llava_top_p: float = 1.0
+    llava_do_sample: bool = False
+    llava_catalog_limit: int = 32
+    llava_alias_limit: int = 3
+
     mock_mode_enabled: bool = True
 
     _resolved_model_bundle: str = PrivateAttr(default="")
@@ -83,6 +95,11 @@ class Settings(BaseSettings):
     @property
     def prefers_classifier(self) -> bool:
         return self._classifier_preferred
+
+    def model_version_for_backend(self, backend: str) -> str:
+        if backend == "llava_next_retrieval" and self.llava_model_version.strip():
+            return self.llava_model_version.strip()
+        return self.model_version
 
     def _resolve_bundle_dir(self, provided_fields: set[str]) -> Path | None:
         bundle_name = self.model_bundle.strip()

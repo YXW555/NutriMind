@@ -600,3 +600,21 @@ git status
 - 用 Pull Request 合并到 `main`
 
 如果你严格照这个流程走，即使是第一次接触微服务项目，也能比较稳地参与协作。
+
+## 10. LLaVA-NeXT 推理服务部署补充
+
+如果你要把 `ai-service` 接到真实 Python 推理服务，而不是继续用 mock，请按下面做：
+
+1. 进入 [ai-service/inference/python](/D:/安装网上应用集/Git/NutriMind_1/ai-service/inference/python)
+2. 执行 `Copy-Item .env.example .env`
+3. 安装依赖：`pip install -r requirements-llava.txt`
+4. 启动推理服务：`.\start-llava-next.ps1 -Port 8091`
+5. 在项目根目录 `.env` 里把 `APP_VISION_ENGINE` 改成 `python`
+6. 同时确认 `APP_VISION_PYTHON_BASE_URL=http://localhost:8091`
+
+补充说明：
+
+- Python `/predict` 返回结构已经和 Java 现有 DTO 保持兼容
+- `auto` 模式现在会优先走 `llava_next_retrieval`
+- 如果 LLaVA 输出不稳定，Python 会自动回退到 `hybrid -> clip -> onnx -> manifest`
+- 如果只是想继续跑轻量 ONNX 回退链路，可以改用 `.\start-food101-seed.ps1`
