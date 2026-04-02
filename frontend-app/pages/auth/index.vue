@@ -3,11 +3,11 @@
     <view class="auth-shell">
       <view class="auth-card">
         <view class="auth-brand">
-          <view class="brand-icon">
-            <text class="brand-icon-text">知</text>
-          </view>
+          <image class="brand-icon-image" src="/static/logo.png" mode="aspectFit"></image>
+          
           <view class="brand-copy">
             <text class="brand-title">知食分子</text>
+            <text class="brand-subtitle">你的智能营养顾问</text>
           </view>
         </view>
 
@@ -26,7 +26,7 @@
               v-model="form.username"
               class="field-input"
               maxlength="32"
-              :placeholder="mode === 'login' ? '请输入用户名、邮箱或手机号' : '例如 yxw_2026'"
+              :placeholder="mode === 'login' ? '请输入用户名、邮箱或手机号' : '请输入用户名'"
               confirm-type="next"
               cursor-spacing="24"
               adjust-position
@@ -42,22 +42,6 @@
             </text>
           </view>
 
-          <view v-if="mode === 'register'" class="field-block">
-            <view class="field-head">
-              <text class="field-label">昵称</text>
-              <text class="field-tip">选填</text>
-            </view>
-            <input
-              v-model="form.nickname"
-              class="field-input"
-              maxlength="20"
-              placeholder="给自己起个更自然的称呼"
-              confirm-type="next"
-              cursor-spacing="24"
-              adjust-position
-            />
-          </view>
-
           <view v-if="mode === 'register'" class="field-grid">
             <view class="field-block compact">
               <view class="field-head">
@@ -68,7 +52,7 @@
                 v-model="form.email"
                 class="field-input"
                 maxlength="64"
-                placeholder="name@example.com"
+                placeholder="请输入邮箱地址"
                 confirm-type="next"
                 cursor-spacing="24"
                 adjust-position
@@ -92,6 +76,32 @@
             </view>
           </view>
 
+          <view v-if="mode === 'register'" class="field-block">
+            <view class="field-head">
+              <text class="field-label">验证码</text>
+              <text class="field-tip">如有填手机/邮箱</text>
+            </view>
+            <view class="verify-wrap">
+              <input
+                v-model="form.verifyCode"
+                class="field-input verify-input"
+                maxlength="6"
+                type="number"
+                placeholder="请输入6位验证码"
+                confirm-type="next"
+                cursor-spacing="24"
+                adjust-position
+              />
+              <text 
+                class="verify-action" 
+                :class="{ disabled: countdown > 0 }" 
+                @click="sendVerifyCode"
+              >
+                {{ countdown > 0 ? `${countdown}s 后重新获取` : '获取验证码' }}
+              </text>
+            </view>
+          </view>
+
           <view class="field-block">
             <view class="field-head">
               <text class="field-label">密码</text>
@@ -112,6 +122,10 @@
               <text class="password-toggle" @click="showPassword = !showPassword">
                 {{ showPassword ? '隐藏' : '显示' }}
               </text>
+            </view>
+            
+            <view v-if="mode === 'login'" class="action-row">
+              <text class="forgot-link" @click="handleForgotPwd">忘记密码？</text>
             </view>
           </view>
 
@@ -138,20 +152,18 @@
           </view>
         </view>
 
-        <view v-if="mode === 'register'" class="strength-card">
-          <view class="strength-head">
-            <text class="strength-title">密码强度</text>
-            <text class="strength-label" :class="`level-${passwordStrength.score}`">{{ passwordStrength.label }}</text>
+        <view class="agreement-wrap">
+          <view class="checkbox-box" @click="agreedToTerms = !agreedToTerms">
+            <view class="checkbox-icon" :class="{ 'is-checked': agreedToTerms }">
+              <text v-if="agreedToTerms" class="check-mark">✓</text>
+            </view>
           </view>
-          <view class="strength-track">
-            <view
-              v-for="segment in 3"
-              :key="segment"
-              class="strength-segment"
-              :class="{ active: passwordStrength.score >= segment }"
-            ></view>
+          <view class="agreement-text">
+            我已阅读并同意
+            <text class="link" @click.stop="openAgreement('terms')">《用户协议》</text>
+            与
+            <text class="link" @click.stop="openAgreement('privacy')">《隐私政策》</text>
           </view>
-          <text class="strength-desc">{{ passwordStrength.desc }}</text>
         </view>
 
         <button class="submit-button" :disabled="submitDisabled" @click="submitAuth">
@@ -163,7 +175,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
 import { clearSession, isLoggedIn, openHomePage, saveSession, setToken } from '@/utils/auth.js'
@@ -179,6 +191,12 @@ const showPassword = ref(false)
 const showConfirmPassword = ref(false)
 const form = ref(createEmptyForm())
 const usernameStatus = ref(createUsernameStatus())
+
+// 状态：协议勾选与倒计时
+const agreedToTerms = ref(false)
+const countdown = ref(0)
+let timer = null
+
 const submitLabel = computed(() => {
   if (submitting.value) {
     return mode.value === 'login' ? '登录中...' : '注册中...'
@@ -186,16 +204,15 @@ const submitLabel = computed(() => {
   return mode.value === 'login' ? '登录' : '注册'
 })
 const submitDisabled = computed(() => submitting.value || (mode.value === 'register' && checkingUsername.value))
-const passwordStrength = computed(() => evaluatePasswordStrength(form.value.password))
 
 function createEmptyForm() {
   return {
     username: '',
     password: '',
     confirmPassword: '',
-    nickname: '',
     email: '',
-    phone: ''
+    phone: '',
+    verifyCode: ''
   }
 }
 
@@ -212,6 +229,7 @@ function resetForm() {
   usernameStatus.value = createUsernameStatus()
   showPassword.value = false
   showConfirmPassword.value = false
+  // 重置模式时不重置协议勾选，体验更好
 }
 
 function switchMode(nextMode) {
@@ -278,46 +296,41 @@ async function ensureUsernameAvailable() {
   }
 }
 
-function evaluatePasswordStrength(password) {
-  const value = String(password || '')
-  if (!value) {
-    return {
-      score: 0,
-      label: '待设置',
-      desc: '建议至少 6 位，并尽量混合字母、数字或符号。'
-    }
+// 发送验证码逻辑
+function sendVerifyCode() {
+  if (countdown.value > 0) return
+  
+  const email = form.value.email.trim()
+  const phone = form.value.phone.trim()
+  
+  if (!email && !phone) {
+    uni.showToast({ title: '请先填写手机号或邮箱', icon: 'none' })
+    return
   }
 
-  let score = 0
-  if (value.length >= 6) {
-    score += 1
-  }
-  if (/[A-Za-z]/.test(value) && /\d/.test(value)) {
-    score += 1
-  }
-  if ((/[A-Z]/.test(value) && /[a-z]/.test(value)) || /[^A-Za-z0-9_]/.test(value)) {
-    score += 1
-  }
+  // 此处可调用后端发送验证码接口：await request.post('/auth/send-code', { email, phone })
+  uni.showToast({ title: '验证码已发送，请注意查收', icon: 'none' })
+  
+  countdown.value = 60
+  timer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      clearInterval(timer)
+    }
+  }, 1000)
+}
 
-  if (score <= 1) {
-    return {
-      score: 1,
-      label: '偏弱',
-      desc: '可以继续补数字、大小写字母或符号，让密码更稳一些。'
-    }
-  }
-  if (score === 2) {
-    return {
-      score: 2,
-      label: '中等',
-      desc: '已经够用，再加一点复杂度会更好。'
-    }
-  }
-  return {
-    score: 3,
-    label: '较强',
-    desc: '当前密码组合比较完整，安全性会更好。'
-  }
+// 忘记密码点击跳转
+function handleForgotPwd() {
+  uni.showToast({ title: '忘记密码功能开发中', icon: 'none' })
+  // uni.navigateTo({ url: '/pages/auth/forgot' })
+}
+
+// 打开协议
+function openAgreement(type) {
+  const title = type === 'terms' ? '用户协议' : '隐私政策'
+  uni.showToast({ title: `查看${title}`, icon: 'none' })
+  // 实际可跳转webview或富文本页面
 }
 
 function validateLoginForm() {
@@ -338,22 +351,15 @@ function validateLoginForm() {
 
 function validateRegisterForm() {
   const username = form.value.username.trim()
-  const nickname = form.value.nickname.trim()
   const email = form.value.email.trim()
   const phone = form.value.phone.trim()
   const password = form.value.password.trim()
   const confirmPassword = form.value.confirmPassword.trim()
+  const verifyCode = form.value.verifyCode.trim()
 
   if (!USERNAME_PATTERN.test(username)) {
     uni.showToast({
       title: '用户名需为 4-20 位字母、数字或下划线',
-      icon: 'none'
-    })
-    return null
-  }
-  if (nickname && nickname.length > 20) {
-    uni.showToast({
-      title: '昵称最多 20 个字符',
       icon: 'none'
     })
     return null
@@ -391,14 +397,23 @@ function validateRegisterForm() {
     username,
     password,
     confirmPassword,
-    nickname,
     email,
-    phone
+    phone,
+    verifyCode
   }
 }
 
 async function submitAuth() {
   if (submitting.value) {
+    return
+  }
+
+  // 提交前必须勾选协议拦截
+  if (!agreedToTerms.value) {
+    uni.showToast({
+      title: '请先阅读并同意用户协议与隐私政策',
+      icon: 'none'
+    })
     return
   }
 
@@ -451,6 +466,11 @@ onShow(() => {
     openHomePage()
   }
 })
+
+// 组件卸载时清理定时器
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
 </script>
 
 <style scoped>
@@ -458,81 +478,78 @@ onShow(() => {
   min-height: 100vh;
   padding: 44rpx 28rpx 56rpx;
   background: linear-gradient(180deg, #fbfefc 0%, #eef7f1 100%);
+  display: flex;
+  align-items: center; /* 让内容在整个屏幕垂直居中更好看 */
 }
 
 .auth-shell {
-  min-height: calc(100vh - 100rpx);
+  width: 100%;
   display: flex;
   align-items: flex-start;
   justify-content: center;
 }
 
 .auth-card {
-  border-radius: 24rpx;
-  box-shadow: var(--nm-shadow);
+  width: 100%;
+  max-width: 760rpx;
+  padding: 60rpx 40rpx 40rpx; 
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 32rpx; 
+  box-shadow: 0 16rpx 48rpx rgba(47, 125, 107, 0.08); 
+  border: 1rpx solid rgba(47, 125, 107, 0.05);
 }
 
-.auth-brand,
 .field-head,
-.password-wrap,
-.strength-head {
+.password-wrap {
   display: flex;
 }
 
-.auth-brand,
-.password-wrap,
-.strength-head {
+.password-wrap {
   align-items: center;
-}
-
-.brand-icon {
-  width: 84rpx;
-  height: 84rpx;
-  border-radius: 20rpx;
-  background: var(--nm-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.brand-icon-text {
-  font-size: 42rpx;
-  font-weight: 800;
-  color: #ffffff;
-}
-
-.brand-copy {
-  flex: 1;
-  min-width: 0;
 }
 
 .auth-brand {
-  gap: 16rpx;
-  margin-bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 24rpx;
+  margin-bottom: 56rpx;
+}
+
+/* 【修改这里】移除了原来的 .brand-icon 相关代码，改用图片样式 */
+.brand-icon-image {
+  width: 160rpx; /* 控制图片宽度 */
+  height: 160rpx; /* 控制图片高度 */
+  border-radius: 36rpx; /* 给图片加一点圆角，如果你的图本来就是圆的或者透明的，这个属性不影响 */
+  box-shadow: 0 8rpx 24rpx rgba(47, 125, 107, 0.15); /* 加一点阴影让Logo更立体，不需要可以删掉 */
+}
+
+.brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
 }
 
 .brand-title {
   display: block;
-  font-size: 44rpx;
+  font-size: 52rpx;
   font-weight: 800;
   color: var(--nm-text);
+  letter-spacing: 2rpx;
+}
+
+.brand-subtitle {
+  font-size: 26rpx;
+  color: var(--nm-muted);
+  letter-spacing: 4rpx;
 }
 
 .field-tip,
-.feedback-text,
-.strength-desc {
+.feedback-text {
   font-size: 25rpx;
   line-height: 1.7;
   color: var(--nm-muted);
-}
-
-.auth-card {
-  width: 100%;
-  max-width: 760rpx;
-  padding: 32rpx 28rpx 28rpx;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1rpx solid var(--nm-line);
 }
 
 .mode-switch {
@@ -541,6 +558,7 @@ onShow(() => {
   padding: 8rpx;
   border-radius: 18rpx;
   background: var(--nm-surface);
+  margin-bottom: 12rpx; 
 }
 
 .mode-chip {
@@ -632,6 +650,44 @@ onShow(() => {
   color: var(--nm-primary);
 }
 
+/* 验证码输入框及按钮样式 */
+.verify-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.verify-input {
+  padding-right: 220rpx;
+}
+
+.verify-action {
+  position: absolute;
+  right: 20rpx;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: var(--nm-primary);
+  padding: 10rpx;
+  z-index: 2;
+}
+
+.verify-action.disabled {
+  color: var(--nm-muted);
+  font-weight: 400;
+}
+
+/* 忘记密码行样式 */
+.action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16rpx;
+}
+
+.forgot-link {
+  font-size: 25rpx;
+  color: var(--nm-muted);
+}
+
 .feedback-text {
   margin-top: 10rpx;
 }
@@ -644,74 +700,56 @@ onShow(() => {
   color: var(--nm-danger);
 }
 
-.strength-card {
-  margin-top: 24rpx;
-  padding: 24rpx;
-  border-radius: 18rpx;
-  background: #f4faf5;
-  border: 1rpx solid var(--nm-line);
+/* 协议勾选框区域样式 */
+.agreement-wrap {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 36rpx;
+  padding: 0 8rpx;
 }
 
-.strength-head {
-  justify-content: space-between;
-  gap: 14rpx;
+.checkbox-box {
+  padding-top: 4rpx;
+  margin-right: 12rpx;
 }
 
-.strength-title {
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--nm-text);
+.checkbox-icon {
+  width: 32rpx;
+  height: 32rpx;
+  border: 2rpx solid var(--nm-muted);
+  border-radius: 6rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
 }
 
-.strength-label {
-  padding: 8rpx 18rpx;
-  border-radius: 999rpx;
-  font-size: 23rpx;
-  font-weight: 800;
+.checkbox-icon.is-checked {
+  background-color: var(--nm-primary);
+  border-color: var(--nm-primary);
 }
 
-.strength-label.level-0,
-.strength-label.level-1 {
-  background: rgba(180, 83, 9, 0.12);
-  color: var(--nm-danger);
+.check-mark {
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: bold;
 }
 
-.strength-label.level-2 {
-  background: rgba(183, 121, 31, 0.12);
-  color: var(--nm-orange);
+.agreement-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: var(--nm-muted);
+  line-height: 1.5;
 }
 
-.strength-label.level-3 {
-  background: rgba(47, 125, 107, 0.12);
+.agreement-text .link {
   color: var(--nm-primary);
-}
-
-.strength-track {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10rpx;
-  margin-top: 18rpx;
-}
-
-.strength-segment {
-  height: 12rpx;
-  border-radius: 999rpx;
-  background: #dbe3ea;
-}
-
-.strength-segment.active {
-  background: var(--nm-primary);
-}
-
-.strength-desc {
-  display: block;
-  margin-top: 14rpx;
 }
 
 .submit-button {
   width: 100%;
   height: 94rpx;
-  margin-top: 26rpx;
+  margin-top: 32rpx;
   border-radius: 18rpx;
   background: var(--nm-primary);
   color: #ffffff;
