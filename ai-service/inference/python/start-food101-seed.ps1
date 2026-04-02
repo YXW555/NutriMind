@@ -8,7 +8,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $scriptDir
 
 $env:VISION_MODEL_BUNDLE = "food101_seed"
-$env:VISION_BACKEND = "classifier"
+$env:VISION_BACKEND = "auto"
 
 $command = @(
     "python",

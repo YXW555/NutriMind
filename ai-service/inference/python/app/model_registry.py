@@ -15,20 +15,11 @@ except ImportError:  # pragma: no cover - optional dependency
     ort = None
 
 try:
+    import open_clip
     import torch
 except ImportError:  # pragma: no cover - optional dependency
-    torch = None
-
-try:
-    import open_clip
-except ImportError:  # pragma: no cover - optional dependency
     open_clip = None
-
-try:
-    from transformers import AutoProcessor, LlavaNextForConditionalGeneration
-except ImportError:  # pragma: no cover - optional dependency
-    AutoProcessor = None
-    LlavaNextForConditionalGeneration = None
+    torch = None
 
 
 DEFAULT_LABELS = [
@@ -108,24 +99,13 @@ class ClipRuntime:
     metadata: dict[str, Any]
 
 
-@dataclass
-class LlavaRuntime:
-    model: Any
-    processor: Any
-    device: Any
-    dtype: Any
-    model_id: str
-
-
 class ModelRegistry:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._classifier_session = None
         self._clip_runtime = None
-        self._llava_runtime = None
         self._classifier_init_attempted = False
         self._clip_init_attempted = False
-        self._llava_init_attempted = False
 
         self._concepts = self._load_concepts()
         self._concept_lookup = self._build_concept_lookup(self._concepts)
@@ -212,78 +192,24 @@ class ModelRegistry:
     def clip_available(self) -> bool:
         return self.get_clip_runtime() is not None
 
-    def get_llava_runtime(self) -> LlavaRuntime | None:
-        if self._llava_init_attempted:
-            return self._llava_runtime
-
-        self._llava_init_attempted = True
-        model_id = self.settings.llava_model_id.strip()
-        if (
-            not model_id
-            or torch is None
-            or AutoProcessor is None
-            or LlavaNextForConditionalGeneration is None
-        ):
-            self._llava_runtime = None
-            return None
-
-        device_name = self.settings.llava_device.strip() or ("cuda" if torch.cuda.is_available() else "cpu")
-        device = torch.device(device_name)
-        dtype = self._resolve_torch_dtype(device_name)
-
-        processor = AutoProcessor.from_pretrained(
-            model_id,
-            revision=self.settings.llava_model_revision.strip() or None,
-        )
-        model = LlavaNextForConditionalGeneration.from_pretrained(
-            model_id,
-            revision=self.settings.llava_model_revision.strip() or None,
-            torch_dtype=dtype,
-            low_cpu_mem_usage=True,
-        )
-        model = model.to(device)
-        model.eval()
-
-        self._llava_runtime = LlavaRuntime(
-            model=model,
-            processor=processor,
-            device=device,
-            dtype=dtype,
-            model_id=model_id,
-        )
-        return self._llava_runtime
-
-    def llava_available(self) -> bool:
-        return self.get_llava_runtime() is not None
-
     def resolve_backend(self) -> str:
         preference = (self.settings.backend or "auto").strip().lower()
 
-        if preference in {"manifest", "manifest_retrieval"}:
+        if preference == "manifest":
             return "manifest_retrieval"
-        if preference in {"clip", "clip_retrieval"}:
+        if preference == "clip":
             if self.clip_available():
                 return "clip_retrieval"
             if self.classifier_available():
                 return "onnx_retrieval"
             return "manifest_retrieval"
-        if preference in {"classifier", "onnx", "onnx_retrieval"}:
+        if preference == "classifier":
             if self.classifier_available():
                 return "onnx_retrieval"
             if self.clip_available():
                 return "clip_retrieval"
             return "manifest_retrieval"
-        if preference in {"hybrid", "hybrid_retrieval"}:
-            if self.classifier_available() and self.clip_available():
-                return "hybrid_retrieval"
-            if self.clip_available():
-                return "clip_retrieval"
-            if self.classifier_available():
-                return "onnx_retrieval"
-            return "manifest_retrieval"
-        if preference in {"llava", "llava_next", "llava_next_retrieval"}:
-            if self.llava_available():
-                return "llava_next_retrieval"
+        if preference == "hybrid":
             if self.classifier_available() and self.clip_available():
                 return "hybrid_retrieval"
             if self.clip_available():
@@ -292,10 +218,10 @@ class ModelRegistry:
                 return "onnx_retrieval"
             return "manifest_retrieval"
 
-        if self.llava_available():
-            return "llava_next_retrieval"
         if self.classifier_available() and self.clip_available():
             return "hybrid_retrieval"
+        if self.settings.prefers_classifier and self.classifier_available():
+            return "onnx_retrieval"
         if self.clip_available():
             return "clip_retrieval"
         if self.classifier_available():
@@ -414,20 +340,6 @@ class ModelRegistry:
         if not metadata_path.exists():
             return {}
         return json.loads(metadata_path.read_text(encoding="utf-8"))
-
-    def _resolve_torch_dtype(self, device_name: str):
-        if torch is None:
-            return None
-
-        configured = self.settings.llava_torch_dtype.strip().lower()
-        if configured in {"float16", "fp16", "half"}:
-            return torch.float16
-        if configured in {"bfloat16", "bf16"}:
-            return torch.bfloat16
-        if configured in {"float32", "fp32"}:
-            return torch.float32
-
-        return torch.float16 if device_name.startswith("cuda") else torch.float32
 
     def _clean_text(self, value: object) -> str:
         return str(value or "").strip()
