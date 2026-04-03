@@ -81,13 +81,13 @@ function Assert-RequiredEnv {
 
 function Test-TcpPort {
     param(
-        [string]$Host,
+        [string]$TargetHost,
         [int]$Port
     )
 
     $client = New-Object System.Net.Sockets.TcpClient
     try {
-        $async = $client.BeginConnect($Host, $Port, $null, $null)
+        $async = $client.BeginConnect($TargetHost, $Port, $null, $null)
         if (-not $async.AsyncWaitHandle.WaitOne(1000, $false)) {
             return $false
         }
@@ -103,7 +103,7 @@ function Test-TcpPort {
 
 function Wait-ForTcpPort {
     param(
-        [string]$Host,
+        [string]$TargetHost,
         [int]$Port,
         [string]$DisplayName,
         [int]$TimeoutSeconds = 120
@@ -111,8 +111,8 @@ function Wait-ForTcpPort {
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        if (Test-TcpPort -Host $Host -Port $Port) {
-            Write-Host ($DisplayName + " is ready at " + $Host + ":" + $Port)
+        if (Test-TcpPort -TargetHost $TargetHost -Port $Port) {
+            Write-Host ($DisplayName + " is ready at " + $TargetHost + ":" + $Port)
             return
         }
 
@@ -162,6 +162,8 @@ Set-EnvDefault -Name "MYSQL_USERNAME" -Default "root"
 Set-EnvDefault -Name "APP_RAG_MILVUS_URI" -Default "http://localhost:19530"
 Set-EnvDefault -Name "APP_VISION_ENGINE" -Default "mock"
 Set-EnvDefault -Name "APP_VISION_PYTHON_BASE_URL" -Default "http://localhost:8091"
+Set-EnvDefault -Name "APP_RAG_ENABLED" -Default "true"
+Set-EnvDefault -Name "APP_RAG_QWEN_ENABLED" -Default "true"
 
 $mysqlPassword = Assert-RequiredEnv -Name "MYSQL_PASSWORD" -Hint "Copy .env.example to .env and set the password for the MySQL instance this project should use."
 if ([string]::IsNullOrWhiteSpace((Resolve-EnvValue "MYSQL_ROOT_PASSWORD"))) {
@@ -201,8 +203,8 @@ if ($nacosServerAddr.Contains(":")) {
 }
 
 Write-Host "Waiting for infrastructure to become ready..."
-Wait-ForTcpPort -Host $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
-Wait-ForTcpPort -Host $nacosHost -Port $nacosPort -DisplayName "Nacos port"
+Wait-ForTcpPort -TargetHost $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
+Wait-ForTcpPort -TargetHost $nacosHost -Port $nacosPort -DisplayName "Nacos port"
 Wait-ForHttpReady -Uri ("http://" + $nacosServerAddr + "/nacos/") -DisplayName "Nacos console"
 
 $services = @(
@@ -242,7 +244,13 @@ $sharedEnv = [ordered]@{
     MYSQL_USERNAME = (Resolve-EnvValue "MYSQL_USERNAME")
     MYSQL_PASSWORD = (Resolve-EnvValue "MYSQL_PASSWORD")
     APP_JWT_SECRET = (Resolve-EnvValue "APP_JWT_SECRET")
+    APP_RAG_ENABLED = (Resolve-EnvValue "APP_RAG_ENABLED")
     APP_RAG_MILVUS_URI = (Resolve-EnvValue "APP_RAG_MILVUS_URI")
+    APP_RAG_QWEN_ENABLED = (Resolve-EnvValue "APP_RAG_QWEN_ENABLED")
+    APP_RAG_QWEN_API_KEY = (Resolve-EnvValue "APP_RAG_QWEN_API_KEY")
+    APP_RAG_QWEN_BASE_URL = (Resolve-EnvValue "APP_RAG_QWEN_BASE_URL")
+    APP_RAG_QWEN_CHAT_MODEL = (Resolve-EnvValue "APP_RAG_QWEN_CHAT_MODEL")
+    APP_RAG_QWEN_TEMPERATURE = (Resolve-EnvValue "APP_RAG_QWEN_TEMPERATURE")
     APP_VISION_ENGINE = (Resolve-EnvValue "APP_VISION_ENGINE")
     APP_VISION_PYTHON_BASE_URL = (Resolve-EnvValue "APP_VISION_PYTHON_BASE_URL")
 }

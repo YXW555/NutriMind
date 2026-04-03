@@ -573,6 +573,9 @@ public class AdvisorService {
                 .title(knowledgeHit.title())
                 .section(knowledgeHit.section())
                 .excerpt(knowledgeHit.excerpt())
+                .authority(knowledgeHit.authority())
+                .sourceName(knowledgeHit.sourceName())
+                .sourceUrl(knowledgeHit.sourceUrl())
                 .build();
     }
 

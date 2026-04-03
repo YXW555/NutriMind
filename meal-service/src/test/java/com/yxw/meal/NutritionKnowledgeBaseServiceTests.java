@@ -19,9 +19,12 @@ class NutritionKnowledgeBaseServiceTests {
 
         assertFalse(hits.isEmpty());
         assertTrue(hits.stream().anyMatch(hit ->
-                hit.title().contains("减脂")
+                hit.title().contains("体重管理")
                         || hit.title().contains("蛋白质")
-                        || hit.section().contains("减脂")
-                        || hit.section().contains("蛋白质")));
+                        || hit.section().contains("蛋白质")
+                        || hit.section().contains("进餐")));
+        assertTrue(hits.stream().allMatch(hit ->
+                hit.sourceName() != null && !hit.sourceName().isBlank()
+                        && hit.sourceUrl() != null && !hit.sourceUrl().isBlank()));
     }
 }

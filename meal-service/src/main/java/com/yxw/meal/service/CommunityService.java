@@ -61,6 +61,7 @@ public class CommunityService {
                         .like(CommunityPost::getContent, keyword)
                         .or()
                         .like(CommunityPost::getAuthorName, keyword))
+                .eq(CommunityPost::getModerationStatus, "APPROVED")
                 .eq(StringUtils.hasText(tag) && !"全部".equals(tag), CommunityPost::getTag, tag)
                 .orderByDesc(CommunityPost::getCreatedAt)
                 .orderByDesc(CommunityPost::getId);
@@ -88,6 +89,7 @@ public class CommunityService {
         post.setTitle(trimToNull(request.getTitle()));
         post.setContent(request.getContent().trim());
         post.setTag(normalizeTag(request.getTag()));
+        post.setModerationStatus("PENDING");
         post.setImageUrls(serializeImageUrls(normalizeImageUrls(request.getImageUrls())));
         post.setLikeCount(0);
         post.setFavoriteCount(0);
@@ -150,6 +152,7 @@ public class CommunityService {
         requirePost(postId);
         return communityCommentMapper.selectList(new LambdaQueryWrapper<CommunityComment>()
                         .eq(CommunityComment::getPostId, postId)
+                        .eq(CommunityComment::getModerationStatus, "APPROVED")
                         .orderByAsc(CommunityComment::getCreatedAt)
                         .orderByAsc(CommunityComment::getId))
                 .stream()
@@ -165,6 +168,7 @@ public class CommunityService {
         comment.setUserId(userId);
         comment.setAuthorName(SecurityContextUtils.currentUsername().orElse("NutriMind User"));
         comment.setContent(request.getContent().trim());
+        comment.setModerationStatus("PENDING");
         communityCommentMapper.insert(comment);
 
         post.setCommentCount(zeroSafe(post.getCommentCount()) + 1);
@@ -316,6 +320,7 @@ public class CommunityService {
                 .title(post.getTitle())
                 .content(post.getContent())
                 .tag(post.getTag())
+                .moderationStatus(post.getModerationStatus())
                 .imageUrls(deserializeImageUrls(post.getImageUrls()))
                 .likeCount(zeroSafe(post.getLikeCount()))
                 .liked(liked)
@@ -333,6 +338,7 @@ public class CommunityService {
                 .userId(comment.getUserId())
                 .authorName(comment.getAuthorName())
                 .content(comment.getContent())
+                .moderationStatus(comment.getModerationStatus())
                 .ownComment(userId != null && userId.equals(comment.getUserId()))
                 .createdAt(comment.getCreatedAt())
                 .build();

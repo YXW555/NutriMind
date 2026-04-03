@@ -26,6 +26,8 @@ public class CommunityPost {
 
     private String tag;
 
+    private String moderationStatus;
+
     private Integer likeCount;
 
     private Integer favoriteCount;

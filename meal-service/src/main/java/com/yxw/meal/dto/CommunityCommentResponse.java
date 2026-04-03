@@ -19,6 +19,8 @@ public class CommunityCommentResponse {
 
     private String content;
 
+    private String moderationStatus;
+
     private Boolean ownComment;
 
     private LocalDateTime createdAt;

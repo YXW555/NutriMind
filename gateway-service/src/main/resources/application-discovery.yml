@@ -22,4 +22,4 @@ spring:
             - id: meal-service
               uri: lb://meal-service
               predicates:
-                - Path=/api/meals/**,/api/reports/**,/api/advisor/**,/api/community/**
+                - Path=/api/meals/**,/api/reports/**,/api/advisor/**,/api/community/**,/api/admin/**

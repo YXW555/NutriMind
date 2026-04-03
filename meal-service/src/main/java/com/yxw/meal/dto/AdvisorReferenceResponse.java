@@ -16,4 +16,10 @@ public class AdvisorReferenceResponse {
     private String section;
 
     private String excerpt;
+
+    private String authority;
+
+    private String sourceName;
+
+    private String sourceUrl;
 }

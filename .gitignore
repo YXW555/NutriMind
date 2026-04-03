@@ -7,6 +7,8 @@ frontend-app/unpackage/
 frontend-app/node_modules/
 frontend-app/.vite/
 frontend-app/.hbuilderx/
+admin-web/node_modules/
+admin-web/.vite/
 ai-service/training/datasets/
 ai-service/model/**/checkpoints/*.pth
 

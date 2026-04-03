@@ -76,7 +76,7 @@ public class MilvusKnowledgeStoreService {
                     .annsField(ragProperties.getMilvus().getVectorField())
                     .metricType(resolveMetricType())
                     .topK(Math.max(1, limit))
-                    .outputFields(List.of("title", "section", "content", "excerpt"))
+                    .outputFields(List.of("title", "section", "content", "excerpt", "authority", "source_name", "source_url"))
                     .data(List.of(new FloatVec(queryEmbedding)))
                     .build();
 
@@ -92,12 +92,18 @@ public class MilvusKnowledgeStoreService {
                 String section = stringValue(entity.get("section"));
                 String content = stringValue(entity.get("content"));
                 String excerpt = stringValue(entity.get("excerpt"));
+                String authority = stringValue(entity.get("authority"));
+                String sourceName = stringValue(entity.get("source_name"));
+                String sourceUrl = stringValue(entity.get("source_url"));
                 hits.add(new NutritionKnowledgeBaseService.KnowledgeHit(
                         result.getId() == null ? null : String.valueOf(result.getId()),
                         title,
                         section,
                         StringUtils.hasText(excerpt) ? excerpt : truncate(content, 92),
                         firstSentence(content),
+                        authority,
+                        sourceName,
+                        sourceUrl,
                         result.getScore() == null ? 0D : result.getScore()
                 ));
             }
@@ -148,6 +154,34 @@ public class MilvusKnowledgeStoreService {
         } catch (Exception exception) {
             indexReady = false;
             log.warn("Failed to bootstrap Milvus knowledge store.", exception);
+            return false;
+        }
+    }
+
+    public synchronized boolean rebuildIndex() {
+        indexReady = false;
+        if (!isReady()) {
+            log.info("Skip Milvus rebuild because external RAG is not ready yet.");
+            return false;
+        }
+
+        try {
+            MilvusClientV2 milvusClient = getClient();
+            boolean exists = milvusClient.hasCollection(HasCollectionReq.builder()
+                    .collectionName(ragProperties.getMilvus().getCollectionName())
+                    .build());
+            if (exists) {
+                milvusClient.dropCollection(DropCollectionReq.builder()
+                        .collectionName(ragProperties.getMilvus().getCollectionName())
+                        .build());
+            }
+            createCollection(milvusClient);
+            indexKnowledgeChunks(milvusClient);
+            indexReady = true;
+            log.info("Milvus knowledge store rebuilt from latest knowledge documents.");
+            return true;
+        } catch (Exception exception) {
+            log.warn("Failed to rebuild Milvus knowledge store.", exception);
             return false;
         }
     }
@@ -205,6 +239,9 @@ public class MilvusKnowledgeStoreService {
             row.addProperty("section", chunk.section());
             row.addProperty("excerpt", chunk.excerpt());
             row.addProperty("content", chunk.content());
+            row.addProperty("authority", chunk.authority());
+            row.addProperty("source_name", chunk.sourceName());
+            row.addProperty("source_url", chunk.sourceUrl());
             rows.add(row);
         }
 

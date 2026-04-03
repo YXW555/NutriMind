@@ -14,9 +14,11 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,8 +28,9 @@ public class NutritionKnowledgeBaseService {
 
     private static final Logger log = LoggerFactory.getLogger(NutritionKnowledgeBaseService.class);
     private static final Pattern ENGLISH_TOKEN_PATTERN = Pattern.compile("[a-z0-9]{2,}");
+    private static final Pattern FRONT_MATTER_PATTERN = Pattern.compile("^---\\s*\\R(.*?)\\R---\\s*\\R?", Pattern.DOTALL);
     private static final Set<String> STOP_WORDS = Set.of(
-            "什么", "怎么", "可以", "需要", "一下", "一个", "这种", "那个", "这样", "那样",
+            "什么", "怎么", "可以", "需要", "一个", "这种", "那个", "这样", "那样",
             "今天", "最近", "我的", "我们", "你们", "已经", "还是", "还有", "因为", "所以",
             "一下子", "请问", "帮我", "建议", "安排", "饮食", "营养", "吃饭", "问题"
     );
@@ -59,6 +62,11 @@ public class NutritionKnowledgeBaseService {
                         chunk.content(),
                         buildExcerpt(chunk.content(), 92),
                         chunk.title() + "\n" + chunk.section() + "\n" + chunk.content()
+                                + "\n" + nullToEmpty(chunk.authority())
+                                + "\n" + nullToEmpty(chunk.sourceName()),
+                        chunk.authority(),
+                        chunk.sourceName(),
+                        chunk.sourceUrl()
                 ))
                 .toList();
     }
@@ -85,17 +93,29 @@ public class NutritionKnowledgeBaseService {
                         match.chunk().section(),
                         buildExcerpt(match.chunk().content(), 92),
                         firstSentence(match.chunk().content()),
-                        match.score()))
+                        match.chunk().authority(),
+                        match.chunk().sourceName(),
+                        match.chunk().sourceUrl(),
+                        match.score()
+                ))
                 .toList();
     }
 
     private List<KnowledgeChunk> parseDocument(Resource resource) throws IOException {
-        String content = resource.getContentAsString(StandardCharsets.UTF_8);
+        String rawContent = resource.getContentAsString(StandardCharsets.UTF_8);
+        if (!StringUtils.hasText(rawContent)) {
+            return List.of();
+        }
+
+        DocumentMetadata metadata = parseMetadata(rawContent);
+        String content = metadata.content();
         if (!StringUtils.hasText(content)) {
             return List.of();
         }
 
-        String title = titleFromFilename(resource.getFilename());
+        String title = StringUtils.hasText(metadata.title())
+                ? metadata.title()
+                : titleFromFilename(resource.getFilename());
         String section = "";
         StringBuilder paragraph = new StringBuilder();
         List<KnowledgeChunk> parsedChunks = new ArrayList<>();
@@ -103,16 +123,16 @@ public class NutritionKnowledgeBaseService {
         for (String rawLine : content.split("\\R")) {
             String line = rawLine.trim();
             if (!StringUtils.hasText(line)) {
-                flushChunk(parsedChunks, title, section, paragraph);
+                flushChunk(parsedChunks, metadata, title, section, paragraph);
                 continue;
             }
             if (line.startsWith("# ")) {
-                flushChunk(parsedChunks, title, section, paragraph);
+                flushChunk(parsedChunks, metadata, title, section, paragraph);
                 title = line.substring(2).trim();
                 continue;
             }
             if (line.startsWith("##")) {
-                flushChunk(parsedChunks, title, section, paragraph);
+                flushChunk(parsedChunks, metadata, title, section, paragraph);
                 section = line.replaceFirst("^##+\\s*", "").trim();
                 continue;
             }
@@ -126,14 +146,18 @@ public class NutritionKnowledgeBaseService {
             }
             paragraph.append(normalizedLine);
             if (paragraph.length() >= 180 && endsWithSentence(normalizedLine)) {
-                flushChunk(parsedChunks, title, section, paragraph);
+                flushChunk(parsedChunks, metadata, title, section, paragraph);
             }
         }
-        flushChunk(parsedChunks, title, section, paragraph);
+        flushChunk(parsedChunks, metadata, title, section, paragraph);
         return parsedChunks;
     }
 
-    private void flushChunk(List<KnowledgeChunk> parsedChunks, String title, String section, StringBuilder paragraph) {
+    private void flushChunk(List<KnowledgeChunk> parsedChunks,
+                            DocumentMetadata metadata,
+                            String title,
+                            String section,
+                            StringBuilder paragraph) {
         if (!StringUtils.hasText(paragraph.toString())) {
             paragraph.setLength(0);
             return;
@@ -145,12 +169,21 @@ public class NutritionKnowledgeBaseService {
             return;
         }
 
-        String normalizedText = normalize(title + " " + section + " " + content);
+        String normalizedText = normalize(String.join(" ",
+                title,
+                section,
+                content,
+                nullToEmpty(metadata.authority()),
+                nullToEmpty(metadata.sourceName())));
+
         parsedChunks.add(new KnowledgeChunk(
                 buildChunkId(title, section, content),
                 title,
                 StringUtils.hasText(section) ? section : "重点建议",
                 content,
+                metadata.authority(),
+                metadata.sourceName(),
+                metadata.sourceUrl(),
                 normalizedText,
                 tokenize(normalizedText)
         ));
@@ -167,6 +200,9 @@ public class NutritionKnowledgeBaseService {
             }
             if (chunk.title().contains(token) || chunk.section().contains(token)) {
                 score += 1.4D;
+            }
+            if (StringUtils.hasText(chunk.sourceName()) && chunk.sourceName().contains(token)) {
+                score += 0.4D;
             }
         }
         if (normalizedQuery.length() >= 4 && chunk.normalizedText().contains(normalizedQuery)) {
@@ -231,15 +267,15 @@ public class NutritionKnowledgeBaseService {
             return "";
         }
         return text.toLowerCase(Locale.ROOT)
-                .replace('（', ' ')
-                .replace('）', ' ')
                 .replace('，', ' ')
                 .replace('。', ' ')
-                .replace('、', ' ')
                 .replace('；', ' ')
                 .replace('：', ' ')
-                .replace('！', ' ')
-                .replace('？', ' ')
+                .replace('、', ' ')
+                .replace('（', ' ')
+                .replace('）', ' ')
+                .replace('【', ' ')
+                .replace('】', ' ')
                 .replace(',', ' ')
                 .replace('.', ' ')
                 .replace(';', ' ')
@@ -298,11 +334,59 @@ public class NutritionKnowledgeBaseService {
         }
     }
 
+    private DocumentMetadata parseMetadata(String rawContent) {
+        Matcher matcher = FRONT_MATTER_PATTERN.matcher(rawContent);
+        if (!matcher.find()) {
+            return new DocumentMetadata(null, null, null, null, rawContent);
+        }
+
+        Map<String, String> values = new LinkedHashMap<>();
+        for (String line : matcher.group(1).split("\\R")) {
+            String trimmed = line.trim();
+            if (!StringUtils.hasText(trimmed) || trimmed.startsWith("#")) {
+                continue;
+            }
+            int separatorIndex = trimmed.indexOf(':');
+            if (separatorIndex <= 0) {
+                continue;
+            }
+            String key = trimmed.substring(0, separatorIndex).trim().toLowerCase(Locale.ROOT);
+            String value = trimmed.substring(separatorIndex + 1).trim();
+            values.put(key, stripQuotes(value));
+        }
+
+        return new DocumentMetadata(
+                values.get("title"),
+                values.get("authority"),
+                values.get("source_name"),
+                values.get("source_url"),
+                rawContent.substring(matcher.end())
+        );
+    }
+
+    private String stripQuotes(String value) {
+        if (!StringUtils.hasText(value) || value.length() < 2) {
+            return value;
+        }
+        if ((value.startsWith("\"") && value.endsWith("\""))
+                || (value.startsWith("'") && value.endsWith("'"))) {
+            return value.substring(1, value.length() - 1).trim();
+        }
+        return value;
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
     private record KnowledgeChunk(
             String chunkId,
             String title,
             String section,
             String content,
+            String authority,
+            String sourceName,
+            String sourceUrl,
             String normalizedText,
             Set<String> tokens
     ) {
@@ -317,7 +401,10 @@ public class NutritionKnowledgeBaseService {
             String section,
             String content,
             String excerpt,
-            String embeddingText
+            String embeddingText,
+            String authority,
+            String sourceName,
+            String sourceUrl
     ) {
     }
 
@@ -327,7 +414,19 @@ public class NutritionKnowledgeBaseService {
             String section,
             String excerpt,
             String summary,
+            String authority,
+            String sourceName,
+            String sourceUrl,
             double score
+    ) {
+    }
+
+    private record DocumentMetadata(
+            String title,
+            String authority,
+            String sourceName,
+            String sourceUrl,
+            String content
     ) {
     }
 }

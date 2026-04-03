@@ -12,6 +12,11 @@ public class GeneratedMealPlanWeekResponse {
 
     private LocalDate weekStart;
 
+    private String generationMode;
+
+    private String summary;
+
+    private List<String> tips;
+
     private List<GeneratedMealPlanResponse> days;
 }
-

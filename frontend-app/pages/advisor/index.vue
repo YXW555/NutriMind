@@ -82,7 +82,14 @@
                       <text class="reference-tag">{{ reference.title || '知识片段' }}</text>
                       <text v-if="reference.section" class="reference-section">{{ reference.section }}</text>
                     </view>
+                    <text
+                      v-if="reference.authority || reference.sourceName"
+                      class="reference-source"
+                    >
+                      {{ [reference.authority, reference.sourceName].filter(Boolean).join(' · ') }}
+                    </text>
                     <text class="reference-excerpt">{{ reference.excerpt || '该条回答引用了相关营养知识片段。' }}</text>
+                    <text v-if="reference.sourceUrl" class="reference-url">{{ reference.sourceUrl }}</text>
                   </view>
                 </view>
               </view>
@@ -1220,6 +1227,23 @@ onShow(async () => {
   font-size: 24rpx;
   line-height: 1.7;
   color: var(--nm-muted);
+}
+
+.reference-source {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--nm-primary-dark);
+}
+
+.reference-url {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 21rpx;
+  line-height: 1.5;
+  color: #64748b;
+  word-break: break-all;
 }
 
 .scroll-anchor {

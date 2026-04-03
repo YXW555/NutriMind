@@ -38,7 +38,7 @@ spring:
             - id: meal-service
               uri: ${MEAL_SERVICE_URI:http://localhost:8083}
               predicates:
-                - Path=/api/meals/**,/api/reports/**,/api/advisor/**,/api/community/**
+                - Path=/api/meals/**,/api/reports/**,/api/advisor/**,/api/community/**,/api/admin/**
 
 management:
   endpoints:

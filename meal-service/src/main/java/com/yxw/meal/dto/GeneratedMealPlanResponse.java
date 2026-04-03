@@ -17,6 +17,10 @@ public class GeneratedMealPlanResponse {
 
     private String notes;
 
+    private String generationMode;
+
+    private String summary;
+
     private BigDecimal targetCalories;
 
     private BigDecimal targetProtein;
@@ -29,6 +33,15 @@ public class GeneratedMealPlanResponse {
 
     private BigDecimal totalCarbohydrate;
 
+    private BigDecimal calorieGap;
+
+    private BigDecimal proteinGap;
+
+    private List<String> tips;
+
+    private List<String> warnings;
+
+    private List<String> references;
+
     private List<MealPlanItemResponse> items;
 }
-

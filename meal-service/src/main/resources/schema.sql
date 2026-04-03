@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS `community_post` (
   `content` VARCHAR(2000) NOT NULL,
   `image_urls` TEXT DEFAULT NULL,
   `tag` VARCHAR(32) DEFAULT '全部',
+  `moderation_status` VARCHAR(16) DEFAULT 'APPROVED',
   `like_count` INT DEFAULT 0,
   `favorite_count` INT DEFAULT 0,
   `comment_count` INT DEFAULT 0,
@@ -148,18 +149,50 @@ PREPARE community_post_comment_count_stmt FROM @community_post_comment_count_sql
 EXECUTE community_post_comment_count_stmt;
 DEALLOCATE PREPARE community_post_comment_count_stmt;
 
+SET @community_post_moderation_status_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'community_post'
+    AND COLUMN_NAME = 'moderation_status'
+);
+SET @community_post_moderation_status_sql := IF(
+  @community_post_moderation_status_exists = 0,
+  'ALTER TABLE `community_post` ADD COLUMN `moderation_status` VARCHAR(16) DEFAULT ''APPROVED'' AFTER `tag`',
+  'SELECT 1'
+);
+PREPARE community_post_moderation_status_stmt FROM @community_post_moderation_status_sql;
+EXECUTE community_post_moderation_status_stmt;
+DEALLOCATE PREPARE community_post_moderation_status_stmt;
+
 CREATE TABLE IF NOT EXISTS `community_comment` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `post_id` BIGINT NOT NULL,
   `user_id` BIGINT NOT NULL,
   `author_name` VARCHAR(64) NOT NULL,
   `content` VARCHAR(1000) NOT NULL,
+  `moderation_status` VARCHAR(16) DEFAULT 'APPROVED',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_comment_post_time` (`post_id`,`created_at`),
   KEY `idx_comment_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='community post comments';
 
+SET @community_comment_moderation_status_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'community_comment'
+    AND COLUMN_NAME = 'moderation_status'
+);
+SET @community_comment_moderation_status_sql := IF(
+  @community_comment_moderation_status_exists = 0,
+  'ALTER TABLE `community_comment` ADD COLUMN `moderation_status` VARCHAR(16) DEFAULT ''APPROVED'' AFTER `content`',
+  'SELECT 1'
+);
+PREPARE community_comment_moderation_status_stmt FROM @community_comment_moderation_status_sql;
+EXECUTE community_comment_moderation_status_stmt;
+DEALLOCATE PREPARE community_comment_moderation_status_stmt;
 CREATE TABLE IF NOT EXISTS `post_favorite` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `post_id` BIGINT NOT NULL,

@@ -22,5 +22,7 @@ public class CommunityComment {
 
     private String content;
 
+    private String moderationStatus;
+
     private LocalDateTime createdAt;
 }

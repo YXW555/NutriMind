@@ -24,6 +24,8 @@ public class CommunityPostResponse {
 
     private String tag;
 
+    private String moderationStatus;
+
     private List<String> imageUrls;
 
     private Integer likeCount;
