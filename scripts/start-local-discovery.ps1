@@ -81,13 +81,13 @@ function Assert-RequiredEnv {
 
 function Test-TcpPort {
     param(
-        [string]$TargetHost,
+        [string]$Host,
         [int]$Port
     )
 
     $client = New-Object System.Net.Sockets.TcpClient
     try {
-        $async = $client.BeginConnect($TargetHost, $Port, $null, $null)
+        $async = $client.BeginConnect($Host, $Port, $null, $null)
         if (-not $async.AsyncWaitHandle.WaitOne(1000, $false)) {
             return $false
         }
@@ -103,7 +103,7 @@ function Test-TcpPort {
 
 function Wait-ForTcpPort {
     param(
-        [string]$TargetHost,
+        [string]$Host,
         [int]$Port,
         [string]$DisplayName,
         [int]$TimeoutSeconds = 120
@@ -111,8 +111,8 @@ function Wait-ForTcpPort {
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        if (Test-TcpPort -TargetHost $TargetHost -Port $Port) {
-            Write-Host ($DisplayName + " is ready at " + $TargetHost + ":" + $Port)
+        if (Test-TcpPort -Host $Host -Port $Port) {
+            Write-Host ($DisplayName + " is ready at " + $Host + ":" + $Port)
             return
         }
 
@@ -123,7 +123,7 @@ function Wait-ForTcpPort {
 }
 
 function Wait-ForHttpReady {
-    param(
+    param (
         [string]$Uri,
         [string]$DisplayName,
         [int]$TimeoutSeconds = 120
@@ -203,8 +203,8 @@ if ($nacosServerAddr.Contains(":")) {
 }
 
 Write-Host "Waiting for infrastructure to become ready..."
-Wait-ForTcpPort -TargetHost $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
-Wait-ForTcpPort -TargetHost $nacosHost -Port $nacosPort -DisplayName "Nacos port"
+Wait-ForTcpPort -Host $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
+Wait-ForTcpPort -Host $nacosHost -Port $nacosPort -DisplayName "Nacos port"
 Wait-ForHttpReady -Uri ("http://" + $nacosServerAddr + "/nacos/") -DisplayName "Nacos console"
 
 $services = @(
