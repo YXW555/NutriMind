@@ -178,7 +178,8 @@
 import { computed, ref, onUnmounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
-import { clearSession, isLoggedIn, openHomePage, saveSession, setToken } from '@/utils/auth.js'
+// 增加引入 setFirstLoginFlag 函数 (需要你稍后在 auth.js 中定义它)
+import { clearSession, isLoggedIn, openHomePage, saveSession, setToken, setFirstLoginFlag } from '@/utils/auth.js'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{4,20}$/
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
@@ -444,6 +445,15 @@ async function submitAuth() {
     setToken(authResponse.token)
     const profile = await request.get('/auth/me')
     saveSession(authResponse.token, profile)
+    
+    // 【核心修改点】判断是否需要弹出科普引导
+    // 如果是刚注册，必然是首次。如果是登录，检查后端是否返回了类似 isFirstLogin 的标志。
+    if (mode.value === 'register' || authResponse.isFirstLogin) {
+      if (typeof setFirstLoginFlag === 'function') {
+        setFirstLoginFlag(true)
+      }
+    }
+
     resetForm()
     uni.showToast({
       title: mode.value === 'login' ? '登录成功' : '注册成功',
@@ -517,7 +527,6 @@ onUnmounted(() => {
   margin-bottom: 56rpx;
 }
 
-/* 【修改这里】移除了原来的 .brand-icon 相关代码，改用图片样式 */
 .brand-icon-image {
   width: 160rpx; /* 控制图片宽度 */
   height: 160rpx; /* 控制图片高度 */

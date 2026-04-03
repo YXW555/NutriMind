@@ -1,287 +1,251 @@
 <template>
-  <view class="page">
-    <app-page-header
-      title="我的"
-      subtitle="管理健康档案、目标和体重记录"
-      :show-back="false"
-    />
-
-    <view class="hero-card">
-      <view class="hero-main">
-        <view>
-          <text class="hero-name">{{ overview.nickname || overview.username || '未命名用户' }}</text>
-          <text class="hero-role">{{ roleLabel }}</text>
+  <view class="page-container">
+    
+    <view v-show="activePage === 'main'" class="main-dashboard">
+      <view class="custom-nav">
+        <view class="nav-left">
+          <text class="user-id">ID: {{ overview.userId || '--' }}</text>
         </view>
+      </view>
 
+      <view class="user-header" @click="openPage('account')">
         <view class="avatar-wrap">
-          <view class="avatar-circle avatar-action" @click="toggleAccountInfo">
+          <view class="avatar-circle">
             <text class="avatar-text">{{ avatarText }}</text>
           </view>
-          <text class="avatar-tip">{{ showAccountInfo ? '点击收起账号信息' : '点击头像查看账号信息' }}</text>
+        </view>
+        <view class="user-info">
+          <text class="user-name">{{ overview.nickname || overview.username || '未命名用户' }}</text>
+          <view class="user-badges">
+            <text class="badge">勋章 0</text>
+            <text class="badge">积分 0</text>
+            <text class="role-badge" v-if="overview.role === 'ADMIN'">管理员</text>
+          </view>
+        </view>
+        <view class="header-right">
+          <text class="profile-link">个人资料 ></text>
         </view>
       </view>
 
-      <view class="hero-metrics">
-        <view class="metric-pill">
-          <text class="metric-label">最新体重</text>
-          <text class="metric-value">{{ latestWeightText }}</text>
+      <view class="vip-card" @click="openPage('goal')">
+        <view class="vip-top">
+          <text class="vip-title">🌱 {{ goalTypeLabel }}方案</text>
+          <view class="vip-btn">
+            <text class="vip-btn-text">立即调整 ></text>
+            <text class="vip-btn-sub">让计划更精准</text>
+          </view>
         </view>
-        <view class="metric-pill">
-          <text class="metric-label">当前目标</text>
-          <text class="metric-value">{{ goalTypeLabel }}</text>
+        <view class="vip-metrics">
+          <view class="vip-metric-item">
+            <text class="vm-title">🎯 目标热量</text>
+            <text class="vm-desc">{{ goalCaloriesText }}</text>
+          </view>
+          <view class="vip-metric-item">
+            <text class="vm-title">⚖️ 最新体重</text>
+            <text class="vm-desc">{{ latestWeightText }}</text>
+          </view>
         </view>
-        <view class="metric-pill">
-          <text class="metric-label">目标热量</text>
-          <text class="metric-value">{{ goalCaloriesText }}</text>
+        <view class="vip-bottom">
+          <text class="vip-tag">💎 知食分子专属</text>
+          <text class="vip-hint">坚持记录，遇见更好的自己</text>
         </view>
       </view>
 
-      <view v-if="showAccountInfo" class="account-sheet">
-        <view class="account-sheet-head">
-          <view>
-            <text class="account-sheet-title">账号信息</text>
-            <text class="account-sheet-desc">这里只保留查看，不在页面里平铺展示。</text>
+      <view class="list-menu">
+        <view class="list-item" @click="openPage('goal')">
+          <view class="list-left">
+            <text class="list-icon">💡</text>
+            <text class="list-text">体重管理方案</text>
           </view>
-          <text class="account-sheet-link" @click="toggleAccountInfo">收起</text>
-        </view>
-
-        <view class="info-list">
-          <view class="info-row">
-            <text class="info-label">用户名</text>
-            <text class="info-value">{{ overview.username || '--' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">用户编号</text>
-            <text class="info-value">{{ overview.userId || '--' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">昵称</text>
-            <text class="info-value">{{ overview.nickname || '暂未填写' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">邮箱</text>
-            <text class="info-value">{{ overview.email || '暂未填写' }}</text>
-          </view>
-          <view class="info-row">
-            <text class="info-label">手机号</text>
-            <text class="info-value">{{ overview.phone || '暂未填写' }}</text>
+          <view class="list-right">
+            <text class="arrow">></text>
           </view>
         </view>
+        <view class="list-item" @click="openPage('health')">
+          <view class="list-left">
+            <text class="list-icon">📝</text>
+            <text class="list-text">健康档案</text>
+          </view>
+          <view class="list-right">
+            <text class="arrow">></text>
+          </view>
+        </view>
+        <view class="list-item" @click="openPage('weight')">
+          <view class="list-left">
+            <text class="list-icon">⚖️</text>
+            <text class="list-text">数据统计 (体重记录)</text>
+          </view>
+          <view class="list-right">
+            <text class="arrow">></text>
+          </view>
+        </view>
+        
       </view>
+      
+      <view style="height: 180rpx;"></view> </view>
+
+
+    <view v-if="activePage !== 'main'" class="sub-page">
+      <view class="sub-nav">
+        <view class="back-btn" @click="closePage">
+          <text class="back-arrow">‹</text>
+        </view>
+        <text class="sub-nav-title">{{ subPageTitle }}</text>
+        <view class="placeholder-box"></view>
+      </view>
+
+      <scroll-view scroll-y class="sub-scroll">
+        <view class="panel sub-panel">
+          
+          <block v-if="activePage === 'account'">
+            <view class="section-head">
+              <view class="section-head-left">
+                <text class="section-title">基本资料</text>
+                <text class="section-desc">您的基础账号信息</text>
+              </view>
+              <text class="section-status" :class="{ editing: isEditingAccount }">
+                {{ isEditingAccount ? '编辑中' : '已保存' }}
+              </text>
+            </view>
+
+            <view v-if="!isEditingAccount" class="info-list">
+              <view class="info-row"><text class="info-label">用户名</text><text class="info-value">{{ overview.username || '--' }}</text></view>
+              <view class="info-row"><text class="info-label">用户编号</text><text class="info-value">{{ overview.userId || '--' }}</text></view>
+              <view class="info-row"><text class="info-label">昵称</text><text class="info-value">{{ overview.nickname || '未填写' }}</text></view>
+              <view class="info-row"><text class="info-label">邮箱</text><text class="info-value">{{ overview.email || '未填写' }}</text></view>
+              <view class="info-row"><text class="info-label">手机号</text><text class="info-value">{{ overview.phone || '未填写' }}</text></view>
+            </view>
+
+            <view v-else>
+              <view class="info-list" style="margin-bottom: 16rpx;">
+                <view class="info-row"><text class="info-label">用户名</text><text class="info-value" style="color: #9ca3af;">{{ overview.username || '--' }} (不可修改)</text></view>
+              </view>
+              <input v-model="accountForm.nickname" class="field-input" placeholder="昵称，例如：健身小达人" confirm-type="next" adjust-position />
+              <input v-model="accountForm.email" class="field-input" type="text" placeholder="邮箱地址" confirm-type="next" adjust-position />
+              <input v-model="accountForm.phone" class="field-input" type="number" placeholder="手机号" confirm-type="done" adjust-position />
+            </view>
+
+            <button :class="isEditingAccount ? 'primary-button' : 'secondary-button'" :loading="savingAccount" :disabled="savingAccount" @click="handleAccountAction">
+              {{ isEditingAccount ? (savingAccount ? '保存中...' : '保存资料') : '编辑基本资料' }}
+            </button>
+            
+            <button v-if="!isEditingAccount" class="danger-button" style="margin-top: 30rpx;" @click="logout">
+              退出登录
+            </button>
+          </block>
+
+          <block v-if="activePage === 'health'">
+            <view class="section-head">
+              <view class="section-head-left">
+                <text class="section-title">健康档案</text>
+                <text class="section-desc">身高、活动水平和饮食偏好会影响计划建议。</text>
+              </view>
+              <text class="section-status" :class="{ editing: isEditingHealthProfile }">{{ healthProfileStatusText }}</text>
+            </view>
+
+            <view class="form-grid">
+              <picker class="picker-wrap" :class="{ 'picker-wrap-disabled': !isEditingHealthProfile }" :range="genderOptions" range-key="label" :value="genderIndex" @change="handleGenderChange">
+                <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ genderLabel }}</view>
+              </picker>
+              <picker mode="date" :disabled="!isEditingHealthProfile" :value="healthForm.birthDate" @change="handleBirthDateChange">
+                <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ healthForm.birthDate || (isEditingHealthProfile ? '选择出生日期' : '未填写生日') }}</view>
+              </picker>
+              <input v-model="healthForm.heightCm" :class="['field-input', { readonly: !isEditingHealthProfile }]" type="digit" :placeholder="isEditingHealthProfile ? '身高(cm)' : '未填写身高'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthProfile" adjust-position />
+              <picker class="picker-wrap" :class="{ 'picker-wrap-disabled': !isEditingHealthProfile }" :range="activityOptions" range-key="label" :value="activityIndex" @change="handleActivityChange">
+                <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ activityLabel }}</view>
+              </picker>
+            </view>
+
+            <input v-model="healthForm.dietaryPreference" :class="['field-input', { readonly: !isEditingHealthProfile }]" :placeholder="isEditingHealthProfile ? '饮食偏好，例如低糖、素食' : '未填写饮食偏好'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthProfile" adjust-position />
+            <input v-model="healthForm.allergies" :class="['field-input', { readonly: !isEditingHealthProfile }]" :placeholder="isEditingHealthProfile ? '过敏原，例如花生、海鲜' : '未填写过敏原'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthProfile" adjust-position />
+            <textarea v-model="healthForm.medicalNotes" :class="['textarea-field', { readonly: !isEditingHealthProfile }]" maxlength="300" auto-height :disabled="!isEditingHealthProfile" :placeholder="isEditingHealthProfile ? '补充说明，例如胃部不适、健身周期、作息情况' : '未填写补充说明'"></textarea>
+
+            <button :class="isEditingHealthProfile ? 'primary-button' : 'secondary-button'" :loading="savingHealthProfile" :disabled="savingHealthProfile" @click="handleHealthProfileAction">
+              {{ healthProfileActionLabel }}
+            </button>
+          </block>
+
+          <block v-if="activePage === 'goal'">
+            <view class="section-head">
+              <view class="section-head-left">
+                <text class="section-title">健康目标</text>
+                <text class="section-desc">把目标热量和宏量营养素定下来，后面更容易对照执行。</text>
+              </view>
+              <text class="section-status" :class="{ editing: isEditingHealthGoal }">{{ healthGoalStatusText }}</text>
+            </view>
+
+            <picker class="picker-wrap" :class="{ 'picker-wrap-disabled': !isEditingHealthGoal }" :range="goalOptions" range-key="label" :value="goalTypeIndex" @change="handleGoalTypeChange">
+              <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalTypePickerLabel }}</view>
+            </picker>
+
+            <view class="form-grid">
+              <input v-model="goalForm.targetCalories" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" :placeholder="isEditingHealthGoal ? '目标热量(kcal)' : '未填写热量'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
+              <input v-model="goalForm.targetWeightKg" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" :placeholder="isEditingHealthGoal ? '目标体重(kg)' : '未填写目标体重'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
+              <input v-model="goalForm.targetProtein" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" :placeholder="isEditingHealthGoal ? '目标蛋白质(g)' : '未填写蛋白质'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
+              <input v-model="goalForm.targetCarbohydrate" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" :placeholder="isEditingHealthGoal ? '目标碳水(g)' : '未填写碳水'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
+              <input v-model="goalForm.targetFat" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" :placeholder="isEditingHealthGoal ? '目标脂肪(g)' : '未填写脂肪'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
+              <input v-model="goalForm.weeklyChangeKg" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" :placeholder="isEditingHealthGoal ? '每周变化(kg)' : '未填写每周变化'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
+            </view>
+
+            <view class="form-grid">
+              <picker mode="date" :disabled="!isEditingHealthGoal" :value="goalForm.startDate" @change="event => (goalForm.startDate = event.detail.value)">
+                <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalForm.startDate || (isEditingHealthGoal ? '开始日期' : '未填写开始日期') }}</view>
+              </picker>
+              <picker mode="date" :disabled="!isEditingHealthGoal" :value="goalForm.endDate" @change="event => (goalForm.endDate = event.detail.value)">
+                <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalForm.endDate || (isEditingHealthGoal ? '结束日期' : '未填写结束日期') }}</view>
+              </picker>
+            </view>
+
+            <textarea v-model="goalForm.note" :class="['textarea-field', { readonly: !isEditingHealthGoal }]" maxlength="300" auto-height :disabled="!isEditingHealthGoal" :placeholder="isEditingHealthGoal ? '补充说明，想在 8 周减 4kg 等' : '未填写目标说明'"></textarea>
+
+            <button :class="isEditingHealthGoal ? 'primary-button' : 'secondary-button'" :loading="savingHealthGoal" :disabled="savingHealthGoal" @click="handleHealthGoalAction">
+              {{ healthGoalActionLabel }}
+            </button>
+          </block>
+
+          <block v-if="activePage === 'weight'">
+            <view class="section-head">
+              <view class="section-head-left">
+                <text class="section-title">体重记录</text>
+                <text class="section-desc">建议固定时间记录，趋势会更稳定。</text>
+              </view>
+            </view>
+
+            <view class="weight-form-row">
+              <picker mode="date" :value="weightForm.recordDate" @change="event => (weightForm.recordDate = event.detail.value)">
+                <view class="picker-field weight-date-field">{{ weightForm.recordDate }}</view>
+              </picker>
+              <input v-model="weightForm.weightKg" class="field-input weight-value-field" type="digit" placeholder="体重(kg)" confirm-type="done" cursor-spacing="24" adjust-position />
+            </view>
+
+            <input v-model="weightForm.note" class="field-input" placeholder="备注，例如晨起空腹、训练后" confirm-type="done" cursor-spacing="24" adjust-position />
+
+            <view class="button-row">
+              <button class="secondary-button" @click="resetWeightForm">重置</button>
+              <button class="primary-button" :loading="savingWeightLog" :disabled="savingWeightLog" @click="saveWeightLog">
+                {{ savingWeightLog ? '保存中...' : '保存体重' }}
+              </button>
+            </view>
+
+            <view v-if="!weightLogs.length" class="empty-inline-card">
+              <text class="empty-inline-title">还没有体重记录</text>
+              <text class="empty-inline-desc">先记下今天的体重，后面就能逐步看到趋势。</text>
+            </view>
+
+            <view v-for="item in weightLogs" :key="item.id" class="weight-log-card">
+              <view class="weight-log-main">
+                <text class="weight-log-value">{{ formatNumber(item.weightKg, 1) }} kg</text>
+                <text class="weight-log-meta">{{ item.recordDate }}{{ item.note ? ` · ${item.note}` : '' }}</text>
+              </view>
+              <button class="danger-button small" @click="deleteWeightLog(item.id)">删除</button>
+            </view>
+          </block>
+
+        </view>
+      </scroll-view>
     </view>
 
-    <view class="panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">健康档案</text>
-          <text class="section-desc">身高、活动水平和饮食偏好会影响计划建议。</text>
-        </view>
-        <text class="section-status" :class="{ editing: isEditingHealthProfile }">
-          {{ healthProfileStatusText }}
-        </text>
-      </view>
-
-      <view class="form-grid">
-        <picker
-          class="picker-wrap"
-          :class="{ 'picker-wrap-disabled': !isEditingHealthProfile }"
-          :range="genderOptions"
-          range-key="label"
-          :value="genderIndex"
-          @change="handleGenderChange"
-        >
-          <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ genderLabel }}</view>
-        </picker>
-        <picker
-          mode="date"
-          :disabled="!isEditingHealthProfile"
-          :value="healthForm.birthDate"
-          @change="handleBirthDateChange"
-        >
-          <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ healthForm.birthDate || '选择出生日期' }}</view>
-        </picker>
-        <input
-          v-model="healthForm.heightCm"
-          :class="['field-input', { readonly: !isEditingHealthProfile }]"
-          type="digit"
-          placeholder="身高(cm)"
-          confirm-type="next"
-          cursor-spacing="24"
-          :disabled="!isEditingHealthProfile"
-          adjust-position
-        />
-        <picker
-          class="picker-wrap"
-          :class="{ 'picker-wrap-disabled': !isEditingHealthProfile }"
-          :range="activityOptions"
-          range-key="label"
-          :value="activityIndex"
-          @change="handleActivityChange"
-        >
-          <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ activityLabel }}</view>
-        </picker>
-      </view>
-
-      <input
-        v-model="healthForm.dietaryPreference"
-        :class="['field-input', { readonly: !isEditingHealthProfile }]"
-        placeholder="饮食偏好，例如低糖、素食"
-        confirm-type="next"
-        cursor-spacing="24"
-        :disabled="!isEditingHealthProfile"
-        adjust-position
-      />
-      <input
-        v-model="healthForm.allergies"
-        :class="['field-input', { readonly: !isEditingHealthProfile }]"
-        placeholder="过敏原，例如花生、海鲜"
-        confirm-type="next"
-        cursor-spacing="24"
-        :disabled="!isEditingHealthProfile"
-        adjust-position
-      />
-      <textarea
-        v-model="healthForm.medicalNotes"
-        :class="['textarea-field', { readonly: !isEditingHealthProfile }]"
-        maxlength="300"
-        auto-height
-        :disabled="!isEditingHealthProfile"
-        placeholder="补充说明，例如胃部不适、健身周期、作息情况"
-      ></textarea>
-
-      <button
-        :class="isEditingHealthProfile ? 'primary-button' : 'secondary-button'"
-        :loading="savingHealthProfile"
-        :disabled="savingHealthProfile"
-        @click="handleHealthProfileAction"
-      >
-        {{ healthProfileActionLabel }}
-      </button>
-    </view>
-
-    <view class="panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">健康目标</text>
-          <text class="section-desc">把目标热量和宏量营养素定下来，后面更容易对照执行。</text>
-        </view>
-        <text class="section-status" :class="{ editing: isEditingHealthGoal }">
-          {{ healthGoalStatusText }}
-        </text>
-      </view>
-
-      <picker
-        class="picker-wrap"
-        :class="{ 'picker-wrap-disabled': !isEditingHealthGoal }"
-        :range="goalOptions"
-        range-key="label"
-        :value="goalTypeIndex"
-        @change="handleGoalTypeChange"
-      >
-        <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalTypePickerLabel }}</view>
-      </picker>
-
-      <view class="form-grid">
-        <input v-model="goalForm.targetCalories" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" placeholder="目标热量(kcal)" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
-        <input v-model="goalForm.targetWeightKg" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" placeholder="目标体重(kg)" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
-        <input v-model="goalForm.targetProtein" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" placeholder="目标蛋白质(g)" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
-        <input v-model="goalForm.targetCarbohydrate" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" placeholder="目标碳水(g)" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
-        <input v-model="goalForm.targetFat" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" placeholder="目标脂肪(g)" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
-        <input v-model="goalForm.weeklyChangeKg" :class="['field-input', { readonly: !isEditingHealthGoal }]" type="digit" placeholder="每周变化(kg)" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthGoal" adjust-position />
-      </view>
-
-      <view class="form-grid">
-        <picker mode="date" :disabled="!isEditingHealthGoal" :value="goalForm.startDate" @change="event => (goalForm.startDate = event.detail.value)">
-          <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalForm.startDate || '开始日期' }}</view>
-        </picker>
-        <picker mode="date" :disabled="!isEditingHealthGoal" :value="goalForm.endDate" @change="event => (goalForm.endDate = event.detail.value)">
-          <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalForm.endDate || '结束日期' }}</view>
-        </picker>
-      </view>
-
-      <textarea
-        v-model="goalForm.note"
-        :class="['textarea-field', { readonly: !isEditingHealthGoal }]"
-        maxlength="300"
-        auto-height
-        :disabled="!isEditingHealthGoal"
-        placeholder="补充目标说明，例如想在 8 周内减脂 4kg"
-      ></textarea>
-
-      <button
-        :class="isEditingHealthGoal ? 'primary-button' : 'secondary-button'"
-        :loading="savingHealthGoal"
-        :disabled="savingHealthGoal"
-        @click="handleHealthGoalAction"
-      >
-        {{ healthGoalActionLabel }}
-      </button>
-    </view>
-
-    <view class="panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">体重记录</text>
-          <text class="section-desc">建议固定时间记录，趋势会更稳定。</text>
-        </view>
-      </view>
-
-      <view class="weight-form-row">
-        <picker mode="date" :value="weightForm.recordDate" @change="event => (weightForm.recordDate = event.detail.value)">
-          <view class="picker-field weight-date-field">{{ weightForm.recordDate }}</view>
-        </picker>
-        <input
-          v-model="weightForm.weightKg"
-          class="field-input weight-value-field"
-          type="digit"
-          placeholder="体重(kg)"
-          confirm-type="done"
-          cursor-spacing="24"
-          adjust-position
-        />
-      </view>
-
-      <input
-        v-model="weightForm.note"
-        class="field-input"
-        placeholder="备注，例如晨起空腹、训练后"
-        confirm-type="done"
-        cursor-spacing="24"
-        adjust-position
-      />
-
-      <view class="button-row">
-        <button class="secondary-button" @click="resetWeightForm">重置</button>
-        <button
-          class="primary-button"
-          :loading="savingWeightLog"
-          :disabled="savingWeightLog"
-          @click="saveWeightLog"
-        >
-          {{ savingWeightLog ? '保存中...' : '保存体重' }}
-        </button>
-      </view>
-
-      <view v-if="!weightLogs.length" class="empty-inline-card">
-        <text class="empty-inline-title">还没有体重记录</text>
-        <text class="empty-inline-desc">先记下今天的体重，后面就能逐步看到趋势。</text>
-      </view>
-
-      <view v-for="item in weightLogs" :key="item.id" class="weight-log-card">
-        <view class="weight-log-main">
-          <text class="weight-log-value">{{ formatNumber(item.weightKg, 1) }} kg</text>
-          <text class="weight-log-meta">{{ item.recordDate }}{{ item.note ? ` · ${item.note}` : '' }}</text>
-        </view>
-        <button class="danger-button small" @click="deleteWeightLog(item.id)">删除</button>
-      </view>
-    </view>
-
-    <view class="action-row">
-      <button class="secondary-button" @click="loadOverview">刷新资料</button>
-      <button class="danger-button" @click="logout">退出登录</button>
-    </view>
-
-    <app-tab-bar current="profile" />
+    <app-tab-bar v-show="activePage === 'main'" current="profile" />
   </view>
 </template>
 
@@ -291,6 +255,20 @@ import { onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
 import { clearSession, formatToday, getToken, isLoggedIn, openAuthPage, saveSession } from '@/utils/auth.js'
 import { formatNumber } from '@/utils/format.js'
+
+// === 页面状态控制 ===
+const activePage = ref('main') // 'main', 'account', 'health', 'goal', 'weight'
+const subPageTitle = computed(() => {
+  const map = { account: '个人信息', health: '健康档案', goal: '体重管理方案', weight: '数据统计' }
+  return map[activePage.value] || '详情'
+})
+
+function openPage(page) {
+  activePage.value = page
+}
+function closePage() {
+  activePage.value = 'main'
+}
 
 const genderOptions = [
   { label: '性别未设置', value: '' },
@@ -315,12 +293,20 @@ const goalOptions = [
 
 const overview = ref({})
 const weightLogs = ref([])
+
+// 表单数据
+const accountForm = ref({ nickname: '', email: '', phone: '' })
 const healthForm = ref(createEmptyHealthForm())
 const goalForm = ref(createEmptyGoalForm())
 const weightForm = ref(createEmptyWeightForm())
-const showAccountInfo = ref(false)
+
+// 编辑状态控制
+const isEditingAccount = ref(false)
 const isEditingHealthProfile = ref(true)
 const isEditingHealthGoal = ref(true)
+
+// 保存 loading 状态
+const savingAccount = ref(false)
 const savingHealthProfile = ref(false)
 const savingHealthGoal = ref(false)
 const savingWeightLog = ref(false)
@@ -330,20 +316,8 @@ const avatarText = computed(() => {
   return String(source).slice(0, 1)
 })
 
-const roleLabel = computed(() => {
-  if (overview.value.role === 'ADMIN') {
-    return '管理员'
-  }
-  if (overview.value.role === 'USER') {
-    return '普通用户'
-  }
-  return '用户'
-})
-
 const latestWeightText = computed(() => {
-  if (!overview.value.latestWeightKg) {
-    return '待记录'
-  }
+  if (!overview.value.latestWeightKg) return '待记录'
   return `${formatNumber(overview.value.latestWeightKg, 1)} kg`
 })
 
@@ -353,9 +327,7 @@ const goalTypeLabel = computed(() => {
 })
 
 const goalCaloriesText = computed(() => {
-  if (!goalForm.value.targetCalories) {
-    return '未设置'
-  }
+  if (!goalForm.value.targetCalories) return '--'
   return `${formatNumber(goalForm.value.targetCalories)} kcal`
 })
 
@@ -363,30 +335,22 @@ const hasSavedHealthProfile = computed(() => hasHealthProfileContent(overview.va
 const hasSavedHealthGoal = computed(() => hasHealthGoalContent(overview.value?.healthGoal))
 
 const healthProfileActionLabel = computed(() => {
-  if (savingHealthProfile.value) {
-    return '保存中...'
-  }
+  if (savingHealthProfile.value) return '保存中...'
   return isEditingHealthProfile.value ? '保存健康档案' : '编辑健康档案'
 })
 
 const healthGoalActionLabel = computed(() => {
-  if (savingHealthGoal.value) {
-    return '保存中...'
-  }
+  if (savingHealthGoal.value) return '保存中...'
   return isEditingHealthGoal.value ? '保存目标' : '编辑目标'
 })
 
 const healthProfileStatusText = computed(() => {
-  if (isEditingHealthProfile.value) {
-    return hasSavedHealthProfile.value ? '编辑中' : '待填写'
-  }
+  if (isEditingHealthProfile.value) return hasSavedHealthProfile.value ? '编辑中' : '待填写'
   return '已保存'
 })
 
 const healthGoalStatusText = computed(() => {
-  if (isEditingHealthGoal.value) {
-    return hasSavedHealthGoal.value ? '编辑中' : '待填写'
-  }
+  if (isEditingHealthGoal.value) return hasSavedHealthGoal.value ? '编辑中' : '待填写'
   return '已保存'
 })
 
@@ -405,43 +369,20 @@ const goalTypeIndex = computed(() => {
   return index >= 0 ? index : 0
 })
 
-const genderLabel = computed(() => genderOptions[genderIndex.value]?.label || '选择性别')
-const activityLabel = computed(() => activityOptions[activityIndex.value]?.label || '选择活动水平')
-const goalTypePickerLabel = computed(() => goalOptions[goalTypeIndex.value]?.label || '选择目标')
+const genderLabel = computed(() => genderOptions[genderIndex.value]?.label || (isEditingHealthProfile.value ? '选择性别' : '未设置性别'))
+const activityLabel = computed(() => activityOptions[activityIndex.value]?.label || (isEditingHealthProfile.value ? '选择活动水平' : '未设置活动水平'))
+const goalTypePickerLabel = computed(() => goalOptions[goalTypeIndex.value]?.label || (isEditingHealthGoal.value ? '选择目标' : '未设置目标'))
 
 function createEmptyHealthForm() {
-  return {
-    gender: '',
-    birthDate: '',
-    heightCm: '',
-    activityLevel: '',
-    dietaryPreference: '',
-    allergies: '',
-    medicalNotes: ''
-  }
+  return { gender: '', birthDate: '', heightCm: '', activityLevel: '', dietaryPreference: '', allergies: '', medicalNotes: '' }
 }
 
 function createEmptyGoalForm() {
-  return {
-    goalType: 'BALANCE',
-    targetCalories: '',
-    targetProtein: '',
-    targetFat: '',
-    targetCarbohydrate: '',
-    targetWeightKg: '',
-    weeklyChangeKg: '',
-    startDate: '',
-    endDate: '',
-    note: ''
-  }
+  return { goalType: 'BALANCE', targetCalories: '', targetProtein: '', targetFat: '', targetCarbohydrate: '', targetWeightKg: '', weeklyChangeKg: '', startDate: '', endDate: '', note: '' }
 }
 
 function createEmptyWeightForm() {
-  return {
-    weightKg: '',
-    recordDate: formatToday(),
-    note: ''
-  }
+  return { weightKg: '', recordDate: formatToday(), note: '' }
 }
 
 function normalizeOptionalText(value) {
@@ -451,64 +392,34 @@ function normalizeOptionalText(value) {
 
 function normalizeOptionalNumber(value) {
   const normalized = String(value ?? '').trim()
-  if (!normalized) {
-    return null
-  }
-
+  if (!normalized) return null
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? parsed : Number.NaN
 }
 
 function showInlineToast(title, icon = 'none') {
-  uni.showToast({
-    title,
-    icon
-  })
+  uni.showToast({ title, icon })
 }
 
 function showSavingIndicator(title = '保存中') {
-  if (typeof uni.hideKeyboard === 'function') {
-    uni.hideKeyboard()
-  }
-  uni.showLoading({
-    title,
-    mask: true
-  })
+  if (typeof uni.hideKeyboard === 'function') uni.hideKeyboard()
+  uni.showLoading({ title, mask: true })
 }
 
 function hasHealthProfileContent(profile) {
   const current = profile || {}
-  return Boolean(
-    current.gender
-    || current.birthDate
-    || current.heightCm
-    || current.activityLevel
-    || current.dietaryPreference
-    || current.allergies
-    || current.medicalNotes
-  )
+  return Boolean(current.gender || current.birthDate || current.heightCm || current.activityLevel || current.dietaryPreference || current.allergies || current.medicalNotes)
 }
 
 function hasHealthGoalContent(goal) {
   const current = goal || {}
-  return Boolean(
-    current.id
-    || current.targetCalories
-    || current.targetProtein
-    || current.targetFat
-    || current.targetCarbohydrate
-    || current.targetWeightKg
-    || current.weeklyChangeKg
-    || current.startDate
-    || current.endDate
-    || current.note
-    || (current.goalType && current.goalType !== 'BALANCE')
-  )
+  return Boolean(current.id || current.targetCalories || current.targetProtein || current.targetFat || current.targetCarbohydrate || current.targetWeightKg || current.weeklyChangeKg || current.startDate || current.endDate || current.note || (current.goalType && current.goalType !== 'BALANCE'))
 }
 
 function assignForms(data) {
   const profile = data?.healthProfile || {}
   const goal = data?.healthGoal || {}
+  
   healthForm.value = {
     gender: profile.gender || '',
     birthDate: profile.birthDate || '',
@@ -518,6 +429,7 @@ function assignForms(data) {
     allergies: profile.allergies || '',
     medicalNotes: profile.medicalNotes || ''
   }
+  
   goalForm.value = {
     goalType: goal.goalType || 'BALANCE',
     targetCalories: goal.targetCalories ? `${goal.targetCalories}` : '',
@@ -530,9 +442,11 @@ function assignForms(data) {
     endDate: goal.endDate || '',
     note: goal.note || ''
   }
+  
   weightLogs.value = Array.isArray(data?.recentWeightLogs) ? data.recentWeightLogs : []
   isEditingHealthProfile.value = !hasHealthProfileContent(profile)
   isEditingHealthGoal.value = !hasHealthGoalContent(goal)
+  isEditingAccount.value = false 
 }
 
 async function loadOverview() {
@@ -558,34 +472,62 @@ async function loadOverview() {
   }
 }
 
-function handleGenderChange(event) {
-  if (!isEditingHealthProfile.value) {
-    return
+// ---- 基本资料操作 ----
+async function handleAccountAction() {
+  if (!isEditingAccount.value) {
+    accountForm.value = {
+      nickname: overview.value.nickname || '',
+      email: overview.value.email || '',
+      phone: overview.value.phone || ''
+    }
+    isEditingAccount.value = true
+  } else {
+    await saveAccountInfo()
   }
+}
+
+async function saveAccountInfo() {
+  if (savingAccount.value) return
+  savingAccount.value = true
+  showSavingIndicator()
+
+  try {
+    await request.put('/profile/info', {
+      nickname: normalizeOptionalText(accountForm.value.nickname),
+      email: normalizeOptionalText(accountForm.value.email),
+      phone: normalizeOptionalText(accountForm.value.phone)
+    })
+    isEditingAccount.value = false
+    await loadOverview()
+    showInlineToast('基本资料已保存', 'success')
+  } catch (error) {
+    console.log('save account info failed', error)
+  } finally {
+    savingAccount.value = false
+    uni.hideLoading()
+  }
+}
+
+function handleGenderChange(event) {
+  if (!isEditingHealthProfile.value) return
   const selected = genderOptions[Number(event.detail.value || 0)]
   healthForm.value.gender = selected ? selected.value : ''
 }
 
 function handleActivityChange(event) {
-  if (!isEditingHealthProfile.value) {
-    return
-  }
+  if (!isEditingHealthProfile.value) return
   const selected = activityOptions[Number(event.detail.value || 0)]
   healthForm.value.activityLevel = selected ? selected.value : ''
 }
 
 function handleGoalTypeChange(event) {
-  if (!isEditingHealthGoal.value) {
-    return
-  }
+  if (!isEditingHealthGoal.value) return
   const selected = goalOptions[Number(event.detail.value || 0)]
   goalForm.value.goalType = selected ? selected.value : 'BALANCE'
 }
 
 function handleBirthDateChange(event) {
-  if (!isEditingHealthProfile.value) {
-    return
-  }
+  if (!isEditingHealthProfile.value) return
   healthForm.value.birthDate = event.detail.value
 }
 
@@ -606,9 +548,7 @@ async function handleHealthGoalAction() {
 }
 
 async function saveHealthProfile() {
-  if (savingHealthProfile.value) {
-    return
-  }
+  if (savingHealthProfile.value) return
 
   const heightCm = normalizeOptionalNumber(healthForm.value.heightCm)
   if (Number.isNaN(heightCm)) {
@@ -644,9 +584,7 @@ async function saveHealthProfile() {
 }
 
 async function saveHealthGoal() {
-  if (savingHealthGoal.value) {
-    return
-  }
+  if (savingHealthGoal.value) return
 
   const targetCalories = normalizeOptionalNumber(goalForm.value.targetCalories)
   const targetProtein = normalizeOptionalNumber(goalForm.value.targetProtein)
@@ -709,9 +647,7 @@ async function saveHealthGoal() {
 }
 
 async function saveWeightLog() {
-  if (savingWeightLog.value) {
-    return
-  }
+  if (savingWeightLog.value) return
 
   const weightKg = normalizeOptionalNumber(weightForm.value.weightKg)
   if (weightKg === null) {
@@ -747,9 +683,7 @@ function deleteWeightLog(logId) {
     title: '删除记录',
     content: '确认删除这条体重记录吗？',
     success: async (result) => {
-      if (!result.confirm) {
-        return
-      }
+      if (!result.confirm) return
       try {
         await request.delete(`/profile/weights/${logId}`)
         loadOverview()
@@ -764,20 +698,10 @@ function resetWeightForm() {
   weightForm.value = createEmptyWeightForm()
 }
 
-function toggleAccountInfo() {
-  showAccountInfo.value = !showAccountInfo.value
-}
-
 function logout() {
   clearSession()
-  uni.showToast({
-    title: '已退出登录',
-    icon: 'success'
-  })
-
-  setTimeout(() => {
-    openAuthPage()
-  }, 250)
+  uni.showToast({ title: '已退出登录', icon: 'success' })
+  setTimeout(() => { openAuthPage() }, 250)
 }
 
 onShow(() => {
@@ -790,367 +714,186 @@ onShow(() => {
 </script>
 
 <style scoped>
-.page {
+/* =========================================================
+   全局页面样式
+========================================================= */
+.page-container {
   min-height: 100vh;
-  padding: 32rpx 24rpx 176rpx;
+  background-color: #F7F8FA;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  position: relative;
 }
 
-.hero-card,
-.panel {
-  margin-top: 24rpx;
-  padding: 30rpx 28rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: var(--nm-shadow);
-  border: 1rpx solid var(--nm-line);
+/* =========================================================
+   1. 主仪表盘样式 (Main Dashboard)
+========================================================= */
+.main-dashboard {
+  padding-bottom: 20rpx;
 }
 
-.hero-card {
-  background: linear-gradient(160deg, #edf7ef 0%, #ffffff 100%);
+/* 自定义顶部导航 */
+.custom-nav {
+  padding: 80rpx 40rpx 20rpx; /* 给状态栏留出空间 */
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: transparent;
 }
+.user-id { font-size: 24rpx; color: #999; }
 
-.hero-main,
-.section-head,
-.info-row,
-.action-row,
-.button-row,
-.weight-form-row,
-.weight-log-card {
+/* 用户头部信息 */
+.user-header {
+  padding: 20rpx 40rpx 40rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16rpx;
+  gap: 30rpx;
 }
-
-.hero-name {
-  display: block;
-  font-size: 42rpx;
-  font-weight: 800;
-  color: var(--nm-text);
+.avatar-circle {
+  width: 130rpx; height: 130rpx; border-radius: 50%;
+  background: #E8F3EE; display: flex; align-items: center; justify-content: center;
+  border: 4rpx solid #fff; box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
 }
+.avatar-text { font-size: 50rpx; font-weight: 900; color: #38D07D; }
+.user-info { flex: 1; }
+.user-name { font-size: 40rpx; font-weight: 900; color: #262626; display: block; margin-bottom: 12rpx;}
+.user-badges { display: flex; gap: 12rpx; align-items: center;}
+.badge { background: #F0F0F0; color: #666; font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 100rpx; }
+.role-badge { background: #FFF4E5; color: #D97706; font-size: 22rpx; padding: 4rpx 16rpx; border-radius: 100rpx; }
+.header-right { padding-left: 20rpx; }
+.profile-link { font-size: 24rpx; color: #999; }
 
-.hero-role {
-  display: inline-flex;
-  margin-top: 12rpx;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: var(--nm-card-soft);
-  font-size: 24rpx;
-  color: var(--nm-muted);
+/* VIP / 目标数据卡片 */
+.vip-card {
+  margin: 0 30rpx;
+  background: linear-gradient(135deg, #2E3238 0%, #1A1D21 100%);
+  border-radius: 32rpx;
+  padding: 30rpx;
+  color: #fff;
+  box-shadow: 0 10rpx 30rpx rgba(0,0,0,0.1);
+  position: relative;
+  overflow: hidden;
 }
+.vip-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30rpx; }
+.vip-title { font-size: 32rpx; font-weight: bold; color: #E8F3EE; }
+.vip-btn { background: linear-gradient(90deg, #E8F3EE, #C4E4D3); padding: 10rpx 20rpx; border-radius: 16rpx; text-align: center; }
+.vip-btn-text { display: block; font-size: 24rpx; color: #1A1D21; font-weight: bold; }
+.vip-btn-sub { display: block; font-size: 18rpx; color: #4A5D53; margin-top: 4rpx; }
+.vip-metrics { display: flex; gap: 40rpx; margin-bottom: 24rpx; }
+.vip-metric-item { flex: 1; background: rgba(255,255,255,0.06); padding: 20rpx; border-radius: 20rpx; }
+.vm-title { display: block; font-size: 24rpx; color: #999; margin-bottom: 8rpx; }
+.vm-desc { display: block; font-size: 32rpx; font-weight: bold; color: #38D07D; }
+.vip-bottom { display: flex; align-items: center; gap: 16rpx; }
+.vip-tag { font-size: 22rpx; background: linear-gradient(90deg, #E8F3EE, #fff); color: #2E3238; padding: 4rpx 16rpx; border-radius: 100rpx; font-weight: bold; }
+.vip-hint { font-size: 22rpx; color: #666; }
 
-.avatar-wrap {
+/* 列表菜单 (已移除上方八宫格间距，调整 margin) */
+.list-menu {
+  background: #fff; margin: 40rpx 30rpx 30rpx; border-radius: 32rpx;
+  padding: 10rpx 30rpx; box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
+}
+.list-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 34rpx 0; border-bottom: 1rpx solid #F0F0F0;
+}
+.border-none { border-bottom: none; }
+.list-left { display: flex; align-items: center; gap: 20rpx; }
+.list-icon { font-size: 40rpx; }
+.list-text { font-size: 30rpx; color: #262626; font-weight: bold; }
+.text-danger { color: #FF4D4F; }
+.arrow { color: #CCC; font-size: 30rpx; font-weight: bold; }
+
+/* =========================================================
+   2. 子页面样式 (Sub Page for Forms)
+========================================================= */
+.sub-page {
+  position: fixed;
+  inset: 0;
+  background: #F7F8FA;
+  z-index: 999;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 10rpx;
+  animation: slideIn 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
-.avatar-circle {
-  width: 112rpx;
-  height: 112rpx;
-  border-radius: 50%;
-  background: var(--nm-card-soft);
-  border: 1rpx solid var(--nm-line);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.sub-nav {
+  padding: 100rpx 30rpx 30rpx; /* 状态栏留白 */
+  background: #fff;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.02);
   flex-shrink: 0;
 }
+.back-btn { width: 60rpx; height: 60rpx; display: flex; align-items: center; }
+.back-arrow { font-size: 60rpx; color: #262626; margin-top: -10rpx; font-weight: 300; }
+.sub-nav-title { font-size: 34rpx; font-weight: bold; color: #262626; }
+.placeholder-box { width: 60rpx; } /* 占位符保持标题居中 */
 
-.avatar-action {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.avatar-text {
-  font-size: 42rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.avatar-tip {
-  font-size: 22rpx;
-  color: var(--nm-muted);
-}
-
-.hero-metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14rpx;
-  margin-top: 24rpx;
-}
-
-.account-sheet {
-  margin-top: 24rpx;
-  padding: 24rpx;
-  border-radius: 18rpx;
-  background: var(--nm-card-soft);
-  border: 1rpx solid var(--nm-line);
-}
-
-.account-sheet-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16rpx;
-}
-
-.account-sheet-title {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.account-sheet-desc,
-.account-sheet-link {
-  font-size: 24rpx;
-  color: var(--nm-muted);
-}
-
-.account-sheet-desc {
-  display: block;
-  margin-top: 8rpx;
-  line-height: 1.6;
-}
-
-.account-sheet-link {
-  flex-shrink: 0;
-  font-weight: 700;
-}
-
-.metric-pill {
-  padding: 20rpx;
-  border-radius: 16rpx;
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.metric-label,
-.section-desc,
-.info-label,
-.shortcut-desc,
-.empty-inline-desc,
-.weight-log-meta {
-  font-size: 24rpx;
-  color: var(--nm-muted);
-}
-
-.metric-value {
-  display: block;
-  margin-top: 10rpx;
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.section-title {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.section-desc {
-  display: block;
-  margin-top: 10rpx;
-  line-height: 1.7;
-}
-
-.section-status {
-  flex-shrink: 0;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(47, 125, 107, 0.12);
-  font-size: 24rpx;
-  font-weight: 700;
-  color: var(--nm-primary-dark);
-}
-
-.section-status.editing {
-  background: rgba(72, 110, 155, 0.12);
-  color: var(--nm-blue);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18rpx;
-  margin-top: 22rpx;
-}
-
-.info-list {
-  margin-top: 20rpx;
-}
-
-.info-row {
-  padding: 18rpx 0;
-  border-bottom: 1rpx solid rgba(15, 23, 42, 0.06);
-}
-
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-value {
+.sub-scroll {
   flex: 1;
-  text-align: right;
-  font-size: 26rpx;
-  color: var(--nm-text);
-  word-break: break-all;
-}
-
-.picker-wrap,
-.field-input,
-.picker-field,
-.textarea-field {
-  width: 100%;
-}
-
-.picker-wrap {
-  display: block;
-}
-
-.picker-wrap-disabled {
-  pointer-events: none;
-}
-
-.field-input,
-.picker-field,
-.textarea-field {
+  padding: 30rpx;
   box-sizing: border-box;
-  margin-top: 16rpx;
-  padding: 24rpx;
-  border-radius: 18rpx;
-  background: var(--nm-card-soft);
-  font-size: 28rpx;
-  color: var(--nm-text);
-  border: 1rpx solid var(--nm-line);
+}
+.sub-panel {
+  background: #fff; border-radius: 32rpx; padding: 40rpx 30rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02); margin-bottom: 60rpx;
 }
 
-.field-input,
-.picker-field {
-  min-height: 92rpx;
-}
+/* 表单内部样式 */
+.section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30rpx;}
+.section-head-left { flex: 1; min-width: 0; padding-right: 16rpx; }
+.section-title { display: block; font-size: 36rpx; font-weight: 800; color: #262626; }
+.section-desc { display: block; margin-top: 10rpx; font-size: 24rpx; color: #999; line-height: 1.4; }
 
-.field-input {
-  display: block;
-  line-height: 44rpx;
+/* 关键修复：加入 flex-shrink 和 white-space 保证标签不被挤压换行 */
+.section-status { 
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8rpx 16rpx; 
+  border-radius: 100rpx; 
+  background: #E8F3EE; 
+  font-size: 22rpx; 
+  font-weight: bold; 
+  color: #38D07D; 
 }
+.section-status.editing { background: #EAF2FB; color: #2563EB; }
 
-.picker-field {
-  display: flex;
-  align-items: center;
-}
+.info-list { margin-top: 20rpx; }
+.info-row { padding: 24rpx 0; border-bottom: 1rpx solid #F0F0F0; display: flex; justify-content: space-between; }
+.info-row:last-child { border-bottom: none; }
+.info-label { font-size: 28rpx; color: #666; }
+.info-value { font-size: 28rpx; color: #262626; font-weight: bold;}
 
-.field-input.readonly,
-.picker-field.readonly,
-.textarea-field.readonly {
-  background: #eef5f1;
-  color: var(--nm-muted);
-  border-color: rgba(107, 114, 128, 0.14);
+.field-input, .picker-field, .textarea-field {
+  box-sizing: border-box; margin-top: 20rpx; padding: 28rpx;
+  border-radius: 20rpx; background: #F9FAFB; font-size: 28rpx; color: #262626; border: 1rpx solid #F0F0F0;
 }
+.field-input, .picker-field { min-height: 100rpx; display: flex; align-items: center; }
+.field-input.readonly, .picker-field.readonly, .textarea-field.readonly { background: #F5F6F8; color: #999; border-color: transparent; }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; margin-top: 20rpx; }
+.form-grid .field-input, .form-grid .picker-field { margin-top: 0; }
+.textarea-field { min-height: 180rpx; line-height: 1.6; }
+.weight-form-row { display: flex; gap: 20rpx; margin-top: 20rpx;}
+.weight-date-field { flex: 1.2; margin-top: 0;}
+.weight-value-field { flex: 1; margin-top: 0;}
 
-.form-grid .field-input,
-.form-grid .picker-field {
-  margin-top: 0;
+.primary-button, .secondary-button, .danger-button {
+  margin-top: 40rpx; height: 96rpx; border-radius: 100rpx; font-size: 32rpx; font-weight: bold; display: flex; align-items: center; justify-content: center;
 }
+.primary-button { background: #38D07D; color: #ffffff; }
+.primary-button::after, .secondary-button::after, .danger-button::after { border: none; }
+.secondary-button { background: #E8F3EE; color: #38D07D; }
+.danger-button { background: #FEF2F2; color: #FF4D4F; }
+.danger-button.small { margin-top: 0; width: 140rpx; height: 72rpx; font-size: 26rpx; border-radius: 16rpx;}
+.button-row { display: flex; gap: 20rpx; }
+.button-row button { flex: 1; }
 
-.textarea-field {
-  min-height: 180rpx;
-  line-height: 1.65;
-}
-
-.weight-form-row .field-input,
-.weight-form-row .picker-field {
-  margin-top: 16rpx;
-}
-
-.weight-date-field,
-.weight-value-field {
-  margin-top: 0;
-}
-
-.weight-date-field {
-  flex: 1.1;
-}
-
-.weight-value-field {
-  flex: 1;
-}
-
-.primary-button,
-.secondary-button,
-.danger-button {
-  margin-top: 20rpx;
-  height: 88rpx;
-  border-radius: 18rpx;
-  font-size: 28rpx;
-  font-weight: 700;
-}
-
-.primary-button {
-  background: var(--nm-primary);
-  color: #ffffff;
-}
-
-.primary-button[disabled],
-.secondary-button[disabled],
-.danger-button[disabled] {
-  opacity: 0.72;
-}
-
-.secondary-button {
-  background: #edf5ef;
-  color: var(--nm-primary-dark);
-}
-
-.danger-button {
-  background: #f7ebe2;
-  color: var(--nm-danger);
-}
-
-.danger-button.small {
-  margin-top: 0;
-  min-width: 120rpx;
-  height: 72rpx;
-  font-size: 24rpx;
-}
-
-.button-row button,
-.action-row button {
-  flex: 1;
-}
-
-.empty-inline-card {
-  margin-top: 20rpx;
-  padding: 24rpx;
-  border-radius: 18rpx;
-  background: var(--nm-card-soft);
-}
-
-.empty-inline-title {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--nm-text);
-}
-
-.weight-log-card {
-  margin-top: 18rpx;
-  padding: 22rpx;
-  border-radius: 18rpx;
-  background: var(--nm-card-soft);
-}
-
-.weight-log-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.weight-log-value {
-  display: block;
-  font-size: 32rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
+.empty-inline-card { margin-top: 30rpx; padding: 40rpx 20rpx; border-radius: 24rpx; background: #F9FAFB; text-align: center;}
+.empty-inline-title { display: block; font-size: 28rpx; font-weight: bold; color: #262626; }
+.empty-inline-desc { font-size: 24rpx; color: #999; margin-top: 10rpx;}
+.weight-log-card { margin-top: 20rpx; padding: 28rpx; border-radius: 24rpx; background: #F9FAFB; display: flex; justify-content: space-between; align-items: center;}
+.weight-log-main { flex: 1; }
+.weight-log-value { display: block; font-size: 34rpx; font-weight: bold; color: #262626; margin-bottom: 8rpx;}
 </style>

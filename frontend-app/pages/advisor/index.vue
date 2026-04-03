@@ -157,6 +157,9 @@ const showSidebar = ref(false)
 const sessions = ref([]) 
 const activeSessionId = ref(null)
 
+// 核心修复点 1：本地持久化存储强制拆分的“消息断点 ID”
+const splitMessageIds = ref(uni.getStorageSync('chat_split_ids') || [])
+
 const userAvatarText = computed(() => {
   const source = overview.value?.nickname || overview.value?.username || '我'
   return String(source).slice(0, 1).toUpperCase()
@@ -252,7 +255,12 @@ function groupMessagesIntoSessions(items) {
       tempSessions.push(currentSess)
     } else {
       const timeDiffMins = (safeParseDate(msg.createdAt) - safeParseDate(currentSess.updatedAt)) / 60000
-      if (isUserMessage(msg) && timeDiffMins > 120) {
+      
+      // 核心修复点 2：判断这条消息是不是我们标记过的“新对话第一条消息”
+      const isManualSplit = splitMessageIds.value.includes(msg.id)
+
+      // 如果时间超过120分钟，或者它是一条被强制标记的新对话开端，就新建组！
+      if (isUserMessage(msg) && (timeDiffMins > 120 || isManualSplit)) {
         currentSess = { 
           id: `sess-${msg.id}`, 
           title: trimText(msg.content, 15), 
@@ -316,16 +324,28 @@ function switchSession(sessionId) {
   })
 }
 
-async function loadMessages() {
+// 核心修复点 3：让 loadMessages 接收一个参数，用来判断要不要标记强制截断
+async function loadMessages(options = { markLastAsSplit: false }) {
   try {
     const response = await request.get('/advisor/messages')
     const items = Array.isArray(response) ? response : []
     rawMessages.value = items.map(normalizeMessageItem)
     
+    // 如果这是新对话的第一条消息刚发完，我们需要找到后端真正生成的该条消息的 ID 并记录下来
+    if (options.markLastAsSplit) {
+      // 从所有消息里找到最后一条用户发送的消息（也就是刚刚发出去的那条）
+      const lastUserMsg = [...rawMessages.value].reverse().find(m => isUserMessage(m))
+      if (lastUserMsg && !splitMessageIds.value.includes(lastUserMsg.id)) {
+        splitMessageIds.value.push(lastUserMsg.id)
+        uni.setStorageSync('chat_split_ids', splitMessageIds.value)
+      }
+    }
+
     sessions.value = groupMessagesIntoSessions(rawMessages.value)
     
     if (activeSessionId.value !== 'new_temp') {
-      if (sessions.value.length > 0 && !activeSessionId.value) {
+      const sessionExists = sessions.value.some(s => s.id === activeSessionId.value)
+      if (!sessionExists && sessions.value.length > 0) {
         activeSessionId.value = sessions.value[0].id
       }
     }
@@ -351,8 +371,10 @@ async function sendMessage() {
     createdAt: new Date().toISOString()
   })
 
-  // 2. 修复发送失效的关键：如果没有任何活跃会话或等于'new_temp'，自动创建新会话！
-  if (!activeSessionId.value || activeSessionId.value === 'new_temp') {
+  // 记录一下：发消息之前是不是在一个强制的新对话里
+  const isForcedNewSession = !activeSessionId.value || activeSessionId.value === 'new_temp'
+
+  if (isForcedNewSession) {
     const newSess = {
       id: `temp-sess-${Date.now()}`,
       title: trimText(content, 15),
@@ -376,7 +398,8 @@ async function sendMessage() {
 
   try {
     await request.post('/advisor/messages', { content })
-    await loadMessages() 
+    // 核心修复点 4：把 isForcedNewSession 传给 loadMessages
+    await loadMessages({ markLastAsSplit: isForcedNewSession }) 
   } catch (error) {
     console.log('send advisor message failed', error)
   } finally {
@@ -489,7 +512,6 @@ onShow(async () => {
   margin-top: 4rpx;
   line-height: 1.2;
 }
-
 
 /* === 侧边栏抽屉样式 === */
 .sidebar-overlay {
