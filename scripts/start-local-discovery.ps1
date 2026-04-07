@@ -81,13 +81,13 @@ function Assert-RequiredEnv {
 
 function Test-TcpPort {
     param(
-        [string]$Host,
+        [string]$HostName,
         [int]$Port
     )
 
     $client = New-Object System.Net.Sockets.TcpClient
     try {
-        $async = $client.BeginConnect($Host, $Port, $null, $null)
+        $async = $client.BeginConnect($HostName, $Port, $null, $null)
         if (-not $async.AsyncWaitHandle.WaitOne(1000, $false)) {
             return $false
         }
@@ -103,7 +103,7 @@ function Test-TcpPort {
 
 function Wait-ForTcpPort {
     param(
-        [string]$Host,
+        [string]$HostName,
         [int]$Port,
         [string]$DisplayName,
         [int]$TimeoutSeconds = 120
@@ -111,8 +111,8 @@ function Wait-ForTcpPort {
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        if (Test-TcpPort -Host $Host -Port $Port) {
-            Write-Host ($DisplayName + " is ready at " + $Host + ":" + $Port)
+        if (Test-TcpPort -HostName $HostName -Port $Port) {
+            Write-Host ($DisplayName + " is ready at " + $HostName + ":" + $Port)
             return
         }
 
@@ -155,6 +155,7 @@ foreach ($fileName in @(".env", ".env.local")) {
 }
 
 Set-EnvDefault -Name "SPRING_PROFILES_ACTIVE" -Default "discovery"
+Set-EnvDefault -Name "GATEWAY_PORT" -Default "8080"
 Set-EnvDefault -Name "NACOS_SERVER_ADDR" -Default "127.0.0.1:8848"
 Set-EnvDefault -Name "MYSQL_HOST" -Default "localhost"
 Set-EnvDefault -Name "MYSQL_PORT" -Default "3307"
@@ -186,6 +187,11 @@ if ([string]::IsNullOrWhiteSpace((Resolve-EnvValue "APP_RAG_QWEN_API_KEY"))) {
 Write-Host ("MySQL target: " + (Resolve-EnvValue "MYSQL_HOST") + ":" + (Resolve-EnvValue "MYSQL_PORT"))
 
 if (-not $SkipInfra) {
+    $dockerInfoOutput = & docker info 2>&1
+    if ($LASTEXITCODE -ne 0) {
+        throw ("Docker Desktop is not running or the Linux engine is unavailable. Start Docker Desktop first, then retry. Details: " + ($dockerInfoOutput | Out-String).Trim())
+    }
+
     docker compose -f (Join-Path $root "docker-compose.dev.yml") up -d
 }
 
@@ -201,8 +207,8 @@ if ($nacosServerAddr.Contains(":")) {
 }
 
 Write-Host "Waiting for infrastructure to become ready..."
-Wait-ForTcpPort -Host $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
-Wait-ForTcpPort -Host $nacosHost -Port $nacosPort -DisplayName "Nacos port"
+Wait-ForTcpPort -HostName $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
+Wait-ForTcpPort -HostName $nacosHost -Port $nacosPort -DisplayName "Nacos port"
 Wait-ForHttpReady -Uri ("http://" + $nacosServerAddr + "/nacos/") -DisplayName "Nacos console"
 
 $services = @(
@@ -236,6 +242,7 @@ $services = @(
 
 $sharedEnv = [ordered]@{
     SPRING_PROFILES_ACTIVE = (Resolve-EnvValue "SPRING_PROFILES_ACTIVE")
+    GATEWAY_PORT = (Resolve-EnvValue "GATEWAY_PORT")
     NACOS_SERVER_ADDR = (Resolve-EnvValue "NACOS_SERVER_ADDR")
     MYSQL_HOST = (Resolve-EnvValue "MYSQL_HOST")
     MYSQL_PORT = (Resolve-EnvValue "MYSQL_PORT")
@@ -271,4 +278,4 @@ foreach ($service in $services) {
 
 Write-Host "Discovery mode services are starting in separate PowerShell windows."
 Write-Host "Nacos console: http://localhost:8848/nacos"
-Write-Host "Gateway endpoint: http://localhost:8080/api/test/hello"
+Write-Host ("Gateway endpoint: http://localhost:" + (Resolve-EnvValue "GATEWAY_PORT") + "/api/test/hello")
