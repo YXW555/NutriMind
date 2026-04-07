@@ -7,12 +7,18 @@ from typing import Any
 
 import numpy as np
 
+from .ai4food_official import AI4FoodOfficialRuntime, load_ai4food_runtime
 from .config import Settings
 
 try:
     import onnxruntime as ort
 except ImportError:  # pragma: no cover - optional dependency
     ort = None
+
+try:
+    import tensorflow as tf
+except ImportError:  # pragma: no cover - optional dependency
+    tf = None
 
 try:
     import open_clip
@@ -99,12 +105,21 @@ class ClipRuntime:
     metadata: dict[str, Any]
 
 
+@dataclass
+class TensorflowRuntime:
+    model: Any
+
+
 class ModelRegistry:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._classifier_session = None
+        self._tensorflow_runtime = None
+        self._ai4food_runtime = None
         self._clip_runtime = None
         self._classifier_init_attempted = False
+        self._tensorflow_init_attempted = False
+        self._ai4food_init_attempted = False
         self._clip_init_attempted = False
 
         self._concepts = self._load_concepts()
@@ -143,15 +158,60 @@ class ModelRegistry:
 
         self._classifier_init_attempted = True
         model_path = self.settings.model_path
-        if ort is None or not model_path.exists():
+        if self._preferred_classifier_runtime() != "onnx":
+            self._classifier_session = None
+            return None
+        if ort is None or not model_path.exists() or model_path.suffix.lower() != ".onnx":
             self._classifier_session = None
             return None
 
         self._classifier_session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
         return self._classifier_session
 
+    def get_tensorflow_runtime(self) -> TensorflowRuntime | None:
+        if self._tensorflow_init_attempted:
+            return self._tensorflow_runtime
+
+        self._tensorflow_init_attempted = True
+        model_path = self.settings.model_path
+        if self._preferred_classifier_runtime() != "tensorflow":
+            self._tensorflow_runtime = None
+            return None
+        if tf is None or not model_path.exists():
+            self._tensorflow_runtime = None
+            return None
+
+        model = tf.keras.models.load_model(model_path)
+        self._tensorflow_runtime = TensorflowRuntime(model=model)
+        return self._tensorflow_runtime
+
+    def get_ai4food_runtime(self) -> AI4FoodOfficialRuntime | None:
+        if self._ai4food_init_attempted:
+            return self._ai4food_runtime
+
+        self._ai4food_init_attempted = True
+        if self._preferred_classifier_runtime() != "tensorflow":
+            self._ai4food_runtime = None
+            return None
+        if (self.settings.classifier_adapter or "default").strip().lower() != "ai4food_official":
+            self._ai4food_runtime = None
+            return None
+
+        self._ai4food_runtime = load_ai4food_runtime(self.settings.model_path, self.settings.labels_path)
+        return self._ai4food_runtime
+
     def classifier_available(self) -> bool:
-        return self.get_classifier_session() is not None
+        return self.classifier_runtime_name() is not None
+
+    def classifier_runtime_name(self) -> str | None:
+        preferred = self._preferred_classifier_runtime()
+        if preferred == "onnx":
+            return "onnx" if self.get_classifier_session() is not None else None
+        if preferred == "tensorflow":
+            if (self.settings.classifier_adapter or "default").strip().lower() == "ai4food_official":
+                return "tensorflow" if self.get_ai4food_runtime() is not None else None
+            return "tensorflow" if self.get_tensorflow_runtime() is not None else None
+        return None
 
     def get_clip_runtime(self) -> ClipRuntime | None:
         if self._clip_init_attempted:
@@ -194,18 +254,19 @@ class ModelRegistry:
 
     def resolve_backend(self) -> str:
         preference = (self.settings.backend or "auto").strip().lower()
+        classifier_backend = self.classifier_backend_name()
 
         if preference == "manifest":
             return "manifest_retrieval"
         if preference == "clip":
             if self.clip_available():
                 return "clip_retrieval"
-            if self.classifier_available():
-                return "onnx_retrieval"
+            if classifier_backend is not None:
+                return classifier_backend
             return "manifest_retrieval"
         if preference == "classifier":
-            if self.classifier_available():
-                return "onnx_retrieval"
+            if classifier_backend is not None:
+                return classifier_backend
             if self.clip_available():
                 return "clip_retrieval"
             return "manifest_retrieval"
@@ -214,19 +275,27 @@ class ModelRegistry:
                 return "hybrid_retrieval"
             if self.clip_available():
                 return "clip_retrieval"
-            if self.classifier_available():
-                return "onnx_retrieval"
+            if classifier_backend is not None:
+                return classifier_backend
             return "manifest_retrieval"
 
         if self.classifier_available() and self.clip_available():
             return "hybrid_retrieval"
-        if self.settings.prefers_classifier and self.classifier_available():
-            return "onnx_retrieval"
+        if self.settings.prefers_classifier and classifier_backend is not None:
+            return classifier_backend
         if self.clip_available():
             return "clip_retrieval"
-        if self.classifier_available():
-            return "onnx_retrieval"
+        if classifier_backend is not None:
+            return classifier_backend
         return "manifest_retrieval"
+
+    def classifier_backend_name(self) -> str | None:
+        runtime = self.classifier_runtime_name()
+        if runtime == "onnx":
+            return "onnx_retrieval"
+        if runtime == "tensorflow":
+            return "tensorflow_retrieval"
+        return None
 
     def _load_concepts(self) -> list[FoodConcept]:
         retrieval_bank_path: Path = self.settings.retrieval_bank_path
@@ -249,7 +318,7 @@ class ModelRegistry:
         ]
 
     def _load_concepts_from_retrieval_bank(self, retrieval_bank_path: Path) -> list[FoodConcept]:
-        data = json.loads(retrieval_bank_path.read_text(encoding="utf-8"))
+        data = json.loads(retrieval_bank_path.read_text(encoding="utf-8-sig"))
         items = data.get("concepts", [])
         if not isinstance(items, list):
             return []
@@ -282,7 +351,7 @@ class ModelRegistry:
         return sorted(concepts, key=lambda concept: (concept.priority, concept.label))
 
     def _load_concepts_from_manifest(self, manifest_path: Path) -> list[FoodConcept]:
-        data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        data = json.loads(manifest_path.read_text(encoding="utf-8-sig"))
         if not isinstance(data, list):
             return []
 
@@ -318,13 +387,21 @@ class ModelRegistry:
         if not labels_path.exists():
             return [concept.label for concept in self._concepts]
 
-        with labels_path.open("r", encoding="utf-8") as fp:
-            data = json.load(fp)
+        if labels_path.suffix.lower() == ".json":
+            with labels_path.open("r", encoding="utf-8-sig") as fp:
+                data = json.load(fp)
 
-        if isinstance(data, list):
-            return [str(item).strip() for item in data if str(item).strip()]
+            if isinstance(data, list):
+                return [str(item).strip() for item in data if str(item).strip()]
 
-        raise ValueError("labels.json must be a JSON array")
+            raise ValueError("labels.json must be a JSON array")
+
+        lines = labels_path.read_text(encoding="utf-8-sig").splitlines()
+        labels = [line.strip() for line in lines if line.strip()]
+        if labels:
+            return labels
+
+        raise ValueError(f"unsupported or empty labels file: {labels_path}")
 
     def _build_concept_lookup(self, concepts: list[FoodConcept]) -> dict[str, FoodConcept]:
         lookup: dict[str, FoodConcept] = {}
@@ -339,7 +416,7 @@ class ModelRegistry:
         metadata_path = self.settings.clip_text_bank_meta_path
         if not metadata_path.exists():
             return {}
-        return json.loads(metadata_path.read_text(encoding="utf-8"))
+        return json.loads(metadata_path.read_text(encoding="utf-8-sig"))
 
     def _clean_text(self, value: object) -> str:
         return str(value or "").strip()
@@ -365,3 +442,19 @@ class ModelRegistry:
         if not value:
             return ""
         return "".join(ch for ch in value.strip().lower() if ch.isalnum() or "\u4e00" <= ch <= "\u9fff")
+
+    def _preferred_classifier_runtime(self) -> str:
+        configured_runtime = (self.settings.model_runtime or "auto").strip().lower()
+        if configured_runtime in {"onnx", "tensorflow"}:
+            return configured_runtime
+
+        model_path = self.settings.model_path
+        if model_path.is_dir():
+            return "tensorflow"
+
+        suffix = model_path.suffix.lower()
+        if suffix == ".onnx":
+            return "onnx"
+        if suffix in {".keras", ".h5", ".hdf5"}:
+            return "tensorflow"
+        return "onnx"

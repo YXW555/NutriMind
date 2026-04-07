@@ -1,0 +1,1 @@
+tensorflow; python_version >= "3.10" and python_version <= "3.13"

@@ -31,6 +31,7 @@ def main() -> None:
     output = {
         "image": str(args.image.resolve()),
         "active_backend": registry.resolve_backend(),
+        "classifier_runtime": registry.classifier_runtime_name(),
         "model_bundle": settings.resolved_model_bundle,
         "model_version": settings.model_version,
         "image_size": settings.image_size,

@@ -137,6 +137,12 @@ pip install -r requirements.txt
 uvicorn app.main:app --host 0.0.0.0 --port 8090 --reload
 ```
 
+如果是国内网络环境，首次拉取 Hugging Face 模型前可以先设置：
+
+```powershell
+$env:HF_ENDPOINT="https://hf-mirror.com"
+```
+
 如果要直接启动当前已经接好的 `food101_seed` 模型包，可以在同一目录运行：
 
 ```powershell

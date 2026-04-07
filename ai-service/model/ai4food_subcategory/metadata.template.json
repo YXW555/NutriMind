@@ -1,0 +1,23 @@
+{
+  "bundle_name": "ai4food_subcategory",
+  "model_version": "ai4food-subcategory-v1",
+  "status": "template",
+  "task_type": "single-label-image-classification",
+  "backbone": "EfficientNetV2",
+  "runtime": "tensorflow",
+  "classifier_adapter": "ai4food_official",
+  "export_format": "keras",
+  "image_size": 224,
+  "class_count": 73,
+  "input_layout": "nhwc",
+  "preprocess": "keras_efficientnet_v2",
+  "model_file": "model.keras",
+  "labels_file": "labels.json",
+  "retrieval_bank_file": "retrieval_bank.json",
+  "category_manifest_file": "category_manifest.json",
+  "notes": [
+    "Copy this file to metadata.json after placing the real pretrained model.",
+    "Prefer keeping AI4Food label order exactly aligned with labels.json.",
+    "Add retrieval_bank.json if you want better matching against NutriMind food catalog."
+  ]
+}
