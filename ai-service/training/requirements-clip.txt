@@ -1,3 +1,0 @@
-torch
-numpy
-open-clip-torch

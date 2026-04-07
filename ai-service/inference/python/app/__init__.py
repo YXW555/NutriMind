@@ -1,1 +1,0 @@
-# NutriMind Python inference package.
