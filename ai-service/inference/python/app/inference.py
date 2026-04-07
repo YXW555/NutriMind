@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from .ai4food_official import predict_top_k
 from .config import Settings
 from .model_registry import ClipRuntime, FoodConcept, ModelRegistry
 from .schemas import PredictionItem, PredictionResponse
@@ -52,6 +53,8 @@ class PredictionService:
             "active_backend": self.registry.resolve_backend(),
             "model_bundle": self.settings.resolved_model_bundle,
             "model_version": self.settings.model_version,
+            "model_runtime": self.settings.model_runtime,
+            "classifier_adapter": self.settings.classifier_adapter,
             "model_path": str(self.settings.model_path),
             "labels_path": str(self.settings.labels_path),
             "model_metadata_path": str(self.settings.model_metadata_path),
@@ -61,6 +64,7 @@ class PredictionService:
             "label_count": len(self.registry.labels),
             "classifier_preferred": self.settings.prefers_classifier,
             "classifier_available": self.registry.classifier_available(),
+            "classifier_runtime": self.registry.classifier_runtime_name() or "none",
             "clip_available": self.registry.clip_available(),
             "concept_count": self.registry.concept_count(),
         }
@@ -73,7 +77,7 @@ class PredictionService:
             predictions = self._hybrid_predict(image_bytes, top_k)
         elif backend == "clip_retrieval":
             predictions = self._clip_retrieval_predict(image_bytes, top_k)
-        elif backend == "onnx_retrieval":
+        elif backend in {"onnx_retrieval", "tensorflow_retrieval"}:
             predictions = self._classifier_predict(image_bytes, top_k)
         else:
             predictions = self._manifest_retrieval_predict(filename, image_bytes, top_k)
@@ -110,15 +114,17 @@ class PredictionService:
         return self._merge_predictions(primary, secondary, top_k)
 
     def _classifier_predict(self, image_bytes: bytes, top_k: int) -> list[PredictionItem]:
-        session = self.registry.get_classifier_session()
-        if session is None:
+        runtime = self.registry.classifier_runtime_name()
+        if runtime == "onnx":
+            probs = self._onnx_classifier_predict(image_bytes)
+        elif runtime == "tensorflow":
+            probs = self._tensorflow_classifier_predict(image_bytes)
+        else:
             return self._manifest_retrieval_predict("uploaded-image.jpg", image_bytes, top_k)
 
-        image_tensor = self._preprocess_classifier(image_bytes)
-        input_name = session.get_inputs()[0].name
-        outputs = session.run(None, {input_name: image_tensor})
-        logits = outputs[0][0]
-        probs = self._softmax(logits)
+        if probs.size == 0:
+            return self._manifest_retrieval_predict("uploaded-image.jpg", image_bytes, top_k)
+
         indices = np.argsort(probs)[::-1][:top_k]
 
         predictions: list[PredictionItem] = []
@@ -131,11 +137,52 @@ class PredictionService:
                 self._build_prediction_item(
                     label=label,
                     confidence=float(round(float(probs[index]), 4)),
-                    source="onnx_classifier",
-                    match_reason="分类模型命中高置信候选",
+                    source=f"{runtime}_classifier",
+                    match_reason=self._classifier_match_reason(runtime),
                 )
             )
         return predictions
+
+    def _onnx_classifier_predict(self, image_bytes: bytes) -> np.ndarray:
+        session = self.registry.get_classifier_session()
+        if session is None:
+            return np.asarray([], dtype="float32")
+
+        image_tensor = self._preprocess_classifier(image_bytes)
+        input_name = session.get_inputs()[0].name
+        outputs = session.run(None, {input_name: image_tensor})
+        return self._normalize_classifier_scores(outputs[0])
+
+    def _tensorflow_classifier_predict(self, image_bytes: bytes) -> np.ndarray:
+        adapter = (self.settings.classifier_adapter or "default").strip().lower()
+        if adapter == "ai4food_official":
+            return self._tensorflow_ai4food_predict(image_bytes)
+
+        runtime = self.registry.get_tensorflow_runtime()
+        if runtime is None:
+            return np.asarray([], dtype="float32")
+
+        image_tensor = self._preprocess_classifier(image_bytes)
+        outputs = runtime.model.predict(image_tensor, verbose=0)
+        return self._normalize_classifier_scores(outputs)
+
+    def _tensorflow_ai4food_predict(self, image_bytes: bytes) -> np.ndarray:
+        runtime = self.registry.get_ai4food_runtime()
+        if runtime is None:
+            return np.asarray([], dtype="float32")
+
+        results = predict_top_k(
+            runtime=runtime,
+            image_bytes=image_bytes,
+            image_size=self.settings.image_size,
+            top_k=len(self.registry.labels),
+            model_variant=self._ai4food_model_variant(),
+        )
+        if not results:
+            return np.asarray([], dtype="float32")
+
+        score_map = {label: score for label, score in results}
+        return np.asarray([float(score_map.get(label, 0.0)) for label in self.registry.labels], dtype="float32")
 
     def _should_prioritize_classifier(
         self,
@@ -238,11 +285,27 @@ class PredictionService:
     def _preprocess_classifier(self, image_bytes: bytes) -> np.ndarray:
         image = Image.open(BytesIO(image_bytes)).convert("RGB")
         image = image.resize((self.settings.image_size, self.settings.image_size))
-        image_array = np.asarray(image).astype("float32") / 255.0
-        mean = np.array([0.485, 0.456, 0.406], dtype="float32")
-        std = np.array([0.229, 0.224, 0.225], dtype="float32")
-        image_array = (image_array - mean) / std
-        image_array = np.transpose(image_array, (2, 0, 1))
+        image_array = np.asarray(image).astype("float32")
+
+        preprocess_mode = (self.settings.classifier_preprocess or "imagenet").strip().lower()
+        if preprocess_mode == "imagenet":
+            image_array = image_array / 255.0
+            mean = np.array([0.485, 0.456, 0.406], dtype="float32")
+            std = np.array([0.229, 0.224, 0.225], dtype="float32")
+            image_array = (image_array - mean) / std
+        elif preprocess_mode == "zero_one":
+            image_array = image_array / 255.0
+        elif preprocess_mode in {"identity", "none", "keras_efficientnet_v2"}:
+            pass
+        else:
+            raise ValueError(f"unsupported classifier preprocess mode: {self.settings.classifier_preprocess}")
+
+        layout = (self.settings.classifier_input_layout or "nchw").strip().lower()
+        if layout == "nchw":
+            image_array = np.transpose(image_array, (2, 0, 1))
+        elif layout != "nhwc":
+            raise ValueError(f"unsupported classifier input layout: {self.settings.classifier_input_layout}")
+
         return np.expand_dims(image_array, axis=0)
 
     def _visual_hint_labels(self, image_bytes: bytes) -> list[tuple[str, str]]:
@@ -414,3 +477,46 @@ class PredictionService:
         shifted = logits - np.max(logits)
         exp = np.exp(shifted)
         return exp / np.sum(exp)
+
+    def _normalize_classifier_scores(self, outputs: object) -> np.ndarray:
+        scores = self._extract_classifier_scores(outputs)
+        if scores.size == 0:
+            return scores
+
+        if np.all(scores >= 0.0) and np.all(scores <= 1.0):
+            score_sum = float(scores.sum())
+            if 0.98 <= score_sum <= 1.02:
+                return scores
+
+        return self._softmax(scores)
+
+    @staticmethod
+    def _extract_classifier_scores(outputs: object) -> np.ndarray:
+        value = outputs
+        if isinstance(value, dict):
+            value = next(iter(value.values()), [])
+        if isinstance(value, (list, tuple)):
+            value = value[0] if value else []
+
+        scores = np.asarray(value, dtype="float32")
+        if scores.ndim == 0:
+            return np.asarray([], dtype="float32")
+        if scores.ndim == 1:
+            return scores
+        return scores.reshape(scores.shape[0], -1)[0]
+
+    @staticmethod
+    def _classifier_match_reason(runtime: str) -> str:
+        if runtime == "tensorflow":
+            return "AI4Food 官方推理流程命中高置信候选"
+        return "分类模型命中高置信候选"
+
+    def _ai4food_model_variant(self) -> str:
+        bundle_name = (self.settings.resolved_model_bundle or "").strip().lower()
+        if "category" in bundle_name:
+            return "category"
+        if "subcategory" in bundle_name:
+            return "subcategory"
+        if "product" in bundle_name:
+            return "product"
+        return ""
