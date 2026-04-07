@@ -403,7 +403,7 @@ function deleteDetail(detailId) {
   uni.showModal({
     title: '提示',
     content: '确定要删除这条记录吗？',
-    confirmColor: '#6b9e78', // 使用主色调作为确认色
+    confirmColor: '#6b9e78', // 确认按钮用抹茶绿
     success: async (result) => {
       if (result.confirm) {
         try {
@@ -432,16 +432,16 @@ onShow(() => {
 <style scoped>
 /* ========== 全局变量与底色 ========== */
 .page-modern {
-  --app-bg: #f4f7f4;
-  --card-bg: #ffffff;
-  --primary: #6b9e78;
-  --primary-dark: #4a7356;
-  --primary-light: #eaf1eb;
-  --text-main: #2c352f;
-  --text-sub: #8d9991;
-  --border-light: #eef2ef;
-  --warn-color: #9e7e63; /* 焙茶棕，替代红色 */
-  --warn-bg: #f7f3f0;
+  --app-bg: #F7F8F7; /* 极浅的灰白，近乎纯白，让白卡片凸显 */
+  --card-bg: #FFFFFF; /* 卡片纯白 */
+  --primary: #6B9E78; /* 抹茶绿 */
+  --primary-dark: #4A7356;
+  --primary-light: #EAF2EC; /* 偶现的抹茶绿底色 */
+  --text-main: #1C201E; /* 墨黑 */
+  --text-sub: #95A09A; /* 浅灰绿调的次要文字 */
+  --border-light: #F0F2F0; /* 极浅的边框色 */
+  --warn-color: #9E7E63; /* 焙茶棕，替代红色 */
+  --warn-bg: #F7F4F0;
   
   min-height: 100vh;
   background-color: var(--app-bg);
@@ -460,7 +460,8 @@ button::after {
   border-radius: 32rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
+  /* 极其轻微的阴影，主要靠纯白和灰底产生层次 */
+  box-shadow: 0 4rpx 16rpx rgba(107, 158, 120, 0.03);
 }
 
 /* ========== 头部 ========== */
@@ -482,7 +483,8 @@ button::after {
 
 /* ========== Hero 总览数据卡片 ========== */
 .hero-card {
-  background: linear-gradient(135deg, #eaf2eb 0%, #ffffff 100%);
+  /* 淡淡的抹茶渐变作为偶现的底色 */
+  background: linear-gradient(135deg, var(--primary-light) 0%, #FFFFFF 100%);
   position: relative;
   overflow: hidden;
 }
@@ -502,9 +504,10 @@ button::after {
 .date-selector {
   display: flex;
   align-items: center;
-  background: rgba(107, 158, 120, 0.08);
+  background: rgba(255, 255, 255, 0.6);
   padding: 8rpx 24rpx;
   border-radius: 100rpx;
+  border: 1rpx solid var(--border-light);
 }
 
 .hero-title {
@@ -548,7 +551,8 @@ button::after {
 
 .stat-mini-card {
   flex: 1;
-  background: rgba(255, 255, 255, 0.7);
+  background: #FFFFFF;
+  border: 1rpx solid var(--border-light);
   border-radius: 20rpx;
   padding: 20rpx;
   display: flex;
@@ -557,6 +561,7 @@ button::after {
 
 .highlight-card {
   background: var(--warn-bg);
+  border-color: transparent;
 }
 
 .mini-label {
@@ -616,13 +621,13 @@ button::after {
   font-size: 28rpx;
   font-weight: 600;
   color: #5c665f;
-  background: #f4f7f4;
+  background: #F7F8F9; /* 浅白灰 */
   transition: all 0.2s ease;
 }
 
 .meal-pill.active {
   background: var(--primary);
-  color: #ffffff;
+  color: #FFFFFF;
   box-shadow: 0 6rpx 16rpx var(--primary-light);
 }
 
@@ -636,7 +641,7 @@ button::after {
 .xhs-input {
   flex: 1;
   height: 88rpx;
-  background: #f7f9f7;
+  background: #F7F8F9;
   border-radius: 24rpx;
   padding: 0 32rpx;
   font-size: 28rpx;
@@ -644,7 +649,7 @@ button::after {
 }
 
 .input-placeholder {
-  color: #bac4bb;
+  color: #BAC4BB;
 }
 
 .search-btn {
@@ -652,7 +657,7 @@ button::after {
   height: 88rpx;
   line-height: 88rpx;
   background: var(--primary);
-  color: #ffffff;
+  color: #FFFFFF;
   border-radius: 24rpx;
   font-size: 28rpx;
   font-weight: 700;
@@ -661,7 +666,7 @@ button::after {
 
 .picker-box {
   height: 88rpx;
-  background: #f7f9f7;
+  background: #F7F8F9;
   border-radius: 24rpx;
   padding: 0 32rpx;
   display: flex;
@@ -676,14 +681,14 @@ button::after {
   font-weight: 500;
 }
 .placeholder-text {
-  color: #bac4bb;
+  color: #BAC4BB;
 }
 
 /* ========== 空状态提示 ========== */
 .empty-tip-card {
   display: flex;
   align-items: center;
-  background: #fcfdfc;
+  background: #FAFBFA;
   border: 1rpx dashed var(--border-light);
   padding: 32rpx;
   border-radius: 24rpx;
@@ -714,7 +719,7 @@ button::after {
 
 /* ========== 食物营养预览卡片 ========== */
 .food-info-card {
-  background: #fcfdfc;
+  background: #FAFBFA;
   border: 1rpx solid var(--border-light);
   border-radius: 24rpx;
   padding: 32rpx;
@@ -742,8 +747,8 @@ button::after {
 .food-tag {
   display: inline-block;
   font-size: 20rpx;
-  color: var(--text-sub);
-  background: #f4f7f4;
+  color: var(--primary-dark);
+  background: var(--primary-light);
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
   margin-top: 8rpx;
@@ -759,7 +764,7 @@ button::after {
 .nutrition-strip {
   display: flex;
   justify-content: space-between;
-  background: #ffffff;
+  background: #FFFFFF;
   border-radius: 16rpx;
   padding: 16rpx 24rpx;
 }
@@ -790,7 +795,7 @@ button::after {
 
 .chip {
   padding: 12rpx 28rpx;
-  background: #ffffff;
+  background: #FFFFFF;
   border: 1rpx solid var(--border-light);
   border-radius: 100rpx;
   font-size: 24rpx;
@@ -800,6 +805,7 @@ button::after {
 }
 .chip:active {
   background: var(--primary-light);
+  border-color: transparent;
 }
 
 /* ========== 按钮 ========== */
@@ -820,12 +826,12 @@ button::after {
 
 .btn-primary {
   background: var(--primary);
-  color: #ffffff;
+  color: #FFFFFF;
   box-shadow: 0 8rpx 24rpx var(--primary-light);
 }
 
 .btn-secondary {
-  background: #f4f7f4;
+  background: #F7F8F9;
   color: var(--text-main);
 }
 
@@ -840,7 +846,7 @@ button::after {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fcfdfc;
+  background: #FAFBFA;
   border: 1rpx solid var(--border-light);
   border-radius: 20rpx;
   padding: 24rpx;
@@ -900,7 +906,7 @@ button::after {
 
 .btn-primary-small {
   background: var(--primary);
-  color: #ffffff;
+  color: #FFFFFF;
   font-size: 26rpx;
   font-weight: 700;
   padding: 0 40rpx;
@@ -930,7 +936,7 @@ button::after {
 }
 
 .history-head {
-  background: #fcfdfc;
+  background: #FFFFFF;
   padding: 24rpx 32rpx;
   display: flex;
   justify-content: space-between;
@@ -945,10 +951,10 @@ button::after {
   border-radius: 100rpx;
 }
 
-/* 用微妙的大地色和浅绿色区分餐次 */
-.theme-morning { background: #fdf6ed; color: #b38a5e; }
+/* 用微妙的大地色和浅绿色区分餐次，整体依然是白底为主 */
+.theme-morning { background: #FCF9F2; color: #B38A5E; }
 .theme-noon { background: var(--primary-light); color: var(--primary-dark); }
-.theme-night { background: #edf4f5; color: #5a7a8c; }
+.theme-night { background: #F2F7F9; color: #5A7A8C; }
 .theme-snack { background: var(--warn-bg); color: var(--warn-color); }
 
 .history-total {
@@ -1015,7 +1021,7 @@ button::after {
   padding: 48rpx 0;
   text-align: center;
   font-size: 26rpx;
-  color: #bac4bb;
+  color: #BAC4BB;
 }
 
 /* ========== 底部悬浮操作栏 ========== */
@@ -1050,13 +1056,15 @@ button::after {
 }
 
 .fab-btn.outline {
-  background: #f4f7f4;
+  background: #FFFFFF;
   color: var(--text-main);
+  border: 1rpx solid var(--border-light);
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.02);
 }
 
 .fab-btn.solid {
   background: var(--primary);
-  color: #ffffff;
+  color: #FFFFFF;
   box-shadow: 0 8rpx 24rpx var(--primary-light);
 }
 </style>
