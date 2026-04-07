@@ -1,232 +1,195 @@
 <template>
-  <view class="page">
+  <view class="page-modern">
     <app-page-header
       title="饮食记录"
-      subtitle="按日期查看、按餐次记录，保存后会立即写入后端"
+      subtitle="按日期查看、按餐次记录"
       fallback-url="/pages/index/index"
+      class="custom-header"
+      :border="false"
     >
       <template #right>
-        <button class="capture-button" @click="goCapture">智能识别</button>
+        <button class="header-action-btn" @click="goCapture">✨ 智能识别</button>
       </template>
     </app-page-header>
 
-    <view v-if="false" class="top-bar">
-      <view>
-        <text class="page-title">饮食记录</text>
-        <text class="page-subtitle">按日期查看、按餐次记录，保存后会立即写入后端。</text>
-      </view>
-      <button class="capture-button" @click="goCapture">智能识别</button>
-    </view>
-
-    <view class="hero-card">
+    <view class="xhs-card hero-card">
       <view class="hero-head">
-        <view>
+        <view class="date-section">
           <text class="hero-badge">当前记录日</text>
-          <text class="hero-title">{{ recordDate }}</text>
-          <text class="hero-desc">切换日期即可查看这一天的饮食与营养汇总。</text>
+          <picker mode="date" :value="recordDate" @change="handleDateChange">
+            <view class="date-selector">
+              <text class="hero-title">{{ recordDate }}</text>
+              <text class="icon-arrow">▾</text>
+            </view>
+          </picker>
         </view>
+      </view>
 
-        <picker mode="date" :value="recordDate" @change="handleDateChange">
-          <view class="date-pill">切换日期</view>
-        </picker>
+      <view class="main-stat">
+        <text class="stat-value">{{ formatNumber(dailyRecord.totalCalories) }}</text>
+        <text class="stat-unit">千卡</text>
       </view>
 
       <view class="hero-grid">
-        <view class="hero-stat-card">
-          <text class="hero-stat-label">总热量</text>
-          <text class="hero-stat-value">{{ formatNumber(dailyRecord.totalCalories) }}</text>
-          <text class="hero-stat-unit">千卡</text>
+        <view class="stat-mini-card">
+          <text class="mini-label">蛋白质(克)</text>
+          <text class="mini-value">{{ formatNumber(dailyRecord.totalProtein) }}</text>
         </view>
-        <view class="hero-stat-card">
-          <text class="hero-stat-label">蛋白质</text>
-          <text class="hero-stat-value">{{ formatNumber(dailyRecord.totalProtein) }}</text>
-          <text class="hero-stat-unit">克</text>
+        <view class="stat-mini-card">
+          <text class="mini-label">已保存(条)</text>
+          <text class="mini-value">{{ dailyRecord.details.length }}</text>
         </view>
-        <view class="hero-stat-card">
-          <text class="hero-stat-label">已保存</text>
-          <text class="hero-stat-value">{{ dailyRecord.details.length }}</text>
-          <text class="hero-stat-unit">条</text>
-        </view>
-        <view class="hero-stat-card">
-          <text class="hero-stat-label">待保存</text>
-          <text class="hero-stat-value">{{ pendingItems.length }}</text>
-          <text class="hero-stat-unit">条</text>
-        </view>
-      </view>
-
-      <view class="meal-count-row">
-        <view
-          v-for="item in mealTypeStats"
-          :key="item.value"
-          class="meal-count-chip"
-          :class="item.theme"
-        >
-          <text class="meal-count-name">{{ item.label }}</text>
-          <text class="meal-count-value">{{ item.count }}</text>
+        <view class="stat-mini-card highlight-card" v-if="pendingItems.length">
+          <text class="mini-label">待保存</text>
+          <text class="mini-value highlight-text">{{ pendingItems.length }}</text>
         </view>
       </view>
     </view>
 
-    <view class="panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">添加一条记录</text>
-          <text class="section-desc">先选餐次，再从食物库里挑选食物并填写食用量。</text>
-        </view>
-        <text class="section-link" @click="goFoods">去食物库</text>
+    <view class="xhs-card panel-card">
+      <view class="panel-header">
+        <text class="panel-title">添加记录</text>
+        <text class="panel-link" @click="goFoods">管理食物库 〉</text>
       </view>
 
-      <view class="meal-type-row">
-        <view
-          v-for="item in mealTypeOptions"
-          :key="item.value"
-          class="meal-type-chip"
-          :class="[item.theme, { active: mealType === item.value }]"
-          @click="mealType = item.value"
-        >
-          <text class="meal-type-text">{{ item.label }}</text>
+      <scroll-view scroll-x class="meal-scroll" :show-scrollbar="false">
+        <view class="meal-type-row">
+          <view
+            v-for="item in mealTypeOptions"
+            :key="item.value"
+            class="meal-pill"
+            :class="{ active: mealType === item.value }"
+            @click="mealType = item.value"
+          >
+            {{ item.label }}
+          </view>
         </view>
-      </view>
+      </scroll-view>
 
-      <view class="search-row">
+      <view class="search-box">
         <input
           v-model="foodKeyword"
-          class="field search-field"
-          placeholder="搜索食物名称"
+          class="xhs-input"
+          placeholder="搜索食物名称..."
+          placeholder-class="input-placeholder"
           confirm-type="search"
           @confirm="loadFoods"
         />
-        <button class="search-button" @click="loadFoods">搜索</button>
+        <button class="search-btn" @click="loadFoods">搜索</button>
       </view>
 
       <picker :range="foods" range-key="name" :value="selectedFoodIndex" @change="handleFoodSelect">
-        <view class="picker-field">{{ selectedFoodLabel }}</view>
+        <view class="picker-box">
+          <text class="picker-text" :class="{'placeholder-text': !foods.length}">
+            {{ selectedFoodLabel }}
+          </text>
+          <text class="icon-arrow">▾</text>
+        </view>
       </picker>
 
-      <view v-if="!foods.length" class="empty-inline-card">
-        <text class="empty-inline-title">当前还没有可选食物</text>
-        <text class="empty-inline-desc">先去食物库新增食物，或者重启食物服务让示例食物自动注入。</text>
-      </view>
-
-      <view v-else-if="selectedFood" class="food-preview-card">
-        <view class="food-preview-head">
-          <view>
-            <text class="food-preview-title">{{ selectedFood.name }}</text>
-            <text class="food-preview-meta">{{ selectedFood.category || '未分类' }} · {{ selectedFood.unit || '100克' }}</text>
-          </view>
-          <text class="food-preview-kcal">{{ formatNumber(selectedFood.calories) }} 千卡</text>
-        </view>
-
-        <view class="food-preview-grid">
-          <view class="food-preview-item">
-            <text class="food-preview-label">蛋白质</text>
-            <text class="food-preview-value">{{ formatNumber(selectedFood.protein, 1) }} 克</text>
-          </view>
-          <view class="food-preview-item">
-            <text class="food-preview-label">脂肪</text>
-            <text class="food-preview-value">{{ formatNumber(selectedFood.fat, 1) }} 克</text>
-          </view>
-          <view class="food-preview-item">
-            <text class="food-preview-label">碳水</text>
-            <text class="food-preview-value">{{ formatNumber(selectedFood.carbohydrate, 1) }} 克</text>
-          </view>
-          <view class="food-preview-item">
-            <text class="food-preview-label">纤维</text>
-            <text class="food-preview-value">{{ formatNumber(selectedFood.fiber, 1) }} 克</text>
-          </view>
+      <view v-if="!foods.length" class="empty-tip-card">
+        <text class="empty-emoji">🥣</text>
+        <view class="empty-text-wrap">
+          <text class="empty-tip-title">暂无可选项</text>
+          <text class="empty-tip-desc">请先搜索，或前往食物库新增</text>
         </view>
       </view>
 
-      <input v-model="quantity" class="field" type="digit" placeholder="请输入食用量，单位 克" />
+      <view v-else-if="selectedFood" class="food-info-card">
+        <view class="food-info-head">
+          <view class="food-name-wrap">
+            <text class="food-name">{{ selectedFood.name }}</text>
+            <text class="food-tag">{{ selectedFood.category || '未分类' }}</text>
+          </view>
+          <text class="food-kcal-highlight">{{ formatNumber(selectedFood.calories) }} kcal/{{ selectedFood.unit || '100克' }}</text>
+        </view>
 
-      <view class="quick-quantity-row">
-        <view
-          v-for="amount in quickQuantities"
-          :key="amount"
-          class="quick-quantity-chip"
-          @click="applyQuickQuantity(amount)"
-        >
-          <text class="quick-quantity-text">{{ amount }}克</text>
+        <view class="nutrition-strip">
+          <view class="nut-item"><text>蛋</text> {{ formatNumber(selectedFood.protein, 1) }}g</view>
+          <view class="nut-item"><text>脂</text> {{ formatNumber(selectedFood.fat, 1) }}g</view>
+          <view class="nut-item"><text>碳</text> {{ formatNumber(selectedFood.carbohydrate, 1) }}g</view>
+          <view class="nut-item"><text>纤</text> {{ formatNumber(selectedFood.fiber, 1) }}g</view>
         </view>
       </view>
 
-      <view class="button-row">
-        <button class="secondary-button" @click="addPendingItem">加入待保存</button>
-        <button class="primary-button" @click="submitCurrentFood">立即保存</button>
+      <view class="quantity-box" v-if="selectedFood">
+        <input v-model="quantity" class="xhs-input" type="digit" placeholder="食用量 (克)" placeholder-class="input-placeholder"/>
+        <view class="quick-chips">
+          <view
+            v-for="amount in quickQuantities"
+            :key="amount"
+            class="chip"
+            @click="applyQuickQuantity(amount)"
+          >
+            {{ amount }}g
+          </view>
+        </view>
+      </view>
+
+      <view class="action-row" v-if="selectedFood">
+        <button class="btn-secondary" @click="addPendingItem">加入待保存</button>
+        <button class="btn-primary" @click="submitCurrentFood">立即记录</button>
       </view>
     </view>
 
-    <view class="panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">待保存列表</text>
-          <text class="section-desc">支持先选多条再一次性提交。</text>
+    <view class="xhs-card pending-card" v-if="pendingItems.length">
+      <view class="panel-header">
+        <text class="panel-title">待保存清单 ({{ pendingItems.length }})</text>
+        <text class="panel-link text-muted" @click="clearPendingItems">清空</text>
+      </view>
+
+      <view class="draft-list">
+        <view v-for="(item, index) in pendingItems" :key="`${item.foodId}-${index}`" class="draft-item">
+          <view class="draft-info">
+            <view class="draft-title-row">
+              <text class="draft-name">{{ item.foodName }}</text>
+              <text class="draft-tag">{{ mealTypeLabel(item.mealType) }}</text>
+            </view>
+            <text class="draft-desc">{{ formatNumber(item.quantity) }}克 · {{ formatNumber(item.calories) }}千卡</text>
+          </view>
+          <view class="draft-remove-btn" @click="removePendingItem(index)">✕</view>
         </view>
-        <text v-if="pendingItems.length" class="section-link" @click="clearPendingItems">清空</text>
       </view>
 
-      <view v-if="!pendingItems.length" class="empty-inline-card">
-        <text class="empty-inline-title">还没有待保存内容</text>
-        <text class="empty-inline-desc">上面选好食物和餐次后，可以先加入待保存列表。</text>
+      <view class="submit-footer">
+        <view class="submit-summary">
+          <text>预计增加 {{ pendingSummary.calories }} kcal</text>
+        </view>
+        <button class="btn-primary-small" @click="submitPendingMeals">全部保存</button>
       </view>
+    </view>
 
-      <view v-for="(item, index) in pendingItems" :key="`${item.foodId}-${index}`" class="draft-card">
-        <view class="draft-main">
-          <view class="draft-top">
-            <text class="draft-name">{{ item.foodName }}</text>
-            <view class="draft-badge">
-              <text class="draft-badge-text">{{ mealTypeLabel(item.mealType) }}</text>
+    <view class="history-section">
+      <text class="section-main-title">今日记录</text>
+      
+      <view v-for="group in detailGroups" :key="group.value" class="xhs-card history-group-card">
+        <view class="history-head">
+          <view class="history-badge" :class="group.theme">{{ group.label }}</view>
+          <text class="history-total">{{ formatNumber(group.calories) }} kcal</text>
+        </view>
+
+        <view class="history-list" v-if="group.items.length">
+          <view v-for="detail in group.items" :key="detail.id" class="history-item">
+            <view class="history-item-main">
+              <text class="history-item-name">{{ detail.foodName }}</text>
+              <text class="history-item-meta">{{ formatNumber(detail.quantity) }}g · {{ formatTime(detail.createdAt) }}</text>
+            </view>
+            <view class="history-item-right">
+              <text class="history-item-kcal">{{ formatNumber(detail.calories) }}</text>
+              <view class="delete-icon" @click="deleteDetail(detail.id)">移除</view>
             </view>
           </view>
-          <text class="draft-meta">{{ formatNumber(item.quantity) }} 克 · {{ formatNumber(item.calories) }} 千卡</text>
-        </view>
-        <button class="draft-remove" @click="removePendingItem(index)">移除</button>
-      </view>
-
-      <view v-if="pendingItems.length" class="submit-panel">
-        <view>
-          <text class="submit-title">预计新增 {{ pendingItems.length }} 条记录</text>
-          <text class="submit-desc">热量 {{ pendingSummary.calories }} 千卡 · 蛋白质 {{ pendingSummary.protein }} 克</text>
-        </view>
-        <button class="submit-button" @click="submitPendingMeals">全部保存</button>
-      </view>
-    </view>
-
-    <view class="section-head history-head">
-      <view>
-        <text class="section-title">已保存记录</text>
-        <text class="section-desc">按餐次查看这一天已经写入后端的数据。</text>
-      </view>
-    </view>
-
-    <view class="timeline-card">
-      <view v-for="group in detailGroups" :key="group.value" class="group-card">
-        <view class="group-head">
-          <view class="group-badge" :class="group.theme">
-            <text class="group-badge-text">{{ group.label }}</text>
-          </view>
-          <text class="group-meta">{{ group.count }} 条 · {{ formatNumber(group.calories) }} 千卡</text>
         </view>
 
-        <view v-if="group.items.length">
-          <view v-for="detail in group.items" :key="detail.id" class="detail-card">
-            <view class="detail-main">
-              <text class="detail-name">{{ detail.foodName }}</text>
-              <text class="detail-meta">{{ formatNumber(detail.quantity) }} 克 · {{ formatNumber(detail.calories) }} 千卡 · {{ formatTime(detail.createdAt) }}</text>
-            </view>
-            <button class="detail-delete" @click="deleteDetail(detail.id)">删除</button>
-          </view>
-        </view>
-
-        <view v-else class="group-empty">
-          <text class="group-empty-text">这一餐次还没有记录</text>
+        <view v-else class="history-empty">
+          <text>还没有记录该餐次哦</text>
         </view>
       </view>
     </view>
 
-    <view class="footer-actions">
-      <button class="ghost-button" @click="goHome">返回首页</button>
-      <button class="primary-button" @click="goCapture">去拍照识别</button>
+    <view class="fab-bar">
+      <button class="fab-btn outline" @click="goHome">返回首页</button>
+      <button class="fab-btn solid" @click="goCapture">📸 智能拍照</button>
     </view>
   </view>
 </template>
@@ -240,10 +203,10 @@ import { formatNumber, formatTime, mealTypeLabel } from '@/utils/format.js'
 
 const quickQuantities = [50, 100, 150, 200, 300]
 const mealTypeOptions = [
-  { label: '早餐', value: 'BREAKFAST', theme: 'warm' },
-  { label: '午餐', value: 'LUNCH', theme: 'green' },
-  { label: '晚餐', value: 'DINNER', theme: 'blue' },
-  { label: '加餐', value: 'SNACK', theme: 'gold' }
+  { label: '早餐', value: 'BREAKFAST', theme: 'theme-morning' },
+  { label: '午餐', value: 'LUNCH', theme: 'theme-noon' },
+  { label: '晚餐', value: 'DINNER', theme: 'theme-night' },
+  { label: '加餐', value: 'SNACK', theme: 'theme-snack' }
 ]
 
 const recordDate = ref(formatToday())
@@ -259,10 +222,10 @@ const selectedFood = computed(() => foods.value[selectedFoodIndex.value] || null
 
 const selectedFoodLabel = computed(() => {
   if (!foods.value.length) {
-    return '先搜索食物名称，或者去食物库新增'
+    return '暂无可选项，请搜索'
   }
   const food = foods.value[selectedFoodIndex.value]
-  return food ? `${food.name} · ${food.unit || '100克'}` : '请选择食物'
+  return food ? `${food.name} (${food.unit || '100g'})` : '请选择食物'
 })
 
 const pendingSummary = computed(() => {
@@ -276,13 +239,6 @@ const pendingSummary = computed(() => {
     calories: formatNumber(totals.calories),
     protein: formatNumber(totals.protein, 1)
   }
-})
-
-const mealTypeStats = computed(() => {
-  return mealTypeOptions.map(item => ({
-    ...item,
-    count: dailyRecord.value.details.filter(detail => (detail.mealType || 'SNACK') === item.value).length
-  }))
 })
 
 const detailGroups = computed(() => {
@@ -311,10 +267,7 @@ function createEmptyDailyRecord(date) {
 
 function normalizeDailyRecord(date, payload) {
   const fallback = createEmptyDailyRecord(date)
-  if (!payload) {
-    return fallback
-  }
-
+  if (!payload) return fallback
   return {
     ...fallback,
     ...payload,
@@ -342,10 +295,7 @@ function clearPendingItems() {
 }
 
 async function loadFoods() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   try {
     const response = await request.get('/foods', {
       keyword: foodKeyword.value,
@@ -360,14 +310,9 @@ async function loadFoods() {
 }
 
 async function loadDailyRecord() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   try {
-    const response = await request.get('/meals/daily', {
-      recordDate: recordDate.value
-    })
+    const response = await request.get('/meals/daily', { recordDate: recordDate.value })
     dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
   } catch (error) {
     console.log('load daily meal failed', error)
@@ -376,25 +321,14 @@ async function loadDailyRecord() {
 
 function buildDraftItem(showToast = true) {
   if (!foods.value.length) {
-    if (showToast) {
-      uni.showToast({
-        title: '请先搜索或新增食物',
-        icon: 'none'
-      })
-    }
+    if (showToast) uni.showToast({ title: '请先搜索或新增食物', icon: 'none' })
     return null
   }
-
   const food = selectedFood.value
   const numericQuantity = Number(quantity.value)
 
   if (!food || Number.isNaN(numericQuantity) || numericQuantity <= 0) {
-    if (showToast) {
-      uni.showToast({
-        title: '请输入正确的食用量',
-        icon: 'none'
-      })
-    }
+    if (showToast) uni.showToast({ title: '请输入正确的食用量', icon: 'none' })
     return null
   }
 
@@ -413,10 +347,7 @@ function buildDraftItem(showToast = true) {
 
 function addPendingItem() {
   const item = buildDraftItem()
-  if (!item) {
-    return
-  }
-  pendingItems.value.push(item)
+  if (item) pendingItems.value.unshift(item) // 新增的排在前面
 }
 
 function removePendingItem(index) {
@@ -424,50 +355,31 @@ function removePendingItem(index) {
 }
 
 async function submitCurrentFood() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   const item = buildDraftItem()
-  if (!item) {
-    return
-  }
+  if (!item) return
 
+  uni.showLoading({ title: '保存中' })
   try {
     const response = await request.post('/meals', {
       recordDate: recordDate.value,
-      details: [
-        {
-          foodId: item.foodId,
-          quantity: item.quantity,
-          mealType: item.mealType
-        }
-      ]
+      details: [{ foodId: item.foodId, quantity: item.quantity, mealType: item.mealType }]
     })
     dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
     quantity.value = '100'
-    uni.showToast({
-      title: '保存成功',
-      icon: 'success'
-    })
+    uni.hideLoading()
+    uni.showToast({ title: '已记录', icon: 'success' })
   } catch (error) {
-    console.log('submit current food failed', error)
+    uni.hideLoading()
+    uni.showToast({ title: '保存失败', icon: 'none' })
   }
 }
 
 async function submitPendingMeals() {
-  if (!ensureLoggedIn()) {
-    return
-  }
+  if (!ensureLoggedIn()) return
+  if (!pendingItems.value.length) return uni.showToast({ title: '暂无待保存内容', icon: 'none' })
 
-  if (!pendingItems.value.length) {
-    uni.showToast({
-      title: '请先加入待保存内容',
-      icon: 'none'
-    })
-    return
-  }
-
+  uni.showLoading({ title: '保存中' })
   try {
     const response = await request.post('/meals', {
       recordDate: recordDate.value,
@@ -479,516 +391,672 @@ async function submitPendingMeals() {
     })
     dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
     pendingItems.value = []
-    uni.showToast({
-      title: '全部保存成功',
-      icon: 'success'
-    })
+    uni.hideLoading()
+    uni.showToast({ title: '全部保存成功', icon: 'success' })
   } catch (error) {
-    console.log('submit pending meals failed', error)
+    uni.hideLoading()
+    uni.showToast({ title: '保存失败', icon: 'none' })
   }
 }
 
 function deleteDetail(detailId) {
   uni.showModal({
-    title: '删除记录',
-    content: '确认删除这条饮食明细吗？',
+    title: '提示',
+    content: '确定要删除这条记录吗？',
+    confirmColor: '#6b9e78', // 使用主色调作为确认色
     success: async (result) => {
-      if (!result.confirm) {
-        return
-      }
-
-      try {
-        const response = await request.delete(`/meals/details/${detailId}`)
-        dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
-        uni.showToast({
-          title: '删除成功',
-          icon: 'success'
-        })
-      } catch (error) {
-        console.log('delete meal detail failed', error)
+      if (result.confirm) {
+        try {
+          const response = await request.delete(`/meals/details/${detailId}`)
+          dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
+          uni.showToast({ title: '已移除', icon: 'success' })
+        } catch (error) {
+          console.log('delete meal detail failed', error)
+        }
       }
     }
   })
 }
 
-function goFoods() {
-  uni.navigateTo({
-    url: '/pages/foods/index'
-  })
-}
-
-function goCapture() {
-  uni.reLaunch({
-    url: '/pages/capture/index'
-  })
-}
-
-function goHome() {
-  uni.reLaunch({
-    url: '/pages/index/index'
-  })
-}
+function goFoods() { uni.navigateTo({ url: '/pages/foods/index' }) }
+function goCapture() { uni.reLaunch({ url: '/pages/capture/index' }) }
+function goHome() { uni.reLaunch({ url: '/pages/index/index' }) }
 
 onShow(() => {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   loadFoods()
   loadDailyRecord()
 })
 </script>
 
 <style scoped>
-.page {
+/* ========== 全局变量与底色 ========== */
+.page-modern {
+  --app-bg: #f4f7f4;
+  --card-bg: #ffffff;
+  --primary: #6b9e78;
+  --primary-dark: #4a7356;
+  --primary-light: #eaf1eb;
+  --text-main: #2c352f;
+  --text-sub: #8d9991;
+  --border-light: #eef2ef;
+  --warn-color: #9e7e63; /* 焙茶棕，替代红色 */
+  --warn-bg: #f7f3f0;
+  
   min-height: 100vh;
-  padding: 32rpx 28rpx calc(96rpx + env(safe-area-inset-bottom));
+  background-color: var(--app-bg);
+  padding: 24rpx 24rpx calc(200rpx + env(safe-area-inset-bottom));
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-.top-bar,
-.hero-head,
-.section-head,
-.search-row,
-.button-row,
-.food-preview-head,
-.draft-card,
-.draft-top,
-.submit-panel,
-.group-head,
-.detail-card,
-.footer-actions {
-  display: flex;
-  align-items: center;
+/* 去除 button 默认边框 */
+button::after {
+  border: none;
 }
 
-.top-bar,
-.hero-head,
-.section-head,
-.food-preview-head,
-.draft-card,
-.submit-panel,
-.group-head,
-.detail-card,
-.footer-actions {
-  justify-content: space-between;
+/* ========== 小红书风格通用卡片 ========== */
+.xhs-card {
+  background: var(--card-bg);
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
 }
 
-.page-title {
-  display: block;
-  font-size: 62rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.page-subtitle,
-.hero-desc,
-.section-desc,
-.food-preview-meta,
-.food-preview-label,
-.empty-inline-desc,
-.draft-meta,
-.submit-desc,
-.group-meta,
-.detail-meta,
-.hero-stat-label,
-.hero-stat-unit {
+/* ========== 头部 ========== */
+.header-action-btn {
+  background: var(--primary-light);
+  color: var(--primary);
   font-size: 26rpx;
-  color: var(--nm-muted);
-}
-
-.page-subtitle {
-  display: block;
-  margin-top: 10rpx;
-}
-
-.capture-button,
-.primary-button,
-.secondary-button,
-.search-button,
-.submit-button,
-.ghost-button {
-  height: 84rpx;
-  font-size: 28rpx;
   font-weight: 700;
+  border-radius: 100rpx;
+  padding: 0 32rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  margin: 0;
+  transition: all 0.2s;
+}
+.header-action-btn:active {
+  transform: scale(0.95);
 }
 
-.capture-button,
-.search-button,
-.submit-button,
-.primary-button {
-  background: var(--nm-primary-dark);
-  color: #ffffff;
-}
-
-.secondary-button {
-  background: #e7eef9;
-  color: #1e3a5f;
-}
-
-.ghost-button {
-  background: rgba(255, 255, 255, 0.86);
-  color: var(--nm-text);
-}
-
-.hero-card,
-.panel,
-.timeline-card,
-.group-card {
-  margin-top: 26rpx;
-  border-radius: 34rpx;
-  background: var(--nm-card);
-  box-shadow: var(--nm-shadow);
-}
-
-.hero-card,
-.panel,
-.timeline-card {
-  padding: 28rpx;
-}
-
+/* ========== Hero 总览数据卡片 ========== */
 .hero-card {
-  background: linear-gradient(155deg, #eff6ff 0%, #ffffff 100%);
+  background: linear-gradient(135deg, #eaf2eb 0%, #ffffff 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.date-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
 .hero-badge {
-  display: inline-flex;
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.84);
   font-size: 24rpx;
-  color: #1d4ed8;
+  color: var(--text-sub);
+  margin-bottom: 12rpx;
+}
+
+.date-selector {
+  display: flex;
+  align-items: center;
+  background: rgba(107, 158, 120, 0.08);
+  padding: 8rpx 24rpx;
+  border-radius: 100rpx;
 }
 
 .hero-title {
-  display: block;
-  margin-top: 14rpx;
-  font-size: 48rpx;
+  font-size: 36rpx;
   font-weight: 800;
-  color: var(--nm-text);
+  color: var(--text-main);
 }
 
-.date-pill {
-  padding: 18rpx 24rpx;
-  border-radius: 999rpx;
-  background: #172033;
-  font-size: 26rpx;
-  font-weight: 700;
-  color: #ffffff;
+.icon-arrow {
+  font-size: 24rpx;
+  color: var(--primary);
+  margin-left: 8rpx;
+}
+
+.main-stat {
+  margin-top: 40rpx;
+  display: flex;
+  align-items: baseline;
+}
+
+.stat-value {
+  font-size: 88rpx;
+  font-weight: 900;
+  color: var(--text-main);
+  line-height: 1;
+  letter-spacing: -2rpx;
+}
+
+.stat-unit {
+  font-size: 28rpx;
+  color: var(--text-sub);
+  margin-left: 12rpx;
+  font-weight: 600;
 }
 
 .hero-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16rpx;
-  margin-top: 24rpx;
-}
-
-.hero-stat-card {
-  padding: 22rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.hero-stat-value {
-  display: block;
-  margin-top: 12rpx;
-  font-size: 42rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.meal-count-row,
-.meal-type-row,
-.quick-quantity-row {
   display: flex;
-  gap: 14rpx;
-  flex-wrap: wrap;
+  gap: 20rpx;
+  margin-top: 48rpx;
 }
 
-.meal-count-row {
-  margin-top: 22rpx;
+.stat-mini-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 20rpx;
+  padding: 20rpx;
+  display: flex;
+  flex-direction: column;
 }
 
-.meal-count-chip,
-.meal-type-chip {
-  padding: 14rpx 20rpx;
-  border-radius: 999rpx;
+.highlight-card {
+  background: var(--warn-bg);
 }
 
-.meal-count-chip.warm,
-.meal-type-chip.warm {
-  background: #fff1d6;
+.mini-label {
+  font-size: 22rpx;
+  color: var(--text-sub);
 }
 
-.meal-count-chip.green,
-.meal-type-chip.green {
-  background: #e8f8ef;
-}
-
-.meal-count-chip.blue,
-.meal-type-chip.blue {
-  background: #ebf2ff;
-}
-
-.meal-count-chip.gold,
-.meal-type-chip.gold {
-  background: #f8efd4;
-}
-
-.meal-count-name,
-.meal-type-text {
-  font-size: 24rpx;
-  font-weight: 700;
-  color: #5f594f;
-}
-
-.meal-count-value {
-  margin-left: 10rpx;
-  font-size: 24rpx;
+.mini-value {
+  font-size: 36rpx;
   font-weight: 800;
-  color: var(--nm-text);
+  color: var(--text-main);
+  margin-top: 8rpx;
+}
+
+.highlight-text {
+  color: var(--warn-color);
+}
+
+/* ========== 面板通用头部 ========== */
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32rpx;
+}
+
+.panel-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.panel-link {
+  font-size: 26rpx;
+  color: var(--primary);
+  font-weight: 600;
+}
+.text-muted {
+  color: var(--text-sub);
+}
+
+/* ========== 餐次胶囊 ========== */
+.meal-scroll {
+  width: 100%;
+  white-space: nowrap;
+  margin-bottom: 32rpx;
 }
 
 .meal-type-row {
-  margin-top: 18rpx;
+  display: inline-flex;
+  gap: 16rpx;
 }
 
-.meal-type-chip.active {
-  background: var(--nm-primary);
-}
-
-.meal-type-chip.active .meal-type-text {
-  color: #ffffff;
-}
-
-.section-title {
-  display: block;
-  font-size: 34rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.section-link {
-  font-size: 26rpx;
-  font-weight: 700;
-  color: var(--nm-primary);
-}
-
-.search-row {
-  gap: 14rpx;
-  margin-top: 18rpx;
-}
-
-.field,
-.picker-field {
-  width: 100%;
-  margin-top: 16rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 24rpx;
-  background: #f5f4ef;
+.meal-pill {
+  padding: 16rpx 40rpx;
+  border-radius: 100rpx;
   font-size: 28rpx;
-  color: var(--nm-text);
+  font-weight: 600;
+  color: #5c665f;
+  background: #f4f7f4;
+  transition: all 0.2s ease;
 }
 
-.search-field {
+.meal-pill.active {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 6rpx 16rpx var(--primary-light);
+}
+
+/* ========== 表单输入 ========== */
+.search-box {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+
+.xhs-input {
   flex: 1;
-  margin-top: 0;
-}
-
-.search-button {
-  width: 150rpx;
-}
-
-.empty-inline-card {
-  margin-top: 18rpx;
-  padding: 24rpx;
+  height: 88rpx;
+  background: #f7f9f7;
   border-radius: 24rpx;
-  background: #f7f5ef;
+  padding: 0 32rpx;
+  font-size: 28rpx;
+  color: var(--text-main);
 }
 
-.empty-inline-title {
-  display: block;
+.input-placeholder {
+  color: #bac4bb;
+}
+
+.search-btn {
+  width: 140rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: var(--primary);
+  color: #ffffff;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  margin: 0;
+}
+
+.picker-box {
+  height: 88rpx;
+  background: #f7f9f7;
+  border-radius: 24rpx;
+  padding: 0 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.picker-text {
+  font-size: 28rpx;
+  color: var(--text-main);
+  font-weight: 500;
+}
+.placeholder-text {
+  color: #bac4bb;
+}
+
+/* ========== 空状态提示 ========== */
+.empty-tip-card {
+  display: flex;
+  align-items: center;
+  background: #fcfdfc;
+  border: 1rpx dashed var(--border-light);
+  padding: 32rpx;
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-emoji {
+  font-size: 64rpx;
+  margin-right: 24rpx;
+}
+
+.empty-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.empty-tip-title {
   font-size: 30rpx;
   font-weight: 700;
-  color: var(--nm-text);
+  color: var(--text-main);
 }
 
-.food-preview-card {
-  margin-top: 18rpx;
-  padding: 22rpx;
-  border-radius: 28rpx;
-  background: #f8fafc;
+.empty-tip-desc {
+  font-size: 24rpx;
+  color: var(--text-sub);
+  margin-top: 8rpx;
 }
 
-.food-preview-title {
-  display: block;
+/* ========== 食物营养预览卡片 ========== */
+.food-info-card {
+  background: #fcfdfc;
+  border: 1rpx solid var(--border-light);
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+}
+
+.food-info-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24rpx;
+}
+
+.food-name-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.food-name {
   font-size: 32rpx;
   font-weight: 800;
-  color: var(--nm-text);
+  color: var(--text-main);
 }
 
-.food-preview-kcal {
-  font-size: 30rpx;
+.food-tag {
+  display: inline-block;
+  font-size: 20rpx;
+  color: var(--text-sub);
+  background: #f4f7f4;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  margin-top: 8rpx;
+  align-self: flex-start;
+}
+
+.food-kcal-highlight {
+  font-size: 32rpx;
   font-weight: 800;
-  color: var(--nm-primary);
+  color: var(--primary-dark);
 }
 
-.food-preview-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14rpx;
-  margin-top: 18rpx;
+.nutrition-strip {
+  display: flex;
+  justify-content: space-between;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 16rpx 24rpx;
 }
 
-.food-preview-item {
-  padding: 18rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.94);
-}
-
-.food-preview-value {
-  display: block;
-  margin-top: 10rpx;
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.quick-quantity-row {
-  margin-top: 18rpx;
-}
-
-.quick-quantity-chip {
-  padding: 14rpx 22rpx;
-  border-radius: 999rpx;
-  background: #edf6f1;
-}
-
-.quick-quantity-text {
+.nut-item {
   font-size: 24rpx;
   font-weight: 700;
-  color: var(--nm-primary);
+  color: var(--text-main);
 }
 
-.button-row,
-.footer-actions {
+.nut-item text {
+  color: var(--text-sub);
+  font-weight: 400;
+  margin-right: 4rpx;
+}
+
+/* ========== 食用量与快捷按钮 ========== */
+.quantity-box {
+  margin-bottom: 32rpx;
+}
+
+.quick-chips {
+  display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
-  margin-top: 22rpx;
+  margin-top: 16rpx;
 }
 
-.button-row button,
-.footer-actions button {
-  flex: 1;
-}
-
-.draft-card {
-  gap: 18rpx;
-  margin-top: 18rpx;
-  padding: 22rpx;
-  border-radius: 24rpx;
-  background: #f8fafc;
-}
-
-.draft-main,
-.detail-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.draft-name,
-.submit-title,
-.detail-name {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.draft-badge,
-.group-badge {
-  padding: 10rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(14, 165, 109, 0.12);
-}
-
-.draft-badge-text,
-.group-badge-text {
-  font-size: 22rpx;
-  font-weight: 700;
-  color: var(--nm-primary);
-}
-
-.draft-remove,
-.detail-delete {
-  min-width: 120rpx;
-  height: 72rpx;
-  background: #fee2e2;
-  color: #991b1b;
+.chip {
+  padding: 12rpx 28rpx;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
+  border-radius: 100rpx;
   font-size: 24rpx;
+  color: var(--text-main);
+  font-weight: 500;
+  transition: background 0.2s;
+}
+.chip:active {
+  background: var(--primary-light);
+}
+
+/* ========== 按钮 ========== */
+.action-row {
+  display: flex;
+  gap: 20rpx;
+}
+
+.btn-primary, .btn-secondary {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 100rpx;
+  font-size: 30rpx;
   font-weight: 700;
+  margin: 0;
 }
 
-.submit-panel {
-  margin-top: 20rpx;
-  padding: 22rpx;
-  border-radius: 28rpx;
-  background: linear-gradient(145deg, #fff5de 0%, #ffffff 100%);
+.btn-primary {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 8rpx 24rpx var(--primary-light);
 }
 
-.submit-button {
-  min-width: 176rpx;
+.btn-secondary {
+  background: #f4f7f4;
+  color: var(--text-main);
+}
+
+/* ========== 待保存列表 ========== */
+.draft-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.draft-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fcfdfc;
+  border: 1rpx solid var(--border-light);
+  border-radius: 20rpx;
+  padding: 24rpx;
+}
+
+.draft-title-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.draft-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.draft-tag {
+  font-size: 20rpx;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.draft-desc {
+  font-size: 24rpx;
+  color: var(--text-sub);
+}
+
+.draft-remove-btn {
+  width: 60rpx;
+  height: 60rpx;
+  line-height: 60rpx;
+  text-align: center;
+  background: var(--warn-bg);
+  color: var(--warn-color);
+  border-radius: 50%;
+  font-size: 28rpx;
+}
+
+.submit-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32rpx;
+  padding-top: 24rpx;
+  border-top: 2rpx dashed var(--border-light);
+}
+
+.submit-summary {
+  font-size: 26rpx;
+  color: var(--text-sub);
+  font-weight: 500;
+}
+
+.btn-primary-small {
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 700;
+  padding: 0 40rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  border-radius: 100rpx;
+  margin: 0;
+}
+
+/* ========== 历史记录时间轴 ========== */
+.history-section {
+  margin-top: 48rpx;
+}
+
+.section-main-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 24rpx;
+  display: block;
+  padding-left: 12rpx;
+}
+
+.history-group-card {
+  padding: 0;
+  overflow: hidden;
 }
 
 .history-head {
-  margin-top: 34rpx;
+  background: #fcfdfc;
+  padding: 24rpx 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid var(--border-light);
 }
 
-.group-card {
-  padding: 22rpx;
-  background: #ffffff;
-}
-
-.group-card + .group-card {
-  margin-top: 18rpx;
-}
-
-.group-badge.warm {
-  background: #fff1d6;
-}
-
-.group-badge.green {
-  background: #e8f8ef;
-}
-
-.group-badge.blue {
-  background: #ebf2ff;
-}
-
-.group-badge.gold {
-  background: #f8efd4;
-}
-
-.group-meta {
+.history-badge {
   font-size: 24rpx;
+  font-weight: 700;
+  padding: 6rpx 20rpx;
+  border-radius: 100rpx;
 }
 
-.detail-card {
-  gap: 18rpx;
-  margin-top: 18rpx;
-  padding: 20rpx;
-  border-radius: 22rpx;
-  background: #f8fafc;
+/* 用微妙的大地色和浅绿色区分餐次 */
+.theme-morning { background: #fdf6ed; color: #b38a5e; }
+.theme-noon { background: var(--primary-light); color: var(--primary-dark); }
+.theme-night { background: #edf4f5; color: #5a7a8c; }
+.theme-snack { background: var(--warn-bg); color: var(--warn-color); }
+
+.history-total {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: var(--text-main);
 }
 
-.group-empty {
-  margin-top: 18rpx;
-  padding: 20rpx;
-  border-radius: 22rpx;
-  background: #f8fafc;
+.history-list {
+  padding: 16rpx 32rpx;
 }
 
-.group-empty-text {
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid var(--border-light);
+}
+
+.history-item:last-child {
+  border-bottom: none;
+}
+
+.history-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.history-item-name {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.history-item-meta {
+  font-size: 22rpx;
+  color: var(--text-sub);
+}
+
+.history-item-right {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+
+.history-item-kcal {
+  font-size: 28rpx;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.delete-icon {
+  font-size: 22rpx;
+  color: var(--warn-color);
+  background: var(--warn-bg);
+  padding: 8rpx 16rpx;
+  border-radius: 8rpx;
+  font-weight: 600;
+}
+
+.history-empty {
+  padding: 48rpx 0;
+  text-align: center;
   font-size: 26rpx;
-  color: var(--nm-muted);
+  color: #bac4bb;
+}
+
+/* ========== 底部悬浮操作栏 ========== */
+.fab-bar {
+  position: fixed;
+  bottom: 40rpx;
+  left: 32rpx;
+  right: 32rpx;
+  display: flex;
+  gap: 24rpx;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  padding: 20rpx;
+  border-radius: 100rpx;
+  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.05);
+  z-index: 100;
+}
+
+.fab-btn {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 100rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  margin: 0;
+  transition: transform 0.2s;
+}
+
+.fab-btn:active {
+  transform: scale(0.95);
+}
+
+.fab-btn.outline {
+  background: #f4f7f4;
+  color: var(--text-main);
+}
+
+.fab-btn.solid {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 8rpx 24rpx var(--primary-light);
 }
 </style>

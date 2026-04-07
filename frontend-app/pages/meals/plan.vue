@@ -1,262 +1,214 @@
 <template>
-  <view class="page">
+  <view class="page-modern">
     <app-page-header
       title="饮食计划"
-      subtitle="先生成建议，再查看当天执行内容，最后按需要微调。"
       fallback-url="/pages/meals/index"
+      :border="false"
     />
 
-    <view class="planner-card">
-      <view class="section-head planner-head">
-        <view>
-          <text class="section-title">智能规划</text>
-          <text class="section-desc">选择日期和偏好后，让智能体先帮你生成当天或一周饮食方案。</text>
+    <view class="ai-planner-card">
+      <view class="planner-header">
+        <view class="header-left">
+          <text class="emoji-icon">✨</text>
+          <view>
+            <text class="card-title">AI 智能规划</text>
+            <text class="card-subtitle">输入你的饮食偏好，一键生成专属方案</text>
+          </view>
         </view>
         <picker mode="date" :value="selectedDate" @change="handleDateChange">
-          <view class="date-pill">{{ selectedDate }}</view>
+          <view class="date-selector">
+            <text class="date-text">{{ shortDate(selectedDate, true) }}</text>
+            <text class="arrow-down">▾</text>
+          </view>
         </picker>
       </view>
 
-      <view class="planner-intro">
-        <text class="planner-intro-badge">AI 饮食规划</text>
-        <text class="planner-intro-text">更适合比赛演示的流程是“先生成方案，再展示你如何落地执行”。</text>
+      <view class="prompt-box">
+        <input
+          v-model="generatePreference"
+          class="prompt-input"
+          placeholder="例如：减脂训练日、晚餐清淡、控糖优先..."
+          placeholder-class="prompt-placeholder"
+        />
       </view>
 
-      <input
-        v-model="generatePreference"
-        class="field"
-        placeholder="输入本次偏好，例如：减脂训练日、晚餐清淡、控糖优先"
-      />
-
-      <view class="button-row planner-actions">
-        <button class="primary-button" :loading="generatingDaily" @click="generateDailyPlan">AI 生成当天计划</button>
-        <button class="secondary-button" :loading="generatingWeek" @click="generateWeekPlan">AI 生成本周草案</button>
+      <view class="ai-action-row">
+        <button class="btn-ai-primary" :loading="generatingDaily" @click="generateDailyPlan">生成今日计划</button>
+        <button class="btn-ai-secondary" :loading="generatingWeek" @click="generateWeekPlan">生成本周草案</button>
       </view>
 
-      <view class="week-strip">
-        <text class="section-mini-title">本周安排</text>
-        <text class="section-mini-desc">点击任意日期，快速切换查看当天计划。</text>
-      </view>
-
-      <scroll-view scroll-x class="week-scroll" show-scrollbar="false">
-        <view class="week-row">
-          <view
-            v-for="item in weekPlans"
-            :key="item.planDate"
-            class="day-chip"
-            :class="{ active: item.planDate === selectedDate }"
-            @click="selectPlanDate(item.planDate)"
-          >
-            <text class="day-chip-date">{{ shortDate(item.planDate) }}</text>
-            <text class="day-chip-meta">{{ weekPlanMeta(item) }}</text>
-          </view>
-        </view>
-      </scroll-view>
-    </view>
-
-    <view class="summary-card">
-      <view class="summary-top">
-        <view>
-          <text class="summary-title">{{ plan.title || '今天的饮食计划' }}</text>
-          <text class="summary-desc">{{ plan.notes || '先把每一餐安排清楚，再决定是否手动微调。' }}</text>
-        </view>
-        <view class="summary-badge">{{ planStatusLabel(plan.status) }}</view>
-      </view>
-
-      <view class="hero-note-card" :class="{ empty: !hasPlanInsights }">
-        <view class="hero-note-top">
-          <text class="agent-note-title">智能规划摘要</text>
-          <text v-if="plan.generationMode" class="agent-note-mode">{{ generationModeLabel(plan.generationMode) }}</text>
-        </view>
-        <text class="agent-note-text">
-          {{ hasPlanInsights ? plan.summary : '还没有生成摘要。你可以先点击上方按钮，让 AI 帮你出一版饮食计划。' }}
-        </text>
-      </view>
-
-      <view class="summary-grid">
-        <view class="summary-item">
-          <text class="summary-label">总热量</text>
-          <text class="summary-value">{{ formatNumber(plan.totalCalories) }}</text>
-          <text class="summary-unit">kcal</text>
-        </view>
-        <view class="summary-item">
-          <text class="summary-label">蛋白质</text>
-          <text class="summary-value">{{ formatNumber(plan.totalProtein, 1) }}</text>
-          <text class="summary-unit">g</text>
-        </view>
-        <view class="summary-item">
-          <text class="summary-label">脂肪</text>
-          <text class="summary-value">{{ formatNumber(plan.totalFat, 1) }}</text>
-          <text class="summary-unit">g</text>
-        </view>
-        <view class="summary-item">
-          <text class="summary-label">碳水</text>
-          <text class="summary-value">{{ formatNumber(plan.totalCarbohydrate, 1) }}</text>
-          <text class="summary-unit">g</text>
-        </view>
-      </view>
-
-      <view v-if="showTargetStrip" class="target-strip">
-        <view v-if="plan.targetCalories" class="target-item">
-          <text class="target-label">目标热量</text>
-          <text class="target-value">{{ formatNumber(plan.targetCalories) }} kcal</text>
-        </view>
-        <view v-if="plan.targetProtein" class="target-item">
-          <text class="target-label">目标蛋白</text>
-          <text class="target-value">{{ formatNumber(plan.targetProtein, 1) }} g</text>
-        </view>
-        <view v-if="plan.calorieGap !== null && plan.calorieGap !== undefined" class="target-item">
-          <text class="target-label">热量偏差</text>
-          <text class="target-value">{{ signedNumber(plan.calorieGap) }} kcal</text>
-        </view>
-        <view v-if="plan.proteinGap !== null && plan.proteinGap !== undefined" class="target-item">
-          <text class="target-label">蛋白偏差</text>
-          <text class="target-value">{{ signedNumber(plan.proteinGap, 1) }} g</text>
-        </view>
-      </view>
-
-      <view class="info-flow">
-        <view v-if="plan.tips.length" class="info-card">
-          <text class="bullet-title">执行建议</text>
-          <view v-for="(tip, index) in plan.tips" :key="`tip-${index}`" class="bullet-item">
-            <text class="bullet-index">{{ index + 1 }}</text>
-            <text class="bullet-text">{{ tip }}</text>
-          </view>
-        </view>
-
-        <view v-if="plan.warnings.length" class="info-card warning-card">
-          <text class="bullet-title">提醒</text>
-          <view v-for="(warning, index) in plan.warnings" :key="`warning-${index}`" class="bullet-item">
-            <text class="bullet-index warning">{{ index + 1 }}</text>
-            <text class="bullet-text">{{ warning }}</text>
-          </view>
-        </view>
-
-        <view v-if="plan.references.length" class="info-card reference-card">
-          <text class="bullet-title">规划依据</text>
-          <text v-for="(reference, index) in plan.references" :key="`reference-${index}`" class="reference-text">
-            {{ index + 1 }}. {{ reference }}
-          </text>
-        </view>
-      </view>
-    </view>
-
-    <view class="panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">当天执行</text>
-          <text class="section-desc">按餐次查看执行内容，确认无误后可以保存草稿或一键应用到饮食记录。</text>
-        </view>
-        <view class="section-tag">{{ planItems.length }} 项</view>
-      </view>
-
-      <view v-if="!planItems.length" class="empty-card">
-        <text class="empty-title">这一天还没有安排食物</text>
-        <text class="empty-desc">先用上面的智能生成，或者展开下方手动补充区域添加食物。</text>
-      </view>
-
-      <view v-for="section in groupedPlanItems" :key="section.value" class="meal-section-card">
-        <view class="meal-section-head">
-          <view>
-            <text class="meal-section-title">{{ section.label }}</text>
-            <text class="meal-section-meta">{{ section.items.length }} 项 · {{ formatNumber(section.totalCalories) }} kcal</text>
-          </view>
-          <view class="plan-item-badge">{{ section.label }}</view>
-        </view>
-
-        <view class="meal-item-list">
-          <view
-            v-for="(item, index) in section.items"
-            :key="`${item.foodId}-${section.value}-${index}`"
-            class="plan-item-card"
-          >
-            <view class="plan-item-main">
-              <text class="plan-item-name">{{ item.foodName }}</text>
-              <text class="plan-item-meta">
-                {{ formatNumber(item.quantity) }} g · {{ formatNumber(item.calories) }} kcal{{ item.note ? ` · ${item.note}` : '' }}
-              </text>
+      <view class="week-slider" v-if="weekPlans.length > 0">
+        <scroll-view scroll-x class="week-scroll" :show-scrollbar="false">
+          <view class="week-row">
+            <view
+              v-for="item in weekPlans"
+              :key="item.planDate"
+              class="day-bubble"
+              :class="{ active: item.planDate === selectedDate }"
+              @click="selectPlanDate(item.planDate)"
+            >
+              <text class="bubble-date">{{ shortDate(item.planDate) }}</text>
+              <view class="bubble-dot" :class="{ 'has-plan': item.hasPlan }"></view>
             </view>
-            <button class="danger-button small" @click="removePlanItem(item.originalIndex)">移除</button>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
+    <view class="summary-dashboard">
+      <view class="dashboard-header">
+        <text class="dashboard-title">{{ plan.title || '今日饮食计划' }}</text>
+        <view class="status-badge" :class="plan.status.toLowerCase()">
+          {{ planStatusLabel(plan.status) }}
+        </view>
+      </view>
+
+      <view class="macro-grid">
+        <view class="macro-item highlight">
+          <text class="macro-value">{{ formatNumber(plan.totalCalories) }}</text>
+          <text class="macro-label">总热量(kcal)</text>
+        </view>
+        <view class="macro-item">
+          <text class="macro-value">{{ formatNumber(plan.totalProtein, 1) }}</text>
+          <text class="macro-label">蛋白质(g)</text>
+        </view>
+        <view class="macro-item">
+          <text class="macro-value">{{ formatNumber(plan.totalCarbohydrate, 1) }}</text>
+          <text class="macro-label">碳水(g)</text>
+        </view>
+        <view class="macro-item">
+          <text class="macro-value">{{ formatNumber(plan.totalFat, 1) }}</text>
+          <text class="macro-label">脂肪(g)</text>
+        </view>
+      </view>
+
+      <view v-if="showTargetStrip" class="target-compare-bar">
+        <view v-if="plan.targetCalories" class="compare-item">
+          <text class="c-label">目标热量</text>
+          <text class="c-value">{{ formatNumber(plan.targetCalories) }}</text>
+        </view>
+        <view v-if="plan.calorieGap !== null" class="compare-item">
+          <text class="c-label">热量偏差</text>
+          <text class="c-value" :class="{ 'is-over': plan.calorieGap > 0 }">{{ signedNumber(plan.calorieGap) }}</text>
+        </view>
+      </view>
+
+      <view class="ai-insight-card" v-if="hasPlanInsights">
+        <view class="insight-head">
+          <text class="insight-icon">🤖</text>
+          <text class="insight-title">AI 洞察</text>
+          <text class="insight-mode">{{ generationModeLabel(plan.generationMode) }}</text>
+        </view>
+        <text class="insight-content">{{ plan.summary }}</text>
+      </view>
+
+      <view class="tips-container" v-if="plan.tips.length || plan.warnings.length">
+        <view v-if="plan.tips.length" class="tip-group">
+          <view v-for="(tip, index) in plan.tips" :key="`tip-${index}`" class="tip-row">
+            <text class="tip-emoji">💡</text>
+            <text class="tip-text">{{ tip }}</text>
+          </view>
+        </view>
+        <view v-if="plan.warnings.length" class="tip-group warning">
+          <view v-for="(warning, index) in plan.warnings" :key="`warn-${index}`" class="tip-row">
+            <text class="tip-emoji">⚠️</text>
+            <text class="tip-text">{{ warning }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="execution-panel">
+      <view class="execution-header">
+        <text class="panel-main-title">执行清单</text>
+        <text class="panel-sub-title">共 {{ planItems.length }} 项</text>
+      </view>
+
+      <view v-if="!planItems.length" class="empty-state">
+        <text class="empty-icon">🍽️</text>
+        <text class="empty-text">这天还没安排食物，让 AI 帮你生成吧</text>
+      </view>
+
+      <view class="meal-flow">
+        <view v-for="section in groupedPlanItems" :key="section.value" class="meal-group">
+          <view class="meal-group-title">
+            <text class="meal-name">{{ section.label }}</text>
+            <text class="meal-cal">{{ formatNumber(section.totalCalories) }} kcal</text>
+          </view>
+          
+          <view class="food-list">
+            <view 
+              v-for="(item, index) in section.items" 
+              :key="`${item.foodId}-${index}`" 
+              class="food-item"
+            >
+              <view class="food-info">
+                <text class="food-name">{{ item.foodName }}</text>
+                <text class="food-desc">{{ formatNumber(item.quantity) }}g · {{ formatNumber(item.calories) }}kcal <text v-if="item.note" class="food-note">| {{ item.note }}</text></text>
+              </view>
+              <view class="food-remove" @click="removePlanItem(item.originalIndex)">
+                <text class="remove-icon">×</text>
+              </view>
+            </view>
           </view>
         </view>
       </view>
 
-      <view class="button-row">
-        <button class="secondary-button" @click="savePlan">保存计划</button>
-        <button class="primary-button" @click="applyPlan">一键应用到记录</button>
+      <view class="action-dock" v-if="planItems.length">
+        <button class="btn-save" @click="savePlan">保存草稿</button>
+        <button class="btn-apply" @click="applyPlan">应用到饮食记录</button>
       </view>
     </view>
 
-    <view class="panel editor-panel">
-      <view class="section-head">
-        <view>
-          <text class="section-title">手动补充</text>
-          <text class="section-desc">当你想修改 AI 方案时，再展开编辑，避免一进来信息太满。</text>
+    <view class="manual-edit-panel">
+      <view class="edit-header" @click="editorExpanded = !editorExpanded">
+        <view class="header-left">
+          <text class="panel-main-title">手动补充 & 微调</text>
         </view>
-        <button class="ghost-button mini" @click="editorExpanded = !editorExpanded">
-          {{ editorExpanded ? '收起' : '展开编辑' }}
-        </button>
+        <text class="expand-icon" :class="{ 'is-open': editorExpanded }">›</text>
       </view>
 
-      <view v-if="editorExpanded">
-        <view class="editor-note">
-          <text class="editor-note-title">手动微调区</text>
-          <text class="editor-note-text">这里适合修改标题、补充说明，或补上一些 AI 没安排到的食物。</text>
-        </view>
+      <view class="edit-body" :class="{ 'is-expanded': editorExpanded }">
+        <input v-model="planForm.title" class="custom-input" placeholder="计划标题 (选填)" />
+        <textarea v-model="planForm.notes" class="custom-textarea" placeholder="补充说明 (选填)" />
 
-        <input v-model="planForm.title" class="field" placeholder="计划标题，例如：训练日高蛋白计划" />
-        <textarea
-          v-model="planForm.notes"
-          class="textarea-field"
-          maxlength="200"
-          placeholder="补充说明，例如：早餐少油、晚餐主食减量"
-        ></textarea>
-
-        <view class="meal-type-row">
-          <view
-            v-for="item in mealTypeOptions"
-            :key="item.value"
-            class="meal-type-chip"
-            :class="[item.theme, { active: mealType === item.value }]"
+        <text class="sub-label">选择餐次</text>
+        <view class="meal-tags">
+          <view 
+            v-for="item in mealTypeOptions" 
+            :key="item.value" 
+            class="meal-tag" 
+            :class="{ active: mealType === item.value }"
             @click="mealType = item.value"
           >
-            <text class="meal-type-text">{{ item.label }}</text>
+            {{ item.label }}
           </view>
         </view>
 
-        <view class="search-row">
-          <input
-            v-model="foodKeyword"
-            class="field search-field"
-            placeholder="搜索食物名称"
-            confirm-type="search"
-            @confirm="loadFoods"
-          />
-          <button class="search-button" @click="loadFoods">搜索</button>
-        </view>
+        <view class="search-add-box">
+          <view class="search-bar">
+            <input v-model="foodKeyword" class="search-input" placeholder="搜索需要补充的食物" @confirm="loadFoods" />
+            <button class="btn-search" @click="loadFoods">搜索</button>
+          </view>
 
-        <picker :range="foods" range-key="name" :value="selectedFoodIndex" @change="handleFoodSelect">
-          <view class="field picker-field">{{ selectedFoodLabel }}</view>
-        </picker>
+          <picker :range="foods" range-key="name" :value="selectedFoodIndex" @change="handleFoodSelect">
+            <view class="picker-box">
+              <text class="picker-text" :class="{'has-val': foods.length > 0}">{{ selectedFoodLabel }}</text>
+              <text class="picker-arrow">▾</text>
+            </view>
+          </picker>
 
-        <view v-if="selectedFood" class="food-preview-card">
-          <text class="food-preview-title">{{ selectedFood.name }}</text>
-          <text class="food-preview-meta">
-            {{ selectedFood.category || '未分类' }} · {{ selectedFood.unit || '100克' }} · {{ formatNumber(selectedFood.calories) }} kcal
-          </text>
-        </view>
+          <view class="input-grid">
+            <input v-model="quantity" class="custom-input half" type="digit" placeholder="数量(g)" />
+            <input v-model="itemNote" class="custom-input half" placeholder="备注(选填)" />
+          </view>
 
-        <view class="form-grid">
-          <input v-model="quantity" class="field compact-field" type="digit" placeholder="数量(g)" />
-          <input v-model="itemNote" class="field compact-field" placeholder="备注，例如：训练后、加餐" />
-        </view>
-
-        <view class="button-row">
-          <button class="secondary-button" @click="addPlanItem">加入计划</button>
-          <button class="ghost-button" @click="resetEditor">清空输入</button>
+          <button class="btn-add-food" @click="addPlanItem">+ 加入计划清单</button>
         </view>
       </view>
     </view>
+    
+    <view class="safe-area-bottom"></view>
   </view>
 </template>
 
@@ -277,10 +229,7 @@ const mealTypeOptions = [
 const selectedDate = ref(formatToday())
 const weekPlans = ref([])
 const plan = ref(createEmptyPlan())
-const planForm = ref({
-  title: '',
-  notes: ''
-})
+const planForm = ref({ title: '', notes: '' })
 const planItems = ref([])
 const generatePreference = ref('')
 const generatingDaily = ref(false)
@@ -321,32 +270,17 @@ const groupedPlanItems = computed(() =>
 )
 
 const selectedFoodLabel = computed(() => {
-  if (!foods.value.length) {
-    return '先搜索食物，或者去食物库新增'
-  }
+  if (!foods.value.length) return '搜出食物后在此选择'
   const food = foods.value[selectedFoodIndex.value]
-  return food ? `${food.name} · ${food.unit || '100克'}` : '请选择食物'
+  return food ? `${food.name} · ${food.unit || '100g'}` : '请选择食物'
 })
 
 function createEmptyPlan() {
   return {
-    title: '',
-    notes: '',
-    status: 'DRAFT',
-    totalCalories: 0,
-    totalProtein: 0,
-    totalFat: 0,
-    totalCarbohydrate: 0,
-    targetCalories: null,
-    targetProtein: null,
-    calorieGap: null,
-    proteinGap: null,
-    generationMode: '',
-    summary: '',
-    tips: [],
-    warnings: [],
-    references: [],
-    items: []
+    title: '', notes: '', status: 'DRAFT',
+    totalCalories: 0, totalProtein: 0, totalFat: 0, totalCarbohydrate: 0,
+    targetCalories: null, targetProtein: null, calorieGap: null, proteinGap: null,
+    generationMode: '', summary: '', tips: [], warnings: [], references: [], items: []
   }
 }
 
@@ -354,54 +288,33 @@ function normalizePlan(payload) {
   const next = payload || createEmptyPlan()
   const items = Array.isArray(next.items) ? next.items : []
   plan.value = {
-    ...createEmptyPlan(),
-    ...next,
+    ...createEmptyPlan(), ...next,
     tips: Array.isArray(next.tips) ? next.tips : [],
     warnings: Array.isArray(next.warnings) ? next.warnings : [],
     references: Array.isArray(next.references) ? next.references : [],
     items
   }
-  planForm.value = {
-    title: next.title || '',
-    notes: next.notes || ''
-  }
-  planItems.value = items.map((item, index) => ({
-    ...item,
-    sortOrder: item.sortOrder ?? index
-  }))
+  planForm.value = { title: next.title || '', notes: next.notes || '' }
+  planItems.value = items.map((item, index) => ({ ...item, sortOrder: item.sortOrder ?? index }))
+  // 如果没有内容，自动展开编辑区
   editorExpanded.value = !items.length
 }
 
 function applyGeneratedPlan(payload) {
-  normalizePlan({
-    status: 'GENERATED',
-    ...payload
-  })
+  normalizePlan({ status: 'GENERATED', ...payload })
 }
 
 async function loadFoods() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn() || !foodKeyword.value.trim()) return
   try {
-    const response = await request.get('/foods', {
-      keyword: foodKeyword.value,
-      current: 1,
-      size: 50
-    })
+    const response = await request.get('/foods', { keyword: foodKeyword.value, current: 1, size: 20 })
     foods.value = Array.isArray(response?.records) ? response.records : []
     selectedFoodIndex.value = 0
-  } catch (error) {
-    console.log('load foods for plan failed', error)
-  }
+  } catch (error) {}
 }
 
 async function loadPlan() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   try {
     const [dailyPlan, weekly] = await Promise.all([
       request.get('/meals/plans/daily', { planDate: selectedDate.value }),
@@ -409,16 +322,11 @@ async function loadPlan() {
     ])
     normalizePlan(dailyPlan)
     weekPlans.value = Array.isArray(weekly) ? weekly : []
-  } catch (error) {
-    console.log('load meal plan failed', error)
-  }
+  } catch (error) {}
 }
 
 async function generateDailyPlan() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   generatingDaily.value = true
   try {
     const response = await request.post('/meals/plans/generate/daily', {
@@ -427,22 +335,13 @@ async function generateDailyPlan() {
       saveDraft: false
     })
     applyGeneratedPlan(response)
-    uni.showToast({
-      title: '当天计划已生成',
-      icon: 'success'
-    })
+    uni.showToast({ title: '已生成', icon: 'success' })
   } catch (error) {
-    console.log('generate daily plan failed', error)
-  } finally {
-    generatingDaily.value = false
-  }
+  } finally { generatingDaily.value = false }
 }
 
 async function generateWeekPlan() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   generatingWeek.value = true
   try {
     const response = await request.post('/meals/plans/generate/week', {
@@ -454,21 +353,10 @@ async function generateWeekPlan() {
       ? response.days.find((item) => item.planDate === selectedDate.value)
       : null
     await loadPlan()
-    if (currentDay) {
-      applyGeneratedPlan({
-        ...currentDay,
-        status: 'READY'
-      })
-    }
-    uni.showToast({
-      title: '本周草案已生成',
-      icon: 'success'
-    })
+    if (currentDay) { applyGeneratedPlan({ ...currentDay, status: 'READY' }) }
+    uni.showToast({ title: '本周草案已生成', icon: 'success' })
   } catch (error) {
-    console.log('generate week plan failed', error)
-  } finally {
-    generatingWeek.value = false
-  }
+  } finally { generatingWeek.value = false }
 }
 
 function handleDateChange(event) {
@@ -487,24 +375,16 @@ function handleFoodSelect(event) {
 function resetEditor() {
   quantity.value = '100'
   itemNote.value = ''
-  mealType.value = 'BREAKFAST'
 }
 
 function addPlanItem() {
   if (!selectedFood.value) {
-    uni.showToast({
-      title: '请先选择食物',
-      icon: 'none'
-    })
+    uni.showToast({ title: '请先搜索并选择食物', icon: 'none' })
     return
   }
-
   const numericQuantity = Number(quantity.value)
   if (Number.isNaN(numericQuantity) || numericQuantity <= 0) {
-    uni.showToast({
-      title: '请输入正确数量',
-      icon: 'none'
-    })
+    uni.showToast({ title: '输入正确数量', icon: 'none' })
     return
   }
 
@@ -522,6 +402,7 @@ function addPlanItem() {
     carbohydrate: Number(selectedFood.value.carbohydrate || 0) * ratio
   })
   resetEditor()
+  uni.showToast({ title: '已加入', icon: 'none' })
 }
 
 function removePlanItem(index) {
@@ -529,48 +410,33 @@ function removePlanItem(index) {
 }
 
 async function savePlan() {
-  if (!ensureLoggedIn()) {
-    return
-  }
-
+  if (!ensureLoggedIn()) return
   try {
     const response = await persistPlan()
     normalizePlan(response)
     await loadPlan()
-    uni.showToast({
-      title: '计划已保存',
-      icon: 'success'
-    })
-  } catch (error) {
-    console.log('save meal plan failed', error)
-  }
+    uni.showToast({ title: '保存成功', icon: 'success' })
+  } catch (error) {}
 }
 
 async function applyPlan() {
-  if (!ensureLoggedIn()) {
+  if (!ensureLoggedIn()) return
+  if (!planItems.value.length) {
+    uni.showToast({ title: '计划是空的', icon: 'none' })
     return
   }
-
   try {
     await persistPlan()
-    await request.post('/meals/plans/daily/apply', {
-      planDate: selectedDate.value
-    })
+    await request.post('/meals/plans/daily/apply', { planDate: selectedDate.value })
     uni.showModal({
       title: '应用成功',
-      content: '计划已经写入饮食记录，是否现在前往查看？',
+      content: '已写入今日饮食记录，去查看吗？',
       success: (result) => {
-        if (result.confirm) {
-          uni.navigateTo({
-            url: '/pages/meals/index'
-          })
-        }
+        if (result.confirm) uni.navigateTo({ url: '/pages/meals/index' })
       }
     })
     await loadPlan()
-  } catch (error) {
-    console.log('apply meal plan failed', error)
-  }
+  } catch (error) {}
 }
 
 function persistPlan() {
@@ -579,598 +445,603 @@ function persistPlan() {
     title: planForm.value.title || null,
     notes: planForm.value.notes || null,
     items: planItems.value.map((item, index) => ({
-      foodId: item.foodId,
-      mealType: item.mealType,
-      quantity: item.quantity,
-      note: item.note || null,
-      sortOrder: index
+      foodId: item.foodId, mealType: item.mealType, quantity: item.quantity,
+      note: item.note || null, sortOrder: index
     }))
   })
 }
 
-function shortDate(value) {
-  if (!value) {
-    return '--'
-  }
-  const [, month, day] = String(value).split('-')
+function shortDate(value, withText = false) {
+  if (!value) return '--'
+  const [year, month, day] = String(value).split('-')
+  if (value === formatToday() && withText) return '今天'
   return `${month}/${day}`
 }
 
-function weekPlanMeta(item) {
-  if (!item?.hasPlan) {
-    return '未安排'
-  }
-  return `${item.itemCount || 0} 项`
-}
-
 function generationModeLabel(value) {
-  if (value === 'AI_AGENT') {
-    return 'AI 智能生成'
-  }
-  if (value === 'RULE_BASED') {
-    return '规则兜底生成'
-  }
-  if (value === 'MIXED') {
-    return '混合生成'
-  }
-  return value || '智能生成'
+  const map = { 'AI_AGENT': 'AI 智能生成', 'RULE_BASED': '基础生成', 'MIXED': '混合生成' }
+  return map[value] || '智能生成'
 }
 
 function planStatusLabel(value) {
-  const map = {
-    DRAFT: '草稿',
-    GENERATED: '已生成',
-    READY: '已就绪',
-    APPLIED: '已应用'
-  }
-  return map[value] || value || '草稿'
+  const map = { DRAFT: '草稿阶段', GENERATED: 'AI 已生成', READY: '待执行', APPLIED: '已应用' }
+  return map[value] || '规划中'
 }
 
-function signedNumber(value, digits = 0) {
-  const numeric = Number(value || 0)
-  if (!Number.isFinite(numeric)) {
-    return '0'
-  }
-  const fixed = numeric.toFixed(digits)
-  return numeric > 0 ? `+${fixed}` : fixed
+function signedNumber(value) {
+  const num = Number(value || 0)
+  return num > 0 ? `+${num}` : `${num}`
 }
 
-onLoad((query) => {
-  if (query?.date) {
-    selectedDate.value = query.date
-  }
-})
-
+onLoad((query) => { if (query?.date) selectedDate.value = query.date })
 onShow(() => {
-  if (!ensureLoggedIn()) {
-    return
-  }
-  loadFoods()
-  loadPlan()
+  if (ensureLoggedIn()) { loadPlan() }
 })
 </script>
 
 <style scoped>
-.page {
+/* 抹茶绿主题变量 */
+.page-modern {
+  --app-bg: #f4f7f4; /* 带有极浅绿意的高级灰底 */
+  --card-bg: #ffffff;
+  --primary: #6b9e78; /* 核心抹茶绿 */
+  --primary-dark: #4a7356; /* 深度抹茶 */
+  --primary-light: #eaf1eb; /* 极浅抹茶底色 */
+  --text-main: #2c352f; /* 墨绿色调的深黑 */
+  --text-sub: #8d9991; /* 带有绿灰调的辅助文本 */
+  --border-light: #eef2ef; /* 清新柔和的分割线 */
+  --warn-color: #9e7e63; /* 焙茶棕，用于替代红色的提醒色 */
+  --warn-bg: #f7f3f0; /* 极浅焙茶底色 */
+  
   min-height: 100vh;
-  padding: 32rpx 28rpx calc(96rpx + env(safe-area-inset-bottom));
+  background-color: var(--app-bg);
+  padding: 24rpx;
 }
 
-.planner-card,
-.summary-card,
-.panel {
-  margin-top: 24rpx;
-  padding: 28rpx;
-  border-radius: 30rpx;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: var(--nm-shadow);
+/* --- 1. AI 智能规划区 --- */
+.ai-planner-card {
+  background: var(--card-bg);
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
 }
 
-.planner-card {
-  background: linear-gradient(160deg, #f4faf5 0%, #fcfffd 100%);
-  border: 1rpx solid rgba(107, 162, 123, 0.14);
+.planner-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24rpx;
 }
 
-.summary-card {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, #fdfefd 100%);
-}
-
-.section-head,
-.summary-top,
-.hero-note-top,
-.search-row,
-.button-row,
-.meal-section-head,
-.plan-item-card,
-.planner-intro,
-.week-strip {
+.header-left {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+}
+
+.emoji-icon {
+  font-size: 40rpx;
+  margin-right: 16rpx;
+}
+
+.card-title {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.card-subtitle {
+  display: block;
+  font-size: 24rpx;
+  color: var(--text-sub);
+  margin-top: 4rpx;
+}
+
+.date-selector {
+  background: var(--primary-light);
+  padding: 10rpx 24rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+}
+
+.date-text {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--primary);
+  margin-right: 8rpx;
+}
+
+.arrow-down {
+  font-size: 24rpx;
+  color: var(--primary);
+}
+
+/* 对话框式输入 */
+.prompt-box {
+  background: #f7f9f7;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  border: 2rpx solid transparent;
+  transition: all 0.2s;
+}
+
+.prompt-box:focus-within {
+  border-color: rgba(107, 158, 120, 0.3);
+  background: #ffffff;
+  box-shadow: 0 4rpx 16rpx rgba(107, 158, 120, 0.08);
+}
+
+.prompt-input {
+  width: 100%;
+  font-size: 28rpx;
+  color: var(--text-main);
+}
+
+.prompt-placeholder {
+  color: #bac4bb;
+}
+
+.ai-action-row {
+  display: flex;
   gap: 16rpx;
 }
 
-.planner-head {
-  align-items: flex-start;
-}
-
-.section-title,
-.summary-title {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.section-desc,
-.summary-desc,
-.summary-label,
-.summary-unit,
-.food-preview-meta,
-.empty-desc,
-.plan-item-meta,
-.meal-section-meta,
-.section-mini-desc {
-  font-size: 24rpx;
-  color: var(--nm-muted);
-}
-
-.section-desc,
-.summary-desc {
-  display: block;
-  margin-top: 8rpx;
-  line-height: 1.7;
-}
-
-.date-pill,
-.summary-badge,
-.plan-item-badge,
-.meal-type-chip,
-.section-tag {
-  padding: 14rpx 20rpx;
-  border-radius: 999rpx;
-}
-
-.date-pill {
-  background: var(--nm-primary-dark);
-  color: #ffffff;
-  font-size: 24rpx;
-  font-weight: 700;
-}
-
-.planner-intro {
-  margin-top: 20rpx;
-  align-items: flex-start;
-  padding: 20rpx 22rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.76);
-  border: 1rpx solid rgba(126, 168, 199, 0.18);
-}
-
-.planner-intro-badge {
-  flex-shrink: 0;
-  padding: 10rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(67, 113, 90, 0.1);
-  font-size: 22rpx;
-  font-weight: 700;
-  color: var(--nm-primary-dark);
-}
-
-.planner-intro-text {
+.btn-ai-primary, .btn-ai-secondary {
   flex: 1;
-  font-size: 24rpx;
-  line-height: 1.7;
-  color: #4f6658;
-}
-
-.field,
-.textarea-field,
-.picker-field {
-  width: 100%;
-  box-sizing: border-box;
-  margin-top: 18rpx;
-  padding: 22rpx 24rpx;
-  border-radius: 22rpx;
-  background: #f7f6f1;
-  border: 1rpx solid rgba(82, 117, 92, 0.08);
+  height: 80rpx;
+  border-radius: 20rpx;
   font-size: 28rpx;
-  color: var(--nm-text);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
 }
 
-.textarea-field {
-  min-height: 150rpx;
+.btn-ai-primary {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 6rpx 16rpx var(--primary-light);
 }
 
-.compact-field {
-  margin-top: 0;
+.btn-ai-secondary {
+  background: #f4f7f4;
+  color: var(--text-main);
 }
 
-.planner-actions {
-  margin-top: 22rpx;
-}
-
-.week-strip {
-  margin-top: 26rpx;
-  align-items: flex-end;
-}
-
-.section-mini-title {
-  display: block;
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--nm-text);
+.week-slider {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid var(--border-light);
 }
 
 .week-scroll {
-  margin-top: 14rpx;
+  width: 100%;
   white-space: nowrap;
 }
 
 .week-row {
   display: inline-flex;
-  gap: 14rpx;
-  padding-bottom: 6rpx;
+  gap: 20rpx;
 }
 
-.day-chip {
-  min-width: 156rpx;
-  padding: 20rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.84);
-  border: 1rpx solid rgba(107, 162, 123, 0.12);
+.day-bubble {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx 20rpx;
+  border-radius: 20rpx;
+  background: #f7f9f7;
+  transition: all 0.2s;
 }
 
-.day-chip.active {
-  background: var(--nm-primary);
+.day-bubble.active {
+  background: var(--text-main);
 }
 
-.day-chip-date,
-.day-chip-meta,
-.meal-type-text,
-.plan-item-name,
-.food-preview-title,
-.empty-title {
-  display: block;
+.bubble-date {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--text-sub);
+  margin-bottom: 8rpx;
 }
 
-.day-chip-date {
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.day-chip-meta {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: var(--nm-muted);
-}
-
-.day-chip.active .day-chip-date,
-.day-chip.active .day-chip-meta {
+.day-bubble.active .bubble-date {
   color: #ffffff;
 }
 
-.summary-badge {
-  background: rgba(107, 162, 123, 0.14);
-  color: var(--nm-primary-dark);
-  font-size: 24rpx;
-  font-weight: 700;
+.bubble-dot {
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  background: transparent;
 }
 
-.hero-note-card {
-  margin-top: 22rpx;
+.bubble-dot.has-plan {
+  background: #a9c4ae; /* 浅抹茶表示有计划 */
+}
+.day-bubble.active .bubble-dot.has-plan {
+  background: var(--primary);
+}
+
+/* --- 2. 计划摘要仪表盘 --- */
+.summary-dashboard {
+  background: var(--card-bg);
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32rpx;
+}
+
+.dashboard-title {
+  font-size: 32rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.status-badge {
+  padding: 8rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  background: #f4f7f4;
+  color: var(--text-sub);
+}
+/* 去掉所有红色/橙色，统一改为深浅不一的抹茶与大地色 */
+.status-badge.generated { background: var(--primary-light); color: var(--primary); }
+.status-badge.ready { background: #f0f4ea; color: #7a8c53; } /* 煎茶绿 */
+.status-badge.applied { background: #e9f0ea; color: var(--primary-dark); }
+
+/* 网格仪表 */
+.macro-grid {
+  display: flex;
+  justify-content: space-between;
+  background: #fcfdfc;
+  border: 1rpx solid var(--border-light);
+  border-radius: 24rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.macro-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.macro-item.highlight .macro-value {
+  color: var(--primary);
+  font-size: 40rpx;
+}
+
+.macro-value {
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 8rpx;
+}
+
+.macro-label {
+  font-size: 22rpx;
+  color: var(--text-sub);
+}
+
+.target-compare-bar {
+  display: flex;
+  gap: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.compare-item {
+  flex: 1;
+  background: #f7f9f7;
+  padding: 16rpx 24rpx;
+  border-radius: 16rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.c-label { font-size: 24rpx; color: var(--text-sub); }
+.c-value { font-size: 28rpx; font-weight: 700; color: var(--text-main); }
+.c-value.is-over { color: var(--warn-color); } /* 使用焙茶色代替红色超标提醒 */
+
+/* AI 洞察 */
+.ai-insight-card {
+  background: linear-gradient(145deg, #f2f7f3 0%, #ffffff 100%);
+  border: 1rpx solid rgba(107, 158, 120, 0.15);
   padding: 24rpx;
   border-radius: 24rpx;
-  background: linear-gradient(145deg, #eef6ff 0%, #f7fbf7 100%);
+  margin-bottom: 24rpx;
 }
 
-.hero-note-card.empty {
-  background: #f6f8f5;
+.insight-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
 }
 
-.agent-note-title,
-.bullet-title {
-  display: block;
+.insight-icon { font-size: 32rpx; margin-right: 12rpx; }
+.insight-title { font-size: 28rpx; font-weight: 700; color: var(--text-main); flex: 1; }
+.insight-mode { font-size: 22rpx; color: var(--primary); font-weight: 600; background: rgba(255,255,255,0.8); padding: 4rpx 12rpx; border-radius: 8rpx;}
+
+.insight-content {
   font-size: 26rpx;
-  font-weight: 800;
-  color: var(--nm-text);
+  color: #4a594e;
+  line-height: 1.6;
 }
 
-.agent-note-mode {
-  display: inline-flex;
-  padding: 10rpx 16rpx;
-  border-radius: 999rpx;
-  background: rgba(67, 113, 90, 0.12);
-  font-size: 22rpx;
-  font-weight: 700;
-  color: var(--nm-primary-dark);
-}
-
-.agent-note-text,
-.bullet-text,
-.reference-text,
-.editor-note-text {
-  display: block;
-  margin-top: 12rpx;
-  font-size: 24rpx;
-  line-height: 1.75;
-  color: #4f5d52;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
+/* Tips */
+.tips-container {
+  display: flex;
+  flex-direction: column;
   gap: 16rpx;
-  margin-top: 22rpx;
 }
 
-.summary-item {
-  padding: 22rpx;
-  border-radius: 22rpx;
-  background: #f8faf7;
+.tip-group {
+  background: #f7f9f7;
+  border-radius: 20rpx;
+  padding: 20rpx;
 }
 
-.summary-value {
-  display: block;
-  margin-top: 10rpx;
-  font-size: 38rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
+.tip-group.warning { background: var(--warn-bg); }
 
-.target-strip {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14rpx;
-  margin-top: 20rpx;
-}
-
-.target-item {
-  padding: 18rpx 20rpx;
-  border-radius: 22rpx;
-  background: #f7f5ef;
-}
-
-.target-label {
-  display: block;
-  font-size: 22rpx;
-  color: var(--nm-muted);
-}
-
-.target-value {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.info-flow {
-  margin-top: 20rpx;
-}
-
-.info-card {
-  margin-top: 14rpx;
-  padding: 22rpx;
-  border-radius: 22rpx;
-  background: #fbfcfa;
-  border: 1rpx solid rgba(82, 117, 92, 0.08);
-}
-
-.warning-card {
-  background: #fffaf2;
-}
-
-.reference-card {
-  background: #f7fafb;
-}
-
-.bullet-item {
+.tip-row {
   display: flex;
   align-items: flex-start;
-  gap: 12rpx;
-  margin-top: 14rpx;
+  margin-bottom: 12rpx;
+}
+.tip-row:last-child { margin-bottom: 0; }
+
+.tip-emoji { margin-right: 12rpx; font-size: 28rpx; line-height: 1.4; }
+.tip-text { font-size: 26rpx; color: #4a594e; line-height: 1.5; flex: 1; }
+.warning .tip-text { color: #6b5c4d; } /* 焙茶调的深色文本 */
+
+/* --- 3. 执行清单区 (去线化设计) --- */
+.execution-panel {
+  background: var(--card-bg);
+  border-radius: 32rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
 }
 
-.bullet-index {
-  width: 34rpx;
-  height: 34rpx;
-  border-radius: 999rpx;
-  background: rgba(107, 162, 123, 0.16);
-  text-align: center;
-  line-height: 34rpx;
-  font-size: 22rpx;
-  font-weight: 800;
-  color: var(--nm-primary-dark);
+.execution-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32rpx;
 }
 
-.bullet-index.warning {
-  background: rgba(208, 167, 99, 0.18);
-  color: #9b6a2b;
+.panel-main-title { font-size: 32rpx; font-weight: 800; color: var(--text-main); }
+.panel-sub-title { font-size: 26rpx; color: var(--text-sub); }
+
+.empty-state {
+  padding: 60rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.empty-icon { font-size: 80rpx; margin-bottom: 16rpx; }
+.empty-text { font-size: 26rpx; color: #b0bfb4; }
+
+.meal-group {
+  margin-bottom: 32rpx;
 }
 
-.section-tag,
-.plan-item-badge {
-  background: rgba(107, 162, 123, 0.14);
-  font-size: 22rpx;
-  font-weight: 700;
-  color: var(--nm-primary-dark);
+.meal-group-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 16rpx;
 }
 
-.empty-card {
-  margin-top: 20rpx;
-  padding: 26rpx;
-  border-radius: 24rpx;
-  background: #f8f7f2;
+.meal-name { font-size: 28rpx; font-weight: 800; color: var(--text-main); }
+.meal-cal { font-size: 24rpx; font-weight: 600; color: var(--text-sub); }
+
+.food-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
 }
 
-.empty-title {
-  font-size: 30rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.meal-section-card {
-  margin-top: 20rpx;
-  padding: 22rpx;
-  border-radius: 24rpx;
-  background: #f9fbf8;
-  border: 1rpx solid rgba(82, 117, 92, 0.08);
-}
-
-.meal-section-head {
-  align-items: flex-start;
-}
-
-.meal-section-title {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.meal-item-list {
-  margin-top: 14rpx;
-}
-
-.plan-item-card {
-  margin-top: 12rpx;
-  padding: 18rpx 20rpx;
+.food-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background: #fcfdfc;
+  border: 1rpx solid var(--border-light);
   border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.92);
 }
 
-.plan-item-main {
+.food-info { flex: 1; min-width: 0; }
+.food-name { display: block; font-size: 28rpx; font-weight: 700; color: var(--text-main); margin-bottom: 6rpx; }
+.food-desc { display: block; font-size: 24rpx; color: var(--text-sub); }
+.food-note { color: var(--primary); }
+
+.food-remove {
+  width: 50rpx;
+  height: 50rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.remove-icon { font-size: 36rpx; color: #cbd5ce; }
+
+.action-dock {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 32rpx;
+  padding-top: 32rpx;
+  border-top: 1rpx solid var(--border-light);
+}
+
+.btn-save, .btn-apply {
   flex: 1;
-  min-width: 0;
+  height: 88rpx;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-save { background: #f4f7f4; color: var(--text-main); }
+.btn-apply { background: var(--text-main); color: #ffffff; }
+
+/* --- 4. 手动微调区 --- */
+.manual-edit-panel {
+  background: var(--card-bg);
+  border-radius: 32rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
 }
 
-.plan-item-name,
-.food-preview-title {
-  font-size: 30rpx;
-  font-weight: 800;
-  color: var(--nm-text);
+.edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.food-preview-card,
-.editor-note {
-  margin-top: 18rpx;
-  padding: 22rpx;
-  border-radius: 22rpx;
-  background: #f7faf6;
+.expand-icon {
+  font-size: 40rpx;
+  color: var(--text-sub);
+  transition: transform 0.3s;
+  transform: rotate(90deg);
+}
+.expand-icon.is-open { transform: rotate(-90deg); }
+
+.edit-body {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.3s ease;
 }
 
-.editor-note-title {
+.edit-body.is-expanded {
+  max-height: 2000rpx;
+  opacity: 1;
+  margin-top: 32rpx;
+  padding-top: 32rpx;
+  border-top: 1rpx solid var(--border-light);
+}
+
+.custom-input, .custom-textarea, .picker-box {
+  width: 100%;
+  box-sizing: border-box;
+  background: #f7f9f7;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+  color: var(--text-main);
+}
+
+.custom-textarea { min-height: 140rpx; }
+
+.sub-label {
   display: block;
   font-size: 26rpx;
-  font-weight: 800;
-  color: var(--nm-text);
-}
-
-.editor-panel {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.meal-type-row,
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14rpx;
-  margin-top: 18rpx;
-}
-
-.meal-type-chip {
-  text-align: center;
-}
-
-.meal-type-chip.warm {
-  background: #fff2dc;
-}
-
-.meal-type-chip.green {
-  background: #eaf7ef;
-}
-
-.meal-type-chip.blue {
-  background: #edf4fb;
-}
-
-.meal-type-chip.gold {
-  background: #f8f1dc;
-}
-
-.meal-type-chip.active {
-  background: var(--nm-primary);
-}
-
-.meal-type-text {
-  font-size: 24rpx;
   font-weight: 700;
-  color: #596451;
+  color: var(--text-main);
+  margin: 10rpx 0 20rpx;
 }
 
-.meal-type-chip.active .meal-type-text {
-  color: #ffffff;
+.meal-tags {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 32rpx;
 }
 
-.search-row {
-  margin-top: 18rpx;
-}
-
-.search-field {
-  flex: 1;
-  margin-top: 0;
-}
-
-.search-button,
-.primary-button,
-.secondary-button,
-.ghost-button,
-.danger-button {
-  height: 84rpx;
-  border-radius: 22rpx;
+.meal-tag {
+  padding: 14rpx 32rpx;
+  border-radius: 999rpx;
+  background: #f4f7f4;
   font-size: 26rpx;
-  font-weight: 700;
+  color: var(--text-sub);
+  font-weight: 600;
+  transition: all 0.2s;
 }
 
-.primary-button,
-.search-button {
-  background: var(--nm-primary-dark);
+.meal-tag.active {
+  background: var(--primary);
   color: #ffffff;
 }
 
-.secondary-button {
-  background: #e7eff6;
-  color: #385b76;
+.search-add-box {
+  background: #fcfdfc;
+  border: 1rpx dashed #d5e0d7;
+  border-radius: 24rpx;
+  padding: 24rpx;
 }
 
-.ghost-button {
-  background: #f1f4ef;
-  color: var(--nm-text);
+.search-bar {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 20rpx;
 }
 
-.ghost-button.mini {
-  min-width: 172rpx;
-  height: 72rpx;
-  font-size: 24rpx;
-}
-
-.danger-button {
-  background: #fbe8e1;
-  color: #a05639;
-}
-
-.danger-button.small {
-  min-width: 120rpx;
-  height: 72rpx;
-}
-
-.button-row {
-  margin-top: 22rpx;
-}
-
-.button-row button {
+.search-input {
   flex: 1;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
+  border-radius: 16rpx;
+  padding: 0 20rpx;
+  font-size: 26rpx;
+  color: var(--text-main);
+}
+
+.btn-search {
+  background: var(--text-main);
+  color: #ffffff;
+  font-size: 26rpx;
+  margin: 0;
+  border-radius: 16rpx;
+}
+
+.picker-box {
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.picker-text { color: var(--text-sub); }
+.picker-text.has-val { color: var(--text-main); font-weight: 600; }
+.picker-arrow { color: #bac4bb; }
+
+.input-grid {
+  display: flex;
+  gap: 16rpx;
+}
+.custom-input.half { flex: 1; background: #ffffff; border: 1rpx solid var(--border-light); }
+
+.btn-add-food {
+  width: 100%;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-size: 28rpx;
+  font-weight: 700;
+  border-radius: 20rpx;
+  margin-top: 10rpx;
+}
+.btn-add-food::after { display: none; }
+
+.safe-area-bottom {
+  height: calc(40rpx + env(safe-area-inset-bottom));
 }
 </style>
