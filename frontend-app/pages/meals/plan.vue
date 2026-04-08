@@ -480,18 +480,18 @@ onShow(() => {
 </script>
 
 <style scoped>
-/* 抹茶绿主题变量 */
+/* 白绿清爽主题变量 */
 .page-modern {
-  --app-bg: #f4f7f4; /* 带有极浅绿意的高级灰底 */
+  --app-bg: #ffffff; /* 纯白大背景 */
   --card-bg: #ffffff;
-  --primary: #6b9e78; /* 核心抹茶绿 */
-  --primary-dark: #4a7356; /* 深度抹茶 */
-  --primary-light: #eaf1eb; /* 极浅抹茶底色 */
-  --text-main: #2c352f; /* 墨绿色调的深黑 */
-  --text-sub: #8d9991; /* 带有绿灰调的辅助文本 */
-  --border-light: #eef2ef; /* 清新柔和的分割线 */
-  --warn-color: #9e7e63; /* 焙茶棕，用于替代红色的提醒色 */
-  --warn-bg: #f7f3f0; /* 极浅焙茶底色 */
+  --primary: #059669; /* 鲜明现代的核心绿色 */
+  --primary-dark: #047857; /* 深绿色，用于悬浮或强调 */
+  --primary-light: #d1fae5; /* 极浅绿，用于辅助背景 */
+  --text-main: #111827; /* 深灰/黑文本 */
+  --text-sub: #6b7280; /* 中灰色辅助文本 */
+  --border-light: #e5e7eb; /* 浅色分割线和边框 */
+  --warn-color: #d97706; /* 橙色用于警告替代 */
+  --warn-bg: #fef3c7; /* 浅橙色背景 */
   
   min-height: 100vh;
   background-color: var(--app-bg);
@@ -501,10 +501,11 @@ onShow(() => {
 /* --- 1. AI 智能规划区 --- */
 .ai-planner-card {
   background: var(--card-bg);
+  border: 1rpx solid var(--border-light);
   border-radius: 32rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.03);
 }
 
 .planner-header {
@@ -560,18 +561,17 @@ onShow(() => {
 
 /* 对话框式输入 */
 .prompt-box {
-  background: #f7f9f7;
+  background: #ffffff;
+  border: 2rpx solid var(--border-light);
   border-radius: 20rpx;
   padding: 24rpx;
   margin-bottom: 24rpx;
-  border: 2rpx solid transparent;
   transition: all 0.2s;
 }
 
 .prompt-box:focus-within {
-  border-color: rgba(107, 158, 120, 0.3);
-  background: #ffffff;
-  box-shadow: 0 4rpx 16rpx rgba(107, 158, 120, 0.08);
+  border-color: var(--primary);
+  box-shadow: 0 4rpx 16rpx rgba(5, 150, 105, 0.08);
 }
 
 .prompt-input {
@@ -581,7 +581,7 @@ onShow(() => {
 }
 
 .prompt-placeholder {
-  color: #bac4bb;
+  color: #9ca3af;
 }
 
 .ai-action-row {
@@ -604,11 +604,12 @@ onShow(() => {
 .btn-ai-primary {
   background: var(--primary);
   color: #ffffff;
-  box-shadow: 0 6rpx 16rpx var(--primary-light);
+  box-shadow: 0 6rpx 16rpx rgba(5, 150, 105, 0.2);
 }
 
 .btn-ai-secondary {
-  background: #f4f7f4;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
   color: var(--text-main);
 }
 
@@ -634,12 +635,14 @@ onShow(() => {
   align-items: center;
   padding: 16rpx 20rpx;
   border-radius: 20rpx;
-  background: #f7f9f7;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
   transition: all 0.2s;
 }
 
 .day-bubble.active {
-  background: var(--text-main);
+  background: var(--primary);
+  border-color: var(--primary);
 }
 
 .bubble-date {
@@ -661,19 +664,20 @@ onShow(() => {
 }
 
 .bubble-dot.has-plan {
-  background: #a9c4ae; /* 浅抹茶表示有计划 */
+  background: #9ca3af; /* 灰色圆点表示有计划 */
 }
 .day-bubble.active .bubble-dot.has-plan {
-  background: var(--primary);
+  background: #ffffff; /* 激活时反白 */
 }
 
 /* --- 2. 计划摘要仪表盘 --- */
 .summary-dashboard {
   background: var(--card-bg);
+  border: 1rpx solid var(--border-light);
   border-radius: 32rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.03);
 }
 
 .dashboard-header {
@@ -691,22 +695,22 @@ onShow(() => {
 
 .status-badge {
   padding: 8rpx 20rpx;
+  border: 1rpx solid var(--border-light);
   border-radius: 999rpx;
   font-size: 22rpx;
   font-weight: 700;
-  background: #f4f7f4;
+  background: #ffffff;
   color: var(--text-sub);
 }
-/* 去掉所有红色/橙色，统一改为深浅不一的抹茶与大地色 */
-.status-badge.generated { background: var(--primary-light); color: var(--primary); }
-.status-badge.ready { background: #f0f4ea; color: #7a8c53; } /* 煎茶绿 */
-.status-badge.applied { background: #e9f0ea; color: var(--primary-dark); }
+.status-badge.generated { background: var(--primary-light); color: var(--primary); border: none; }
+.status-badge.ready { background: #f0fdf4; color: #166534; border: 1rpx solid #bbf7d0; }
+.status-badge.applied { background: #ecfdf5; color: var(--primary-dark); border: 1rpx solid #a7f3d0; }
 
 /* 网格仪表 */
 .macro-grid {
   display: flex;
   justify-content: space-between;
-  background: #fcfdfc;
+  background: #ffffff;
   border: 1rpx solid var(--border-light);
   border-radius: 24rpx;
   padding: 24rpx;
@@ -744,7 +748,8 @@ onShow(() => {
 
 .compare-item {
   flex: 1;
-  background: #f7f9f7;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
   padding: 16rpx 24rpx;
   border-radius: 16rpx;
   display: flex;
@@ -754,12 +759,12 @@ onShow(() => {
 
 .c-label { font-size: 24rpx; color: var(--text-sub); }
 .c-value { font-size: 28rpx; font-weight: 700; color: var(--text-main); }
-.c-value.is-over { color: var(--warn-color); } /* 使用焙茶色代替红色超标提醒 */
+.c-value.is-over { color: var(--warn-color); } 
 
 /* AI 洞察 */
 .ai-insight-card {
-  background: linear-gradient(145deg, #f2f7f3 0%, #ffffff 100%);
-  border: 1rpx solid rgba(107, 158, 120, 0.15);
+  background: #ffffff;
+  border: 1rpx solid var(--primary-light);
   padding: 24rpx;
   border-radius: 24rpx;
   margin-bottom: 24rpx;
@@ -773,11 +778,11 @@ onShow(() => {
 
 .insight-icon { font-size: 32rpx; margin-right: 12rpx; }
 .insight-title { font-size: 28rpx; font-weight: 700; color: var(--text-main); flex: 1; }
-.insight-mode { font-size: 22rpx; color: var(--primary); font-weight: 600; background: rgba(255,255,255,0.8); padding: 4rpx 12rpx; border-radius: 8rpx;}
+.insight-mode { font-size: 22rpx; color: var(--primary); font-weight: 600; background: var(--primary-light); padding: 4rpx 12rpx; border-radius: 8rpx;}
 
 .insight-content {
   font-size: 26rpx;
-  color: #4a594e;
+  color: #374151;
   line-height: 1.6;
 }
 
@@ -789,12 +794,13 @@ onShow(() => {
 }
 
 .tip-group {
-  background: #f7f9f7;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
   border-radius: 20rpx;
   padding: 20rpx;
 }
 
-.tip-group.warning { background: var(--warn-bg); }
+.tip-group.warning { background: var(--warn-bg); border-color: #fde68a; }
 
 .tip-row {
   display: flex;
@@ -804,16 +810,17 @@ onShow(() => {
 .tip-row:last-child { margin-bottom: 0; }
 
 .tip-emoji { margin-right: 12rpx; font-size: 28rpx; line-height: 1.4; }
-.tip-text { font-size: 26rpx; color: #4a594e; line-height: 1.5; flex: 1; }
-.warning .tip-text { color: #6b5c4d; } /* 焙茶调的深色文本 */
+.tip-text { font-size: 26rpx; color: #374151; line-height: 1.5; flex: 1; }
+.warning .tip-text { color: #92400e; } 
 
-/* --- 3. 执行清单区 (去线化设计) --- */
+/* --- 3. 执行清单区 --- */
 .execution-panel {
   background: var(--card-bg);
+  border: 1rpx solid var(--border-light);
   border-radius: 32rpx;
   padding: 32rpx;
   margin-bottom: 24rpx;
-  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.03);
 }
 
 .execution-header {
@@ -831,9 +838,10 @@ onShow(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  background: #ffffff;
 }
 .empty-icon { font-size: 80rpx; margin-bottom: 16rpx; }
-.empty-text { font-size: 26rpx; color: #b0bfb4; }
+.empty-text { font-size: 26rpx; color: #9ca3af; }
 
 .meal-group {
   margin-bottom: 32rpx;
@@ -860,7 +868,7 @@ onShow(() => {
   justify-content: space-between;
   align-items: center;
   padding: 20rpx 24rpx;
-  background: #fcfdfc;
+  background: #ffffff;
   border: 1rpx solid var(--border-light);
   border-radius: 20rpx;
 }
@@ -877,7 +885,7 @@ onShow(() => {
   align-items: center;
   justify-content: center;
 }
-.remove-icon { font-size: 36rpx; color: #cbd5ce; }
+.remove-icon { font-size: 36rpx; color: #d1d5db; }
 
 .action-dock {
   display: flex;
@@ -897,15 +905,16 @@ onShow(() => {
   align-items: center;
   justify-content: center;
 }
-.btn-save { background: #f4f7f4; color: var(--text-main); }
-.btn-apply { background: var(--text-main); color: #ffffff; }
+.btn-save { background: #ffffff; border: 1rpx solid var(--border-light); color: var(--text-main); }
+.btn-apply { background: var(--primary); color: #ffffff; box-shadow: 0 4rpx 12rpx rgba(5, 150, 105, 0.2); }
 
 /* --- 4. 手动微调区 --- */
 .manual-edit-panel {
   background: var(--card-bg);
+  border: 1rpx solid var(--border-light);
   border-radius: 32rpx;
   padding: 32rpx;
-  box-shadow: 0 4rpx 24rpx rgba(107, 158, 120, 0.04);
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.03);
 }
 
 .edit-header {
@@ -940,7 +949,8 @@ onShow(() => {
 .custom-input, .custom-textarea, .picker-box {
   width: 100%;
   box-sizing: border-box;
-  background: #f7f9f7;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
   border-radius: 20rpx;
   padding: 24rpx;
   font-size: 28rpx;
@@ -967,7 +977,8 @@ onShow(() => {
 .meal-tag {
   padding: 14rpx 32rpx;
   border-radius: 999rpx;
-  background: #f4f7f4;
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
   font-size: 26rpx;
   color: var(--text-sub);
   font-weight: 600;
@@ -976,12 +987,13 @@ onShow(() => {
 
 .meal-tag.active {
   background: var(--primary);
+  border-color: var(--primary);
   color: #ffffff;
 }
 
 .search-add-box {
-  background: #fcfdfc;
-  border: 1rpx dashed #d5e0d7;
+  background: #ffffff;
+  border: 1rpx dashed var(--border-light);
   border-radius: 24rpx;
   padding: 24rpx;
 }
@@ -1003,7 +1015,7 @@ onShow(() => {
 }
 
 .btn-search {
-  background: var(--text-main);
+  background: var(--primary);
   color: #ffffff;
   font-size: 26rpx;
   margin: 0;
@@ -1020,7 +1032,7 @@ onShow(() => {
 
 .picker-text { color: var(--text-sub); }
 .picker-text.has-val { color: var(--text-main); font-weight: 600; }
-.picker-arrow { color: #bac4bb; }
+.picker-arrow { color: #9ca3af; }
 
 .input-grid {
   display: flex;
