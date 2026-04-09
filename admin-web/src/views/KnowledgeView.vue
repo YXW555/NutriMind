@@ -1,16 +1,15 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { adminApi } from '@/lib/api'
-import { knowledgeItems } from '@/lib/mock'
 
 const keyword = ref('')
 const authorityFilter = ref('全部')
 const statusFilter = ref('全部')
 const loading = ref(false)
 const saveMessage = ref('')
-const items = ref(knowledgeItems.map((item) => ({ ...item })))
-const selectedId = ref(items.value[0]?.id || '')
-const draft = ref(createDraft(items.value[0] || null))
+const items = ref([])
+const selectedId = ref('')
+const draft = ref(createDraft(null))
 
 const authorities = computed(() => ['全部', ...new Set(items.value.map((item) => item.authority).filter(Boolean))])
 const statuses = ['全部', '已启用', '待复核', '草稿']
@@ -28,8 +27,6 @@ const filteredItems = computed(() => {
   })
 })
 
-const selectedItem = computed(() => items.value.find((item) => item.id === selectedId.value) || null)
-
 function createDraft(item) {
   return {
     id: item?.id || '',
@@ -39,7 +36,7 @@ function createDraft(item) {
     sourceName: item?.sourceName || '',
     sourceUrl: item?.sourceUrl || '',
     tag: item?.tag || '',
-    status: item?.status || '待复核',
+    status: item?.status || '草稿',
     excerpt: item?.excerpt || '',
     content: item?.content || ''
   }
@@ -47,7 +44,7 @@ function createDraft(item) {
 
 function buildContentFromDraft(currentDraft = draft.value) {
   return String(currentDraft?.content || '').trim()
-    || `# ${currentDraft?.title || '新知识条目'}\n\n## 核心内容\n${currentDraft?.excerpt || '请填写知识正文。'}`
+    || `# ${currentDraft?.title || '新知识条目'}\n\n## 核心内容\n${currentDraft?.excerpt || ''}`
 }
 
 function selectItem(id) {
@@ -63,13 +60,13 @@ function createItem() {
     id: nextId,
     fileName: `${nextId}.md`,
     title: '新知识条目',
-    authority: '待补充',
-    sourceName: '待补充来源',
+    authority: '',
+    sourceName: '',
     sourceUrl: '',
-    tag: '待分类',
+    tag: '',
     status: '草稿',
-    excerpt: '请填写知识摘要。',
-    content: '# 新知识条目\n\n## 核心内容\n请填写知识正文。'
+    excerpt: '',
+    content: '# 新知识条目\n\n## 核心内容\n'
   }
   items.value = [nextItem, ...items.value]
   selectItem(nextItem.id)
@@ -78,25 +75,28 @@ function createItem() {
 
 async function loadDocuments() {
   loading.value = true
-  saveMessage.value = ''
   try {
     const response = await adminApi.get('/admin/knowledge')
-    if (Array.isArray(response) && response.length) {
-      items.value = response.map((item) => ({
-        ...item,
-        content: buildContentFromDraft(item)
-      }))
+    items.value = Array.isArray(response) ? response.map((item) => ({
+      ...item,
+      content: buildContentFromDraft(item)
+    })) : []
+    if (items.value.length) {
       selectItem(items.value[0].id)
+    } else {
+      selectedId.value = ''
+      draft.value = createDraft(null)
     }
-  } catch (error) {
-    saveMessage.value = `未连接到后端知识库，当前显示演示数据：${error.message}`
+  } catch {
+    items.value = []
+    selectedId.value = ''
+    draft.value = createDraft(null)
   } finally {
     loading.value = false
   }
 }
 
 async function saveDocument() {
-  saveMessage.value = ''
   const payload = {
     ...draft.value,
     content: buildContentFromDraft(draft.value)
@@ -104,54 +104,33 @@ async function saveDocument() {
 
   try {
     const response = await adminApi.put('/admin/knowledge', payload)
-    if (response) {
-      const nextItem = {
-        ...response,
-        content: response.content || payload.content
-      }
-      const existingIndex = items.value.findIndex((item) => item.id === nextItem.id)
-      if (existingIndex >= 0) {
-        items.value[existingIndex] = nextItem
-      } else {
-        items.value.unshift(nextItem)
-      }
-      items.value = [...items.value]
-      selectItem(nextItem.id)
-      saveMessage.value = '知识条目已保存。'
-    }
-  } catch (error) {
-    const fallbackItem = {
-      ...payload,
-      id: payload.id || `kb-${String(items.value.length + 1).padStart(3, '0')}`,
-      fileName: payload.fileName || `${payload.id || 'draft'}.md`
-    }
-    const existingIndex = items.value.findIndex((item) => item.id === fallbackItem.id)
+    const nextItem = { ...response, content: response.content || payload.content }
+    const existingIndex = items.value.findIndex((item) => item.id === nextItem.id)
     if (existingIndex >= 0) {
-      items.value[existingIndex] = fallbackItem
+      items.value[existingIndex] = nextItem
     } else {
-      items.value.unshift(fallbackItem)
+      items.value.unshift(nextItem)
     }
     items.value = [...items.value]
-    selectItem(fallbackItem.id)
-    saveMessage.value = `后端暂不可用，已在当前页面保存：${error.message}`
+    selectItem(nextItem.id)
+    saveMessage.value = '已保存'
+    setTimeout(() => { saveMessage.value = '' }, 1500)
+  } catch {
+    saveMessage.value = '保存失败'
+    setTimeout(() => { saveMessage.value = '' }, 1500)
   }
 }
 
 async function reloadKnowledgeBase() {
-  saveMessage.value = ''
   try {
     await adminApi.post('/admin/knowledge/reload')
-    saveMessage.value = '知识库已重载。'
     await loadDocuments()
-  } catch (error) {
-    saveMessage.value = `重载失败：${error.message}`
+  } catch {
+    // no-op
   }
 }
 
-onMounted(() => {
-  draft.value.content = buildContentFromDraft(draft.value)
-  loadDocuments()
-})
+onMounted(loadDocuments)
 </script>
 
 <template>
@@ -160,25 +139,24 @@ onMounted(() => {
       <div class="panel-head">
         <div>
           <p class="panel-kicker">Knowledge</p>
-          <h3 class="panel-title">知识库管理</h3>
+          <h3 class="panel-title">知识库</h3>
         </div>
         <div class="inline-actions">
-          <button class="secondary-button" @click="reloadKnowledgeBase">重载知识库</button>
-          <button class="secondary-button" @click="loadDocuments">刷新列表</button>
-          <button class="primary-button" @click="createItem">新增条目</button>
+          <button class="secondary-button" @click="reloadKnowledgeBase">重载</button>
+          <button class="secondary-button" @click="loadDocuments">刷新</button>
+          <button class="primary-button" @click="createItem">新建</button>
         </div>
       </div>
-      <p class="panel-desc">维护知识来源、标签、状态和正文内容。</p>
 
-      <div class="toolbar-row">
-        <input v-model="keyword" class="toolbar-input" placeholder="搜索标题、机构、来源" />
+      <div class="toolbar-row top-gap">
+        <input v-model="keyword" class="toolbar-input" placeholder="搜索标题或机构" />
         <select v-model="authorityFilter" class="toolbar-input toolbar-select">
           <option v-for="item in authorities" :key="item" :value="item">{{ item }}</option>
         </select>
         <select v-model="statusFilter" class="toolbar-input toolbar-select">
           <option v-for="item in statuses" :key="item" :value="item">{{ item }}</option>
         </select>
-        <span class="status-pill">{{ loading ? '加载中...' : `${filteredItems.length} 条结果` }}</span>
+        <span class="status-pill">{{ loading ? '加载中' : `${filteredItems.length} 条` }}</span>
         <span v-if="saveMessage" class="status-pill online">{{ saveMessage }}</span>
       </div>
     </div>
@@ -206,8 +184,8 @@ onMounted(() => {
                 <strong>{{ item.title }}</strong>
                 <p class="cell-subtitle">{{ item.excerpt }}</p>
               </td>
-              <td>{{ item.authority }}</td>
-              <td>{{ item.tag }}</td>
+              <td>{{ item.authority || '-' }}</td>
+              <td>{{ item.tag || '-' }}</td>
               <td><span class="status-pill">{{ item.status }}</span></td>
             </tr>
           </tbody>
@@ -223,7 +201,7 @@ onMounted(() => {
           <button class="primary-button" @click="saveDocument">保存</button>
         </div>
 
-        <div class="form-grid">
+        <div class="form-grid top-gap">
           <label class="form-field">
             <span>标题</span>
             <input v-model="draft.title" class="toolbar-input" />
@@ -260,13 +238,6 @@ onMounted(() => {
             <span>正文</span>
             <textarea v-model="draft.content" class="editor-textarea"></textarea>
           </label>
-        </div>
-
-        <div v-if="selectedItem" class="preview-box">
-          <p class="panel-kicker">预览</p>
-          <p class="preview-title">{{ draft.title }}</p>
-          <p class="preview-meta">{{ draft.authority }} · {{ draft.sourceName }}</p>
-          <p class="preview-text">{{ draft.excerpt }}</p>
         </div>
       </div>
     </div>

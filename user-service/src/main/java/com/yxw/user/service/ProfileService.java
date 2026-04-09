@@ -5,6 +5,7 @@ import com.yxw.user.dto.HealthGoalRequest;
 import com.yxw.user.dto.HealthGoalResponse;
 import com.yxw.user.dto.HealthProfileRequest;
 import com.yxw.user.dto.HealthProfileResponse;
+import com.yxw.user.dto.AccountInfoRequest;
 import com.yxw.user.dto.ProfileOverviewResponse;
 import com.yxw.user.dto.WeightLogRequest;
 import com.yxw.user.dto.WeightLogResponse;
@@ -48,6 +49,7 @@ public class ProfileService {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .avatarUrl(user.getAvatarUrl())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .role(user.getRole())
@@ -56,6 +58,44 @@ public class ProfileService {
                 .latestWeightKg(logs.isEmpty() ? null : logs.get(0).getWeightKg())
                 .recentWeightLogs(logs)
                 .build();
+    }
+
+    @Transactional
+    public ProfileOverviewResponse saveAccountInfo(Long userId, AccountInfoRequest request) {
+        UserAccount user = requireUser(userId);
+        String nickname = trimToNull(request.getNickname());
+        String email = trimToNull(request.getEmail());
+        String phone = trimToNull(request.getPhone());
+
+        if (StringUtils.hasText(nickname) && nickname.length() > 20) {
+            throw new IllegalArgumentException("nickname must be at most 20 characters");
+        }
+        if (StringUtils.hasText(email)) {
+            UserAccount existing = userAccountService.findByEmail(email);
+            if (existing != null && !userId.equals(existing.getId())) {
+                throw new IllegalArgumentException("email already exists");
+            }
+        }
+        if (StringUtils.hasText(phone)) {
+            UserAccount existing = userAccountService.findByPhone(phone);
+            if (existing != null && !userId.equals(existing.getId())) {
+                throw new IllegalArgumentException("phone already exists");
+            }
+        }
+
+        user.setNickname(nickname);
+        user.setEmail(email);
+        user.setPhone(phone);
+        userAccountService.updateById(user);
+        return getOverview(userId);
+    }
+
+    @Transactional
+    public String saveAvatar(Long userId, String avatarUrl) {
+        UserAccount user = requireUser(userId);
+        user.setAvatarUrl(avatarUrl);
+        userAccountService.updateById(user);
+        return avatarUrl;
     }
 
     @Transactional

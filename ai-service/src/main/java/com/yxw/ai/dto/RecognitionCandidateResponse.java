@@ -7,6 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @Builder
@@ -36,9 +37,18 @@ public class RecognitionCandidateResponse {
 
     private Boolean manualConfirmationRequired;
 
+    private String recognizedLabel;
+
+    private String recognizedCanonicalLabel;
+
+    private List<String> searchKeywords;
+
     public static RecognitionCandidateResponse fromFood(FoodNutritionSnapshot food,
                                                         BigDecimal confidence,
-                                                        String matchReason) {
+                                                        String matchReason,
+                                                        String recognizedLabel,
+                                                        String recognizedCanonicalLabel,
+                                                        List<String> searchKeywords) {
         return RecognitionCandidateResponse.builder()
                 .id(food.getId())
                 .name(food.getName())
@@ -51,6 +61,9 @@ public class RecognitionCandidateResponse {
                 .confidence(confidence)
                 .matchReason(matchReason)
                 .manualConfirmationRequired(Boolean.TRUE)
+                .recognizedLabel(recognizedLabel)
+                .recognizedCanonicalLabel(recognizedCanonicalLabel)
+                .searchKeywords(searchKeywords == null ? List.of() : searchKeywords)
                 .build();
     }
 }

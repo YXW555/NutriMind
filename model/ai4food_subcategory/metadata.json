@@ -1,0 +1,18 @@
+﻿{
+    "bundle_name":  "ai4food_subcategory",
+    "model_version":  "ai4food-subcategory-official-v1",
+    "status":  "ready",
+    "task_type":  "single-label-image-classification",
+    "backbone":  "AI4Food efficientnetv2",
+    "runtime":  "tensorflow",
+    "classifier_adapter":  "ai4food_official",
+    "export_format":  "hdf5",
+    "image_size":  224,
+    "input_layout":  "nhwc",
+    "preprocess":  "zero_one",
+    "model_file":  "efficientnetv2_subcategory_model.hdf5",
+    "labels_file":  "subcategory_classes.txt",
+    "source_repository":  "BiDAlab/AI4Food-NutritionDB",
+    "source_model_url":  "https://bidalab.eps.uam.es/static/AI4Food-NutritionDB/efficientnetv2_subcategory_model.hdf5",
+    "source_classes_url":  "https://raw.githubusercontent.com/BiDAlab/AI4Food-NutritionDB/main/src/subcategory_classes.txt"
+}

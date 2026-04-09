@@ -89,13 +89,50 @@ public class CommunityService {
         post.setTitle(trimToNull(request.getTitle()));
         post.setContent(request.getContent().trim());
         post.setTag(normalizeTag(request.getTag()));
-        post.setModerationStatus("PENDING");
+        post.setModerationStatus("APPROVED");
         post.setImageUrls(serializeImageUrls(normalizeImageUrls(request.getImageUrls())));
         post.setLikeCount(0);
         post.setFavoriteCount(0);
         post.setCommentCount(0);
         communityPostMapper.insert(post);
         return getPost(userId, post.getId());
+    }
+
+    public List<CommunityPostResponse> listMyPosts(Long userId) {
+        List<CommunityPost> posts = communityPostMapper.selectList(new LambdaQueryWrapper<CommunityPost>()
+                .eq(CommunityPost::getUserId, userId)
+                .orderByDesc(CommunityPost::getCreatedAt)
+                .orderByDesc(CommunityPost::getId));
+        Set<Long> likedPostIds = resolveLikedPostIds(userId, posts);
+        Set<Long> favoritedPostIds = resolveFavoritedPostIds(userId, posts);
+        return posts.stream()
+                .map(post -> toResponse(post, likedPostIds.contains(post.getId()), favoritedPostIds.contains(post.getId())))
+                .toList();
+    }
+
+    @Transactional
+    public CommunityPostResponse updatePost(Long userId, Long postId, CommunityPostRequest request) {
+        CommunityPost post = requireOwnedPost(userId, postId);
+        post.setAuthorName(resolveAuthorName(request.getAuthorName()));
+        post.setTitle(trimToNull(request.getTitle()));
+        post.setContent(request.getContent().trim());
+        post.setTag(normalizeTag(request.getTag()));
+        post.setImageUrls(serializeImageUrls(normalizeImageUrls(request.getImageUrls())));
+        post.setModerationStatus("APPROVED");
+        communityPostMapper.updateById(post);
+        return getPost(userId, postId);
+    }
+
+    @Transactional
+    public void deletePost(Long userId, Long postId) {
+        requireOwnedPost(userId, postId);
+        communityCommentMapper.delete(new LambdaQueryWrapper<CommunityComment>()
+                .eq(CommunityComment::getPostId, postId));
+        communityPostLikeMapper.delete(new LambdaQueryWrapper<CommunityPostLike>()
+                .eq(CommunityPostLike::getPostId, postId));
+        postFavoriteMapper.delete(new LambdaQueryWrapper<PostFavorite>()
+                .eq(PostFavorite::getPostId, postId));
+        communityPostMapper.deleteById(postId);
     }
 
     @Transactional
@@ -168,7 +205,7 @@ public class CommunityService {
         comment.setUserId(userId);
         comment.setAuthorName(SecurityContextUtils.currentUsername().orElse("NutriMind User"));
         comment.setContent(request.getContent().trim());
-        comment.setModerationStatus("PENDING");
+        comment.setModerationStatus("APPROVED");
         communityCommentMapper.insert(comment);
 
         post.setCommentCount(zeroSafe(post.getCommentCount()) + 1);
@@ -209,6 +246,14 @@ public class CommunityService {
         CommunityPost post = communityPostMapper.selectById(postId);
         if (post == null) {
             throw new IllegalArgumentException("post not found");
+        }
+        return post;
+    }
+
+    private CommunityPost requireOwnedPost(Long userId, Long postId) {
+        CommunityPost post = requirePost(postId);
+        if (!userId.equals(post.getUserId())) {
+            throw new IllegalArgumentException("cross-user access is not allowed");
         }
         return post;
     }
@@ -316,6 +361,7 @@ public class CommunityService {
     private CommunityPostResponse toResponse(CommunityPost post, boolean liked, boolean favorited) {
         return CommunityPostResponse.builder()
                 .id(post.getId())
+                .userId(post.getUserId())
                 .authorName(post.getAuthorName())
                 .title(post.getTitle())
                 .content(post.getContent())
@@ -327,7 +373,9 @@ public class CommunityService {
                 .favoriteCount(zeroSafe(post.getFavoriteCount()))
                 .favorited(favorited)
                 .commentCount(zeroSafe(post.getCommentCount()))
+                .ownPost(post.getUserId() != null && post.getUserId().equals(SecurityContextUtils.currentUserId().orElse(null)))
                 .createdAt(post.getCreatedAt())
+                .updatedAt(post.getUpdatedAt())
                 .build();
     }
 

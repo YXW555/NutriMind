@@ -21,5 +21,7 @@ public class FoodRecognitionResponse {
 
     private Integer topK;
 
+    private RecognizedConceptResponse recognizedConcept;
+
     private List<RecognitionCandidateResponse> candidates;
 }

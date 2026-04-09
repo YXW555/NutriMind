@@ -51,6 +51,8 @@ const messageMap = {
   'comment created': '评论已发布',
   'comment deleted': '评论已删除',
   'post created': '发布成功',
+  'post updated': '帖子已更新',
+  'post deleted': '帖子已删除',
   'favorite status updated': '收藏状态已更新',
   'like status updated': '点赞状态已更新',
   'image uploaded': '图片上传成功',

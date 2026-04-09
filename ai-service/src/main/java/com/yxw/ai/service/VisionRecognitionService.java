@@ -36,10 +36,11 @@ public class VisionRecognitionService {
                 : "uploaded-image";
 
         RecognitionEngineResult engineResult = foodRecognitionEngine.recognize(file, topK);
-        List<RecognitionCandidateResponse> candidates = foodCatalogMatchService.mapEngineCandidates(
+        FoodCatalogMatchService.RecognitionCatalogResult catalogResult = foodCatalogMatchService.mapEngineCandidates(
                 engineResult == null ? List.of() : engineResult.getCandidates(),
                 topK
         );
+        List<RecognitionCandidateResponse> candidates = catalogResult.candidates();
 
         if (candidates.isEmpty()) {
             throw new IllegalStateException("food recognition candidates unavailable");
@@ -50,6 +51,7 @@ public class VisionRecognitionService {
                 .fileSize(file.getSize())
                 .recognitionMode(engineResult == null ? "UNKNOWN" : engineResult.getRecognitionMode())
                 .topK(candidates.size())
+                .recognizedConcept(catalogResult.recognizedConcept())
                 .candidates(candidates)
                 .build();
     }

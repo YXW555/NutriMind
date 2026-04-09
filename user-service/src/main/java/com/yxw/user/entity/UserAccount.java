@@ -28,6 +28,8 @@ public class UserAccount {
 
     private String nickname;
 
+    private String avatarUrl;
+
     private String email;
 
     private String phone;

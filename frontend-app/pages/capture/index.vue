@@ -98,6 +98,26 @@
         
         <text v-if="hasRecognitionResults" class="recognition-mode">引擎: {{ recognitionModeLabel }}</text>
 
+        <view v-if="recognizedConcept" class="concept-card">
+          <view class="concept-head">
+            <text class="concept-title">识别概念</text>
+            <text v-if="recognizedConcept.confidence !== undefined && recognizedConcept.confidence !== null" class="concept-confidence">
+              {{ Math.round(Number(recognizedConcept.confidence) * 100) }}%
+            </text>
+          </view>
+          <text class="concept-name">{{ recognizedConcept.displayName || recognizedConcept.canonicalLabel || recognizedConcept.rawLabel }}</text>
+          <text class="concept-desc">{{ conceptDescription }}</text>
+          <view v-if="recognizedConceptKeywords.length" class="concept-keywords">
+            <text
+              v-for="item in recognizedConceptKeywords"
+              :key="item"
+              class="concept-keyword"
+            >
+              {{ item }}
+            </text>
+          </view>
+        </view>
+
         <scroll-view scroll-y class="selector-scroll-view">
           <view v-if="foods.length > 0" class="suggestion-grid">
             <view
@@ -207,6 +227,7 @@ const selectedImageFile = ref(null)
 const recognizing = ref(false)
 const recognitionMode = ref('')
 const hasRecognitionResults = ref(false)
+const recognizedConcept = ref(null)
 const foods = ref([])
 const selectedFood = ref(null)
 const dailyRecord = ref({ details: [] })
@@ -229,10 +250,30 @@ const recognitionModeLabel = computed(() => {
   return recognitionMode.value
 })
 
+const recognizedConceptKeywords = computed(() => {
+  const keywords = Array.isArray(recognizedConcept.value?.searchKeywords)
+    ? recognizedConcept.value.searchKeywords
+    : []
+  return keywords.slice(0, 4)
+})
+
+const conceptDescription = computed(() => {
+  if (!recognizedConcept.value) return ''
+  const conceptName = recognizedConcept.value.displayName
+    || recognizedConcept.value.canonicalLabel
+    || recognizedConcept.value.rawLabel
+    || '当前概念'
+  if (recognizedConcept.value.generic) {
+    return `AI 先将图片归入“${conceptName}”，请再从下方候选食物中确认具体条目。`
+  }
+  return `AI 已先锁定“${conceptName}”方向，下方展示与该概念最接近的食物候选。`
+})
+
 // --- 弹窗行为控制 ---
 function openManualSearch() {
   keyword.value = ''
   hasRecognitionResults.value = false
+  recognizedConcept.value = null
   foods.value = [] // 开启时清空，或保留历史记录
   showSelectorPopup.value = true
 }
@@ -287,6 +328,7 @@ async function recognizeImage() {
   recognizing.value = true
   hasRecognitionResults.value = false
   recognitionMode.value = ''
+  recognizedConcept.value = null
 
   try {
     const response = await request.upload('/vision/recognize', {
@@ -296,11 +338,16 @@ async function recognizeImage() {
     })
 
     const candidates = Array.isArray(response?.candidates) ? response.candidates : []
+    recognizedConcept.value = response?.recognizedConcept || null
     foods.value = candidates
-    hasRecognitionResults.value = candidates.length > 0
+    hasRecognitionResults.value = candidates.length > 0 || !!recognizedConcept.value
     recognitionMode.value = response?.recognitionMode || ''
 
-    if (candidates.length > 0 && candidates[0].name) {
+    if (recognizedConcept.value?.displayName) {
+      keyword.value = recognizedConcept.value.displayName
+    } else if (Array.isArray(recognizedConcept.value?.searchKeywords) && recognizedConcept.value.searchKeywords.length > 0) {
+      keyword.value = recognizedConcept.value.searchKeywords[0]
+    } else if (candidates.length > 0 && candidates[0].name) {
       keyword.value = candidates[0].name
     }
 
@@ -310,6 +357,7 @@ async function recognizeImage() {
   } catch (error) {
     foods.value = []
     hasRecognitionResults.value = false
+    recognizedConcept.value = null
     uni.showToast({ title: '识别超时或失败，请重试', icon: 'none' })
   } finally {
     recognizing.value = false
@@ -322,6 +370,7 @@ async function searchFoods() {
   try {
     hasRecognitionResults.value = false
     recognitionMode.value = ''
+    recognizedConcept.value = null
     const response = await request.get('/foods', {
       keyword: keyword.value,
       current: 1,
@@ -367,6 +416,8 @@ async function saveMeal() {
         }
       ]
     })
+
+    await submitRecognitionFeedback()
     
     uni.showToast({ title: '记录成功', icon: 'success' })
     
@@ -379,10 +430,43 @@ async function saveMeal() {
     selectedImageFile.value = null
     foods.value = []
     hasRecognitionResults.value = false
+    recognizedConcept.value = null
     
     await loadDailyRecord()
   } catch (error) {
     uni.showToast({ title: '保存失败，请检查网络', icon: 'none' })
+  }
+}
+
+async function submitRecognitionFeedback() {
+  if (!selectedFood.value || !recognitionMode.value) return
+
+  const recognizedLabel = selectedFood.value.recognizedLabel
+    || selectedFood.value.recognizedCanonicalLabel
+    || keyword.value
+    || selectedFood.value.name
+
+  const recognizedCanonicalLabel = selectedFood.value.recognizedCanonicalLabel
+    || selectedFood.value.recognizedLabel
+    || recognizedLabel
+
+  const searchKeywords = Array.isArray(selectedFood.value.searchKeywords)
+    ? selectedFood.value.searchKeywords
+    : []
+
+  try {
+    await request.post('/foods/recognitions/feedback', {
+      foodId: selectedFood.value.id,
+      matchedFoodName: selectedFood.value.name,
+      recognizedLabel,
+      recognizedCanonicalLabel,
+      confidence: selectedFood.value.confidence,
+      recognitionMode: recognitionMode.value,
+      searchTerms: searchKeywords,
+      manualConfirmationRequired: true
+    })
+  } catch (error) {
+    console.log('submit recognition feedback failed', error)
   }
 }
 
@@ -400,7 +484,7 @@ function foodMetaLabel(food) {
     parts.push(`${formatNumber(food.calories)} kcal`)
   }
   if (typeof food?.confidence === 'number') {
-    parts.push(`${Math.round(food.confidence * 100)}%匹配`)
+    parts.push(`${Math.round(food.confidence * 100)}% 推荐`)
   }
   return parts.join(' · ')
 }
@@ -778,6 +862,63 @@ onShow(() => {
   background: var(--nm-primary-light);
   padding: 4rpx 12rpx;
   border-radius: 8rpx;
+}
+
+.concept-card {
+  margin-bottom: 20rpx;
+  padding: 20rpx 24rpx;
+  border-radius: 20rpx;
+  background: #f6faf7;
+  border: 1rpx solid rgba(107, 158, 120, 0.16);
+}
+
+.concept-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.concept-title {
+  font-size: 24rpx;
+  color: var(--nm-primary);
+  font-weight: 700;
+}
+
+.concept-confidence {
+  font-size: 22rpx;
+  color: var(--nm-muted);
+}
+
+.concept-name {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: var(--nm-text);
+}
+
+.concept-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--nm-muted);
+}
+
+.concept-keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.concept-keyword {
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: var(--nm-primary);
+  background: rgba(107, 158, 120, 0.12);
 }
 
 .suggestion-grid {

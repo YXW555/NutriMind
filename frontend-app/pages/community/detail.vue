@@ -18,7 +18,7 @@
         <swiper-item v-for="(url, index) in displayImageUrls" :key="`${post.id}-${index}`">
           <image 
             class="gallery-image" 
-            mode="aspectFill" 
+            mode="aspectFit" 
             :src="url" 
             @click="previewImages(index)" 
           />
@@ -303,7 +303,7 @@ onShow(() => {
   position: relative;
   width: 100vw;
   height: 133.33vw; /* 小红书经典的 4:3 比例竖图展现 */
-  background-color: #fafafa;
+  background-color: #111111;
 }
 
 .gallery-swiper {

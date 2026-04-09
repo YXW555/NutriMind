@@ -11,7 +11,8 @@
       <view class="user-header" @click="openPage('account')">
         <view class="avatar-wrap">
           <view class="avatar-circle">
-            <text class="avatar-text">{{ avatarText }}</text>
+            <image v-if="overview.avatarUrl" class="avatar-image" :src="overview.avatarUrl" mode="aspectFill"></image>
+            <text v-else class="avatar-text">{{ avatarText }}</text>
           </view>
         </view>
         <view class="user-info">
@@ -79,6 +80,15 @@
             <text class="arrow">></text>
           </view>
         </view>
+        <view class="list-item" @click="goMyPosts">
+          <view class="list-left">
+            <text class="list-icon">📝</text>
+            <text class="list-text">我的帖子管理</text>
+          </view>
+          <view class="list-right">
+            <text class="arrow">></text>
+          </view>
+        </view>
         
       </view>
       
@@ -106,6 +116,22 @@
               <text class="section-status" :class="{ editing: isEditingAccount }">
                 {{ isEditingAccount ? '编辑中' : '已保存' }}
               </text>
+            </view>
+
+            <view class="avatar-upload-card">
+              <view class="avatar-upload-preview">
+                <view class="avatar-circle large">
+                  <image v-if="overview.avatarUrl" class="avatar-image" :src="overview.avatarUrl" mode="aspectFill"></image>
+                  <text v-else class="avatar-text">{{ avatarText }}</text>
+                </view>
+                <view class="avatar-upload-copy">
+                  <text class="avatar-upload-title">头像</text>
+                  <text class="avatar-upload-desc">支持 JPG、PNG、WEBP，大小不超过 3MB</text>
+                </view>
+              </view>
+              <button class="secondary-button avatar-upload-button" :loading="savingAvatar" :disabled="savingAvatar" @click="chooseAvatar">
+                {{ savingAvatar ? '上传中...' : '上传头像' }}
+              </button>
             </view>
 
             <view v-if="!isEditingAccount" class="info-list">
@@ -269,6 +295,11 @@ function openPage(page) {
 function closePage() {
   activePage.value = 'main'
 }
+function goMyPosts() {
+  uni.navigateTo({
+    url: '/pages/community/manage'
+  })
+}
 
 const genderOptions = [
   { label: '性别未设置', value: '' },
@@ -307,6 +338,7 @@ const isEditingHealthGoal = ref(true)
 
 // 保存 loading 状态
 const savingAccount = ref(false)
+const savingAvatar = ref(false)
 const savingHealthProfile = ref(false)
 const savingHealthGoal = ref(false)
 const savingWeightLog = ref(false)
@@ -462,6 +494,7 @@ async function loadOverview() {
       userId: data?.userId,
       username: data?.username,
       nickname: data?.nickname,
+      avatarUrl: data?.avatarUrl,
       email: data?.email,
       phone: data?.phone,
       role: data?.role
@@ -506,6 +539,37 @@ async function saveAccountInfo() {
     savingAccount.value = false
     uni.hideLoading()
   }
+}
+
+function chooseAvatar() {
+  if (savingAvatar.value) return
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (result) => {
+      const filePath = result?.tempFilePaths?.[0]
+      if (!filePath) {
+        showInlineToast('请选择图片')
+        return
+      }
+      savingAvatar.value = true
+      showSavingIndicator('上传中')
+      try {
+        await request.upload('/profile/avatar', {
+          filePath,
+          name: 'file'
+        })
+        await loadOverview()
+        showInlineToast('头像已更新', 'success')
+      } catch (error) {
+        console.log('upload avatar failed', error)
+      } finally {
+        savingAvatar.value = false
+        uni.hideLoading()
+      }
+    }
+  })
 }
 
 function handleGenderChange(event) {
@@ -752,7 +816,10 @@ onShow(() => {
   width: 130rpx; height: 130rpx; border-radius: 50%;
   background: #E8F3EE; display: flex; align-items: center; justify-content: center;
   border: 4rpx solid #fff; box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.05);
+  overflow: hidden;
 }
+.avatar-circle.large { width: 144rpx; height: 144rpx; }
+.avatar-image { width: 100%; height: 100%; display: block; }
 .avatar-text { font-size: 50rpx; font-weight: 900; color: #38D07D; }
 .user-info { flex: 1; }
 .user-name { font-size: 40rpx; font-weight: 900; color: #262626; display: block; margin-bottom: 12rpx;}
@@ -860,6 +927,38 @@ onShow(() => {
 }
 .section-status.editing { background: #EAF2FB; color: #2563EB; }
 
+.avatar-upload-card {
+  margin-top: 20rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #F9FAFB;
+  border: 1rpx solid #F0F0F0;
+}
+.avatar-upload-preview {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+}
+.avatar-upload-copy {
+  flex: 1;
+  min-width: 0;
+}
+.avatar-upload-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #262626;
+}
+.avatar-upload-desc {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8B8B8B;
+}
+.avatar-upload-button {
+  margin-top: 24rpx;
+}
 .info-list { margin-top: 20rpx; }
 .info-row { padding: 24rpx 0; border-bottom: 1rpx solid #F0F0F0; display: flex; justify-content: space-between; }
 .info-row:last-child { border-bottom: none; }

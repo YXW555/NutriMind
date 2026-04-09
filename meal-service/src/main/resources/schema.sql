@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS `meal_record` (
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_meal_user_date` (`user_id`,`record_date`)
+  UNIQUE KEY `uk_meal_user_date` (`user_id`, `record_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='daily meal summary';
 
 CREATE TABLE IF NOT EXISTS `meal_detail` (
@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS `advisor_message` (
   `references_json` TEXT DEFAULT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_advisor_user_time` (`user_id`,`created_at`)
+  KEY `idx_advisor_user_time` (`user_id`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='advisor chat messages';
 
 SET @advisor_message_references_exists := (
@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS `community_post_like` (
   `user_id` BIGINT NOT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_post_user` (`post_id`,`user_id`),
+  UNIQUE KEY `uk_post_user` (`post_id`, `user_id`),
   KEY `idx_like_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='community post likes';
 
@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS `community_comment` (
   `moderation_status` VARCHAR(16) DEFAULT 'APPROVED',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  KEY `idx_comment_post_time` (`post_id`,`created_at`),
+  KEY `idx_comment_post_time` (`post_id`, `created_at`),
   KEY `idx_comment_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='community post comments';
 
@@ -193,13 +193,14 @@ SET @community_comment_moderation_status_sql := IF(
 PREPARE community_comment_moderation_status_stmt FROM @community_comment_moderation_status_sql;
 EXECUTE community_comment_moderation_status_stmt;
 DEALLOCATE PREPARE community_comment_moderation_status_stmt;
+
 CREATE TABLE IF NOT EXISTS `post_favorite` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `post_id` BIGINT NOT NULL,
   `user_id` BIGINT NOT NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_favorite_post_user` (`post_id`,`user_id`),
+  UNIQUE KEY `uk_favorite_post_user` (`post_id`, `user_id`),
   KEY `idx_favorite_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='community post favorites';
 
@@ -217,8 +218,8 @@ CREATE TABLE IF NOT EXISTS `meal_plan` (
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_plan_user_date` (`user_id`,`plan_date`),
-  KEY `idx_plan_user_time` (`user_id`,`plan_date`)
+  UNIQUE KEY `uk_plan_user_date` (`user_id`, `plan_date`),
+  KEY `idx_plan_user_time` (`user_id`, `plan_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='daily meal plan';
 
 CREATE TABLE IF NOT EXISTS `meal_plan_item` (

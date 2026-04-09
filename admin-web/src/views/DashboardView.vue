@@ -1,39 +1,35 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { adminApi } from '@/lib/api'
 
-const overview = ref([
-  { label: '知识条目', value: '-', hint: '正在加载' },
-  { label: '食物条目', value: '-', hint: '正在加载' },
-  { label: '待审核内容', value: '-', hint: '正在加载' },
-  { label: 'RAG 状态', value: '-', hint: '正在加载' }
-])
-
 const loading = ref(false)
-const statusText = ref('未同步')
+const connected = ref(true)
+const overview = ref([
+  { label: '知识条目', value: '-', hint: '加载中' },
+  { label: '食物条目', value: '-', hint: '加载中' },
+  { label: '待审核', value: '-', hint: '加载中' },
+  { label: 'RAG', value: '-', hint: '加载中' }
+])
 
 const quickLinks = [
-  { to: '/knowledge', title: '知识库管理', desc: '维护来源、状态和知识正文' },
-  { to: '/foods', title: '食物库管理', desc: '维护营养数据与食物分类' },
-  { to: '/review', title: '内容审核', desc: '处理帖子与评论审核' },
-  { to: '/system', title: '系统状态', desc: '查看服务、模型与运行信息' }
+  { to: '/knowledge', title: '知识库', desc: '维护知识条目' },
+  { to: '/foods', title: '食物库', desc: '维护食物与概念' },
+  { to: '/review', title: '审核', desc: '处理帖子与评论' },
+  { to: '/system', title: '系统', desc: '查看运行状态' }
 ]
 
-const todoItems = ref([
-  '等待同步系统总览数据',
-  '等待同步待审核内容',
-  '等待同步知识库状态'
-])
-
+const todoItems = ref([])
 const trendBars = [42, 55, 48, 72, 61, 67, 76]
 const chartMonths = ['一月', '二月', '三月', '四月', '五月', '六月', '七月']
 
-const hasLiveData = computed(() => !loading.value && statusText.value === '已同步真实数据')
+const statusText = computed(() => {
+  if (loading.value) return '同步中'
+  return connected.value ? '已连接' : '未连接'
+})
 
 async function loadOverview() {
   loading.value = true
-
   try {
     const [systemOverview, foods] = await Promise.all([
       adminApi.get('/admin/system/overview'),
@@ -47,26 +43,27 @@ async function loadOverview() {
     const ragReady = Boolean(systemOverview?.milvusReady)
 
     overview.value = [
-      { label: '知识条目', value: String(knowledgeCount), hint: `已启用 ${enabledKnowledgeCount} 条` },
-      { label: '食物条目', value: String(foodCount), hint: '已同步真实食物库数据' },
-      { label: '待审核内容', value: String(pendingReviewCount), hint: '包含帖子与评论审核' },
-      { label: 'RAG 状态', value: ragReady ? '已就绪' : '兜底中', hint: ragReady ? 'Milvus 与模型依赖可用' : '当前使用本地知识检索' }
+      { label: '知识条目', value: String(knowledgeCount), hint: `已启用 ${enabledKnowledgeCount}` },
+      { label: '食物条目', value: String(foodCount), hint: '真实数据' },
+      { label: '待审核', value: String(pendingReviewCount), hint: '帖子与评论' },
+      { label: 'RAG', value: ragReady ? '就绪' : '兜底', hint: ragReady ? 'Milvus 可用' : '本地检索' }
     ]
 
     todoItems.value = [
-      pendingReviewCount > 0 ? `当前有 ${pendingReviewCount} 条内容待审核` : '当前没有待审核内容',
-      enabledKnowledgeCount < knowledgeCount ? `还有 ${knowledgeCount - enabledKnowledgeCount} 条知识未启用` : '知识条目均已启用',
-      ragReady ? 'RAG 向量检索运行正常' : '请检查 Milvus 或外部模型依赖'
+      pendingReviewCount > 0 ? `待审核 ${pendingReviewCount} 条` : '当前没有待审核内容',
+      enabledKnowledgeCount < knowledgeCount ? `未启用知识 ${knowledgeCount - enabledKnowledgeCount} 条` : '知识条目已全部启用',
+      ragReady ? 'RAG 服务运行正常' : '当前使用本地检索兜底'
     ]
-
-    statusText.value = '已同步真实数据'
-  } catch (error) {
-    statusText.value = '演示模式'
-    todoItems.value = [
-      '后端暂未连接，当前展示本地界面',
-      '请先启动 meal-service 与 food-service',
-      '确认网关地址和接口配置是否正确'
+    connected.value = true
+  } catch {
+    overview.value = [
+      { label: '知识条目', value: '-', hint: '暂无数据' },
+      { label: '食物条目', value: '-', hint: '暂无数据' },
+      { label: '待审核', value: '-', hint: '暂无数据' },
+      { label: 'RAG', value: '-', hint: '暂无数据' }
     ]
+    todoItems.value = ['后端未连接']
+    connected.value = false
   } finally {
     loading.value = false
   }
@@ -81,13 +78,10 @@ onMounted(loadOverview)
       <div>
         <p class="panel-kicker">Overview</p>
         <h3 class="panel-title">管理总览</h3>
-        <p class="panel-desc">集中查看系统状态、待处理事项和核心业务数据。</p>
       </div>
       <div class="inline-actions">
-        <span class="status-pill" :class="hasLiveData ? 'online' : 'offline'">
-          {{ loading ? '同步中...' : statusText }}
-        </span>
-        <button class="secondary-button" @click="loadOverview">刷新数据</button>
+        <span class="status-pill" :class="connected ? 'online' : 'offline'">{{ statusText }}</span>
+        <button class="secondary-button" @click="loadOverview">刷新</button>
       </div>
     </div>
 
@@ -112,7 +106,7 @@ onMounted(loadOverview)
             <p class="panel-kicker">Trend</p>
             <h3 class="panel-title">近期趋势</h3>
           </div>
-          <span class="status-pill">近 7 周</span>
+          <span class="status-pill">近 7 期</span>
         </div>
         <div class="chart-stage top-gap">
           <div class="chart-lines">
@@ -153,7 +147,7 @@ onMounted(loadOverview)
           <div class="panel-head compact-head">
             <div>
               <p class="panel-kicker">Tasks</p>
-              <h3 class="panel-title">待处理事项</h3>
+              <h3 class="panel-title">待处理</h3>
             </div>
           </div>
           <div class="simple-list top-gap">

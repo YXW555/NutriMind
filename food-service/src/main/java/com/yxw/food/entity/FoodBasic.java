@@ -19,6 +19,12 @@ public class FoodBasic {
 
     private String category;
 
+    private Long categoryId;
+
+    private Long conceptId;
+
+    private String barcode;
+
     private String unit;
 
     private BigDecimal calories;

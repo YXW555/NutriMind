@@ -37,6 +37,8 @@
         <button class="btn-ai-secondary" :loading="generatingWeek" @click="generateWeekPlan">生成本周草案</button>
       </view>
 
+      <button class="btn-clear-plan" @click="clearCurrentPlan">清空当前计划</button>
+
       <view class="week-slider" v-if="weekPlans.length > 0">
         <scroll-view scroll-x class="week-scroll" :show-scrollbar="false">
           <view class="week-row">
@@ -135,11 +137,11 @@
             <text class="meal-name">{{ section.label }}</text>
             <text class="meal-cal">{{ formatNumber(section.totalCalories) }} kcal</text>
           </view>
-          
+
           <view class="food-list">
-            <view 
-              v-for="(item, index) in section.items" 
-              :key="`${item.foodId}-${index}`" 
+            <view
+              v-for="(item, index) in section.items"
+              :key="`${item.foodId}-${index}`"
               class="food-item"
             >
               <view class="food-info">
@@ -156,7 +158,7 @@
 
       <view class="action-dock" v-if="planItems.length">
         <button class="btn-save" @click="savePlan">保存草稿</button>
-        <button class="btn-apply" @click="applyPlan">应用到饮食记录</button>
+        <button class="btn-apply" @click="applyPlan">保存为待执行计划</button>
       </view>
     </view>
 
@@ -174,10 +176,10 @@
 
         <text class="sub-label">选择餐次</text>
         <view class="meal-tags">
-          <view 
-            v-for="item in mealTypeOptions" 
-            :key="item.value" 
-            class="meal-tag" 
+          <view
+            v-for="item in mealTypeOptions"
+            :key="item.value"
+            class="meal-tag"
             :class="{ active: mealType === item.value }"
             @click="mealType = item.value"
           >
@@ -193,7 +195,7 @@
 
           <picker :range="foods" range-key="name" :value="selectedFoodIndex" @change="handleFoodSelect">
             <view class="picker-box">
-              <text class="picker-text" :class="{'has-val': foods.length > 0}">{{ selectedFoodLabel }}</text>
+              <text class="picker-text" :class="{ 'has-val': foods.length > 0 }">{{ selectedFoodLabel }}</text>
               <text class="picker-arrow">▾</text>
             </view>
           </picker>
@@ -207,7 +209,7 @@
         </view>
       </view>
     </view>
-    
+
     <view class="safe-area-bottom"></view>
   </view>
 </template>
@@ -359,6 +361,31 @@ async function generateWeekPlan() {
   } finally { generatingWeek.value = false }
 }
 
+function clearCurrentPlan() {
+  uni.showModal({
+    title: '清空计划',
+    content: '确认清空当前日期的饮食计划吗？清空后可重新生成新的计划。',
+    success: async (result) => {
+      if (!result.confirm) return
+      try {
+        if (plan.value.id) {
+          await request.put('/meals/plans/daily', {
+            planDate: selectedDate.value,
+            title: null,
+            notes: null,
+            items: []
+          })
+        }
+        normalizePlan({ ...createEmptyPlan(), planDate: selectedDate.value })
+        planForm.value = { title: '', notes: '' }
+        planItems.value = []
+        await loadPlan()
+        uni.showToast({ title: '已清空', icon: 'success' })
+      } catch (error) {}
+    }
+  })
+}
+
 function handleDateChange(event) {
   selectPlanDate(event.detail.value)
 }
@@ -426,14 +453,15 @@ async function applyPlan() {
     return
   }
   try {
-    await persistPlan()
-    await request.post('/meals/plans/daily/apply', { planDate: selectedDate.value })
+    const response = await persistPlan()
+    normalizePlan({
+      ...response,
+      status: response?.status || 'READY'
+    })
     uni.showModal({
-      title: '应用成功',
-      content: '已写入今日饮食记录，去查看吗？',
-      success: (result) => {
-        if (result.confirm) uni.navigateTo({ url: '/pages/meals/index' })
-      }
+      title: '计划已保存',
+      content: '当前只会保存为待执行计划，不会自动计入当日饮食记录。实际进食后，请再到饮食记录页手动记录。',
+      showCancel: false
     })
     await loadPlan()
   } catch (error) {}
@@ -492,7 +520,7 @@ onShow(() => {
   --border-light: #e5e7eb; /* 浅色分割线和边框 */
   --warn-color: #d97706; /* 橙色用于警告替代 */
   --warn-bg: #fef3c7; /* 浅橙色背景 */
-  
+
   min-height: 100vh;
   background-color: var(--app-bg);
   padding: 24rpx;
@@ -589,6 +617,19 @@ onShow(() => {
   gap: 16rpx;
 }
 
+.btn-clear-plan {
+  margin-top: 16rpx;
+  height: 76rpx;
+  border-radius: 20rpx;
+  background: #ffffff;
+  border: 1rpx dashed var(--border-light);
+  color: var(--text-sub);
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.btn-clear-plan::after { border: none; }
+
 .btn-ai-primary, .btn-ai-secondary {
   flex: 1;
   height: 80rpx;
@@ -664,10 +705,11 @@ onShow(() => {
 }
 
 .bubble-dot.has-plan {
-  background: #9ca3af; /* 灰色圆点表示有计划 */
+  background: #9ca3af;
 }
+
 .day-bubble.active .bubble-dot.has-plan {
-  background: #ffffff; /* 激活时反白 */
+  background: #ffffff;
 }
 
 /* --- 2. 计划摘要仪表盘 --- */
@@ -702,6 +744,7 @@ onShow(() => {
   background: #ffffff;
   color: var(--text-sub);
 }
+
 .status-badge.generated { background: var(--primary-light); color: var(--primary); border: none; }
 .status-badge.ready { background: #f0fdf4; color: #166534; border: 1rpx solid #bbf7d0; }
 .status-badge.applied { background: #ecfdf5; color: var(--primary-dark); border: 1rpx solid #a7f3d0; }
@@ -759,7 +802,7 @@ onShow(() => {
 
 .c-label { font-size: 24rpx; color: var(--text-sub); }
 .c-value { font-size: 28rpx; font-weight: 700; color: var(--text-main); }
-.c-value.is-over { color: var(--warn-color); } 
+.c-value.is-over { color: var(--warn-color); }
 
 /* AI 洞察 */
 .ai-insight-card {
@@ -778,7 +821,14 @@ onShow(() => {
 
 .insight-icon { font-size: 32rpx; margin-right: 12rpx; }
 .insight-title { font-size: 28rpx; font-weight: 700; color: var(--text-main); flex: 1; }
-.insight-mode { font-size: 22rpx; color: var(--primary); font-weight: 600; background: var(--primary-light); padding: 4rpx 12rpx; border-radius: 8rpx;}
+.insight-mode {
+  font-size: 22rpx;
+  color: var(--primary);
+  font-weight: 600;
+  background: var(--primary-light);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
 
 .insight-content {
   font-size: 26rpx;
@@ -807,11 +857,12 @@ onShow(() => {
   align-items: flex-start;
   margin-bottom: 12rpx;
 }
+
 .tip-row:last-child { margin-bottom: 0; }
 
 .tip-emoji { margin-right: 12rpx; font-size: 28rpx; line-height: 1.4; }
 .tip-text { font-size: 26rpx; color: #374151; line-height: 1.5; flex: 1; }
-.warning .tip-text { color: #92400e; } 
+.warning .tip-text { color: #92400e; }
 
 /* --- 3. 执行清单区 --- */
 .execution-panel {
@@ -840,6 +891,7 @@ onShow(() => {
   align-items: center;
   background: #ffffff;
 }
+
 .empty-icon { font-size: 80rpx; margin-bottom: 16rpx; }
 .empty-text { font-size: 26rpx; color: #9ca3af; }
 
@@ -885,6 +937,7 @@ onShow(() => {
   align-items: center;
   justify-content: center;
 }
+
 .remove-icon { font-size: 36rpx; color: #d1d5db; }
 
 .action-dock {
@@ -905,6 +958,7 @@ onShow(() => {
   align-items: center;
   justify-content: center;
 }
+
 .btn-save { background: #ffffff; border: 1rpx solid var(--border-light); color: var(--text-main); }
 .btn-apply { background: var(--primary); color: #ffffff; box-shadow: 0 4rpx 12rpx rgba(5, 150, 105, 0.2); }
 
@@ -929,6 +983,7 @@ onShow(() => {
   transition: transform 0.3s;
   transform: rotate(90deg);
 }
+
 .expand-icon.is-open { transform: rotate(-90deg); }
 
 .edit-body {
@@ -1038,6 +1093,7 @@ onShow(() => {
   display: flex;
   gap: 16rpx;
 }
+
 .custom-input.half { flex: 1; background: #ffffff; border: 1rpx solid var(--border-light); }
 
 .btn-add-food {
@@ -1051,6 +1107,7 @@ onShow(() => {
   border-radius: 20rpx;
   margin-top: 10rpx;
 }
+
 .btn-add-food::after { display: none; }
 
 .safe-area-bottom {

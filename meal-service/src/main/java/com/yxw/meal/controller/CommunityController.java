@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -61,6 +62,26 @@ public class CommunityController {
     public ApiResponse<CommunityPostResponse> createPost(@Valid @RequestBody CommunityPostRequest request) {
         Long currentUserId = SecurityContextUtils.requireCurrentUserId();
         return ApiResponse.success("post created", communityService.createPost(currentUserId, request));
+    }
+
+    @GetMapping("/posts/mine")
+    public ApiResponse<List<CommunityPostResponse>> listMyPosts() {
+        Long currentUserId = SecurityContextUtils.requireCurrentUserId();
+        return ApiResponse.success(communityService.listMyPosts(currentUserId));
+    }
+
+    @PutMapping("/posts/{postId}")
+    public ApiResponse<CommunityPostResponse> updatePost(@PathVariable Long postId,
+                                                         @Valid @RequestBody CommunityPostRequest request) {
+        Long currentUserId = SecurityContextUtils.requireCurrentUserId();
+        return ApiResponse.success("post updated", communityService.updatePost(currentUserId, postId, request));
+    }
+
+    @DeleteMapping("/posts/{postId}")
+    public ApiResponse<Void> deletePost(@PathVariable Long postId) {
+        Long currentUserId = SecurityContextUtils.requireCurrentUserId();
+        communityService.deletePost(currentUserId, postId);
+        return ApiResponse.success("post deleted", null);
     }
 
     @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

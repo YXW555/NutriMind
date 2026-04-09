@@ -16,6 +16,8 @@ public class CommunityPostResponse {
 
     private Long id;
 
+    private Long userId;
+
     private String authorName;
 
     private String title;
@@ -38,5 +40,9 @@ public class CommunityPostResponse {
 
     private Integer commentCount;
 
+    private Boolean ownPost;
+
     private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 }

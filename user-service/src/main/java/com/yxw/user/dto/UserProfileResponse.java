@@ -11,6 +11,7 @@ public class UserProfileResponse {
     private Long userId;
     private String username;
     private String nickname;
+    private String avatarUrl;
     private String email;
     private String phone;
     private String role;
@@ -20,6 +21,7 @@ public class UserProfileResponse {
                 .userId(user.getId())
                 .username(user.getUsername())
                 .nickname(user.getNickname())
+                .avatarUrl(user.getAvatarUrl())
                 .email(user.getEmail())
                 .phone(user.getPhone())
                 .role(user.getRole())

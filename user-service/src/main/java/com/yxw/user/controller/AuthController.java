@@ -113,7 +113,7 @@ public class AuthController {
         }
 
         String token = jwtTokenService.generateToken(user.getId(), user.getUsername());
-        AuthResponse response = new AuthResponse(token, user.getId(), user.getUsername(), user.getNickname());
+        AuthResponse response = new AuthResponse(token, user.getId(), user.getUsername(), user.getNickname(), user.getAvatarUrl());
         return ResponseEntity.ok(ApiResponse.success("register success", response));
     }
 
@@ -133,7 +133,7 @@ public class AuthController {
             userAccountService.updateById(user);
 
             String token = jwtTokenService.generateToken(user.getId(), user.getUsername());
-            AuthResponse response = new AuthResponse(token, user.getId(), user.getUsername(), user.getNickname());
+            AuthResponse response = new AuthResponse(token, user.getId(), user.getUsername(), user.getNickname(), user.getAvatarUrl());
             return ResponseEntity.ok(ApiResponse.success("login success", response));
         } catch (AuthenticationException ex) {
             return ResponseEntity.status(401).body(ApiResponse.fail(401, "invalid username or password"));

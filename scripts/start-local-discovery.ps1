@@ -165,6 +165,8 @@ Set-EnvDefault -Name "APP_VISION_ENGINE" -Default "mock"
 Set-EnvDefault -Name "APP_VISION_PYTHON_BASE_URL" -Default "http://localhost:8091"
 Set-EnvDefault -Name "APP_RAG_ENABLED" -Default "true"
 Set-EnvDefault -Name "APP_RAG_QWEN_ENABLED" -Default "true"
+Set-EnvDefault -Name "APP_BOOTSTRAP_FOOD_METADATA_ENABLED" -Default "true"
+Set-EnvDefault -Name "APP_BOOTSTRAP_FOOD_CONCEPT_BANK_PATH" -Default (Join-Path $root "ai-service\model\retrieval_bank.json")
 
 $mysqlPassword = Assert-RequiredEnv -Name "MYSQL_PASSWORD" -Hint "Copy .env.example to .env and set the password for the MySQL instance this project should use."
 if ([string]::IsNullOrWhiteSpace((Resolve-EnvValue "MYSQL_ROOT_PASSWORD"))) {
@@ -260,6 +262,8 @@ $sharedEnv = [ordered]@{
     APP_RAG_QWEN_TEMPERATURE = (Resolve-EnvValue "APP_RAG_QWEN_TEMPERATURE")
     APP_VISION_ENGINE = (Resolve-EnvValue "APP_VISION_ENGINE")
     APP_VISION_PYTHON_BASE_URL = (Resolve-EnvValue "APP_VISION_PYTHON_BASE_URL")
+    APP_BOOTSTRAP_FOOD_METADATA_ENABLED = (Resolve-EnvValue "APP_BOOTSTRAP_FOOD_METADATA_ENABLED")
+    APP_BOOTSTRAP_FOOD_CONCEPT_BANK_PATH = (Resolve-EnvValue "APP_BOOTSTRAP_FOOD_CONCEPT_BANK_PATH")
 }
 
 foreach ($service in $services) {

@@ -1,4 +1,5 @@
-const API_BASE_KEY = 'nutrimind_admin_api_base'
+﻿const API_BASE_KEY = 'nutrimind_admin_api_base'
+const TOKEN_KEY = 'nutrimind_admin_token'
 const DEFAULT_API_BASE = 'http://localhost:8080/api'
 
 export function getApiBaseUrl() {
@@ -12,11 +13,21 @@ export function setApiBaseUrl(value) {
   return finalValue
 }
 
+export function getAdminToken() {
+  return localStorage.getItem(TOKEN_KEY) || localStorage.getItem('nutrimind_token') || ''
+}
+
+export function setAdminToken(token) {
+  localStorage.setItem(TOKEN_KEY, String(token || '').trim())
+}
+
 async function request(path, options = {}) {
   const url = `${getApiBaseUrl()}${path}`
+  const token = getAdminToken()
   const response = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     },
     ...options

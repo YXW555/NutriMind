@@ -26,3 +26,9 @@ __pycache__/
 .env.*
 !.env.example
 .ai4food-safe-env/
+ai-service/inference/python/.venv/
+model/**/*.hdf5
+model/**/*.h5
+model/**/*.ckpt
+model/**/*.pt
+model/**/*.pth

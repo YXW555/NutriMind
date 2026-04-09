@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS `user_account` (
   `username` VARCHAR(64) NOT NULL COMMENT 'login identifier',
   `password` VARCHAR(255) NOT NULL COMMENT 'bcrypt password hash',
   `nickname` VARCHAR(64) DEFAULT NULL COMMENT 'display name',
+  `avatar_url` VARCHAR(255) DEFAULT NULL COMMENT 'avatar image url',
   `email` VARCHAR(128) DEFAULT NULL,
   `phone` VARCHAR(32) DEFAULT NULL,
   `role` VARCHAR(32) DEFAULT 'USER' COMMENT 'USER or ADMIN',
@@ -17,6 +18,22 @@ CREATE TABLE IF NOT EXISTS `user_account` (
   UNIQUE KEY `uk_user_email` (`email`),
   UNIQUE KEY `uk_user_phone` (`phone`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='user account table';
+
+SET @user_avatar_col_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'user_account'
+    AND COLUMN_NAME = 'avatar_url'
+);
+SET @user_avatar_col_sql := IF(
+  @user_avatar_col_exists = 0,
+  'ALTER TABLE `user_account` ADD COLUMN `avatar_url` VARCHAR(255) DEFAULT NULL COMMENT ''avatar image url'' AFTER `nickname`',
+  'SELECT 1'
+);
+PREPARE stmt_user_avatar_col FROM @user_avatar_col_sql;
+EXECUTE stmt_user_avatar_col;
+DEALLOCATE PREPARE stmt_user_avatar_col;
 
 CREATE TABLE IF NOT EXISTS `user_profile` (
   `user_id` BIGINT NOT NULL COMMENT 'references user_account.id',
