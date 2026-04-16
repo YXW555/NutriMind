@@ -107,6 +107,15 @@
           </view>
           <text class="concept-name">{{ recognizedConcept.displayName || recognizedConcept.canonicalLabel || recognizedConcept.rawLabel }}</text>
           <text class="concept-desc">{{ conceptDescription }}</text>
+          <view v-if="recognizedInsightChips.length" class="concept-insights">
+            <text
+              v-for="item in recognizedInsightChips"
+              :key="item"
+              class="concept-insight-chip"
+            >
+              {{ item }}
+            </text>
+          </view>
           <view v-if="recognizedConceptKeywords.length" class="concept-keywords">
             <text
               v-for="item in recognizedConceptKeywords"
@@ -255,6 +264,25 @@ const recognizedConceptKeywords = computed(() => {
     ? recognizedConcept.value.searchKeywords
     : []
   return keywords.slice(0, 4)
+})
+
+const recognizedInsightChips = computed(() => {
+  if (!recognizedConcept.value) return []
+
+  const exactWeight = recognizedConcept.value.estimatedWeightGrams
+  const weightMin = recognizedConcept.value.estimatedWeightMinGrams
+  const weightMax = recognizedConcept.value.estimatedWeightMaxGrams
+  const weightText = exactWeight
+    ? `估重 ${exactWeight}g`
+    : (weightMin && weightMax
+        ? `估重 ${weightMin}-${weightMax}g`
+        : (weightMin ? `估重 ${weightMin}g 左右` : (weightMax ? `估重 ${weightMax}g 内外` : '')))
+
+  return [
+    recognizedConcept.value.cookingMethod ? `做法 ${recognizedConcept.value.cookingMethod}` : '',
+    weightText,
+    recognizedConcept.value.portionDescription ? `份量 ${recognizedConcept.value.portionDescription}` : ''
+  ].filter(Boolean)
 })
 
 const conceptDescription = computed(() => {
@@ -484,7 +512,7 @@ function foodMetaLabel(food) {
     parts.push(`${formatNumber(food.calories)} kcal`)
   }
   if (typeof food?.confidence === 'number') {
-    parts.push(`${Math.round(food.confidence * 100)}% 推荐`)
+    parts.push(`${Math.round(food.confidence * 100)}% 匹配`)
   }
   return parts.join(' · ')
 }
@@ -911,6 +939,21 @@ onShow(() => {
   flex-wrap: wrap;
   gap: 12rpx;
   margin-top: 16rpx;
+}
+
+.concept-insights {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.concept-insight-chip {
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  color: #4c6152;
+  background: rgba(76, 97, 82, 0.08);
 }
 
 .concept-keyword {

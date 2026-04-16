@@ -31,4 +31,14 @@ public class RecognizedConceptResponse {
     private List<String> aliases = List.of();
 
     private Boolean generic;
+
+    private String cookingMethod;
+
+    private Integer estimatedWeightGrams;
+
+    private Integer estimatedWeightMinGrams;
+
+    private Integer estimatedWeightMaxGrams;
+
+    private String portionDescription;
 }

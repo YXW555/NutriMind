@@ -4,6 +4,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import KnowledgeView from '@/views/KnowledgeView.vue'
 import FoodsView from '@/views/FoodsView.vue'
 import ReviewView from '@/views/ReviewView.vue'
+import AgentExecutionsView from '@/views/AgentExecutionsView.vue'
 import SystemView from '@/views/SystemView.vue'
 
 const routes = [
@@ -35,6 +36,12 @@ const routes = [
         name: 'review',
         component: ReviewView,
         meta: { title: '内容审核' }
+      },
+      {
+        path: '/agents',
+        name: 'agents',
+        component: AgentExecutionsView,
+        meta: { title: 'Agent链路' }
       },
       {
         path: '/system',

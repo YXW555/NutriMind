@@ -111,6 +111,62 @@ CREATE TABLE IF NOT EXISTS `food_recognition_logs` (
   CONSTRAINT `fk_food_recognition_food` FOREIGN KEY (`food_id`) REFERENCES `food_basics` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='food recognition logs';
 
+CREATE TABLE IF NOT EXISTS `knowledge_sources` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `title` VARCHAR(255) NOT NULL COMMENT 'source title',
+  `organization` VARCHAR(128) DEFAULT NULL COMMENT 'source organization',
+  `source_type` VARCHAR(32) DEFAULT 'GUIDELINE' COMMENT 'GUIDELINE, PAPER, WEBSITE, MANUAL',
+  `publish_year` INT DEFAULT NULL COMMENT 'publish year',
+  `source_url` VARCHAR(512) DEFAULT NULL COMMENT 'source url',
+  `credibility_level` VARCHAR(32) DEFAULT 'HIGH' COMMENT 'HIGH, MEDIUM, LOW',
+  `summary` VARCHAR(512) DEFAULT NULL COMMENT 'summary',
+  `status` TINYINT DEFAULT 1 COMMENT '0 disabled, 1 enabled',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_knowledge_source_title` (`title`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='authoritative knowledge sources';
+
+CREATE TABLE IF NOT EXISTS `food_graph_relations` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `source_type` VARCHAR(32) NOT NULL COMMENT 'FOOD, GOAL, CONDITION, NUTRIENT, CATEGORY, CROWD, METHOD',
+  `source_key` VARCHAR(64) NOT NULL COMMENT 'stable source key',
+  `source_ref_id` BIGINT DEFAULT NULL COMMENT 'optional linked row id',
+  `source_name` VARCHAR(128) NOT NULL COMMENT 'source display name',
+  `relation_type` VARCHAR(32) NOT NULL COMMENT 'BELONGS_TO, CONTAINS, RECOMMENDS, LIMITS, CAN_REPLACE, PAIR_WITH, SHOULD_LIMIT',
+  `target_type` VARCHAR(32) NOT NULL COMMENT 'target node type',
+  `target_key` VARCHAR(64) NOT NULL COMMENT 'stable target key',
+  `target_ref_id` BIGINT DEFAULT NULL COMMENT 'optional linked row id',
+  `target_name` VARCHAR(128) NOT NULL COMMENT 'target display name',
+  `relation_value` VARCHAR(128) DEFAULT NULL COMMENT 'optional relation value',
+  `evidence_summary` VARCHAR(512) DEFAULT NULL COMMENT 'relation evidence summary',
+  `knowledge_source_id` BIGINT DEFAULT NULL COMMENT 'linked knowledge_sources.id',
+  `sort_order` INT DEFAULT 0 COMMENT 'sort order',
+  `status` TINYINT DEFAULT 1 COMMENT '0 disabled, 1 enabled',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_food_graph_relation` (`source_type`, `source_key`, `relation_type`, `target_type`, `target_key`),
+  KEY `idx_food_graph_source_ref` (`source_ref_id`),
+  KEY `idx_food_graph_target_ref` (`target_ref_id`),
+  KEY `idx_food_graph_relation_type` (`relation_type`),
+  KEY `idx_food_graph_knowledge_source` (`knowledge_source_id`),
+  CONSTRAINT `fk_food_graph_knowledge_source` FOREIGN KEY (`knowledge_source_id`) REFERENCES `knowledge_sources` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='nutrition knowledge graph relations';
+
+CREATE TABLE IF NOT EXISTS `food_graph_sync_logs` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `sync_type` VARCHAR(32) NOT NULL COMMENT 'BOOTSTRAP, MANUAL, NEO4J_EXPORT',
+  `status` VARCHAR(32) NOT NULL COMMENT 'SUCCESS, FAILED, SKIPPED',
+  `detail` VARCHAR(512) DEFAULT NULL COMMENT 'sync detail',
+  `node_count` INT DEFAULT 0 COMMENT 'related node count',
+  `relation_count` INT DEFAULT 0 COMMENT 'related relation count',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_food_graph_sync_type` (`sync_type`),
+  KEY `idx_food_graph_sync_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='knowledge graph sync logs';
+
 SET @category_id_exists := (
   SELECT COUNT(*)
   FROM INFORMATION_SCHEMA.COLUMNS

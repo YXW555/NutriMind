@@ -87,9 +87,24 @@ services:
       - "9848:9848"
       - "9849:9849"
 
+  neo4j:
+    image: neo4j:5.28-community
+    container_name: nutrimind-neo4j
+    restart: unless-stopped
+    environment:
+      NEO4J_AUTH: "neo4j/${APP_GRAPH_NEO4J_PASSWORD:-neo4j-local-dev-password}"
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs
+
 volumes:
   mysql-data:
   redis-data:
   milvus-etcd-data:
   milvus-minio-data:
   milvus-data:
+  neo4j-data:
+  neo4j-logs:

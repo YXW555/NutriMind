@@ -213,6 +213,8 @@ if ($nacosServerAddr.Contains(":")) {
 Write-Host "Waiting for infrastructure to become ready..."
 Wait-ForTcpPort -HostName $mysqlHost -Port $mysqlPort -DisplayName "MySQL"
 Wait-ForTcpPort -HostName $nacosHost -Port $nacosPort -DisplayName "Nacos port"
+Wait-ForTcpPort -HostName $nacosHost -Port 9848 -DisplayName "Nacos gRPC port 9848"
+Wait-ForTcpPort -HostName $nacosHost -Port 9849 -DisplayName "Nacos gRPC port 9849"
 Wait-ForHttpReady -Uri ("http://" + $nacosServerAddr + "/nacos/") -DisplayName "Nacos console"
 
 $services = @(

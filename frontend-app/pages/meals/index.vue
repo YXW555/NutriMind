@@ -42,6 +42,14 @@
       </view>
     </view>
 
+    <view class="xhs-card reminder-strip" v-if="reminderDigest">
+      <view class="reminder-strip-main">
+        <text class="reminder-strip-title">{{ reminderDigest.title }}</text>
+        <text class="reminder-strip-desc">{{ reminderDigest.description }}</text>
+      </view>
+      <button class="reminder-strip-btn" @click="goAdvisor">问问顾问</button>
+    </view>
+
     <view class="xhs-card panel-card">
       <view class="panel-header">
         <text class="panel-title">添加记录</text>
@@ -194,8 +202,9 @@
 import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
-import { ensureLoggedIn, formatToday } from '@/utils/auth.js'
+import { ensureLoggedIn, formatToday, getProfile } from '@/utils/auth.js'
 import { formatNumber, formatTime, mealTypeLabel } from '@/utils/format.js'
+import { buildReminderDigest } from '@/utils/reminders.js'
 
 const quickQuantities = [50, 100, 150, 200, 300]
 const mealTypeOptions = [
@@ -213,6 +222,7 @@ const selectedFoodIndex = ref(0)
 const quantity = ref('100')
 const pendingItems = ref([])
 const dailyRecord = ref(createEmptyDailyRecord(recordDate.value))
+const profile = ref(getProfile() || {})
 
 const selectedFood = computed(() => foods.value[selectedFoodIndex.value] || null)
 
@@ -249,6 +259,12 @@ const detailGroups = computed(() => {
     }
   })
 })
+
+const reminderDigest = computed(() => buildReminderDigest({
+  profile: profile.value,
+  dailyRecord: dailyRecord.value,
+  weeklyReport: {}
+}))
 
 function createEmptyDailyRecord(date) {
   return {
@@ -417,9 +433,11 @@ function deleteDetail(detailId) {
 function goFoods() { uni.navigateTo({ url: '/pages/foods/index' }) }
 function goCapture() { uni.reLaunch({ url: '/pages/capture/index' }) }
 function goHome() { uni.reLaunch({ url: '/pages/index/index' }) }
+function goAdvisor() { uni.reLaunch({ url: '/pages/advisor/index' }) }
 
 onShow(() => {
   if (!ensureLoggedIn()) return
+  profile.value = getProfile() || {}
   loadFoods()
   loadDailyRecord()
 })
@@ -576,6 +594,45 @@ button::after {
 }
 
 /* ========== 面板通用头部 ========== */
+.reminder-strip {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  background: #F5FBF8;
+  border-color: #D4F2E1;
+}
+.reminder-strip-main {
+  flex: 1;
+  min-width: 0;
+}
+.reminder-strip-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.reminder-strip-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+.reminder-strip-btn {
+  flex-shrink: 0;
+  min-width: 144rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  margin: 0;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: 700;
+}
+.reminder-strip-btn::after { border: none; }
+
 .panel-header {
   display: flex;
   justify-content: space-between;

@@ -16,4 +16,14 @@ public class RecognitionEngineResult {
     private String recognitionMode;
 
     private List<RecognitionEngineCandidate> candidates;
+
+    private String cookingMethod;
+
+    private Integer estimatedWeightGrams;
+
+    private Integer estimatedWeightMinGrams;
+
+    private Integer estimatedWeightMaxGrams;
+
+    private String portionDescription;
 }

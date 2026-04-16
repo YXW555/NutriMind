@@ -3,6 +3,7 @@ spring:
     nacos:
       discovery:
         enabled: true
+        fail-fast: false
     gateway:
       server:
         webflux:

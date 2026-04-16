@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <view class="page-modern">
     <app-page-header
       title="饮食计划"
@@ -18,7 +18,7 @@
         <picker mode="date" :value="selectedDate" @change="handleDateChange">
           <view class="date-selector">
             <text class="date-text">{{ shortDate(selectedDate, true) }}</text>
-            <text class="arrow-down">▾</text>
+            <text class="arrow-down">▼</text>
           </view>
         </picker>
       </view>
@@ -27,7 +27,7 @@
         <input
           v-model="generatePreference"
           class="prompt-input"
-          placeholder="例如：减脂训练日、晚餐清淡、控糖优先..."
+          placeholder="例如：减脂训练日、晚餐清淡、控糖优先"
           placeholder-class="prompt-placeholder"
         />
       </view>
@@ -97,17 +97,21 @@
 
       <view class="ai-insight-card" v-if="hasPlanInsights">
         <view class="insight-head">
-          <text class="insight-icon">🤖</text>
+          <text class="insight-icon">🍽️</text>
           <text class="insight-title">AI 洞察</text>
           <text class="insight-mode">{{ generationModeLabel(plan.generationMode) }}</text>
         </view>
         <text class="insight-content">{{ plan.summary }}</text>
+        <view v-if="plan.references.length || hasExecutionSteps" class="insight-actions">
+          <button v-if="plan.references.length" class="insight-action-btn ghost" @click="openReferenceModal">查看依据</button>
+          <button v-if="hasExecutionSteps" class="insight-action-btn" @click="openProcessModal">查看多 Agent 过程</button>
+        </view>
       </view>
 
       <view class="tips-container" v-if="plan.tips.length || plan.warnings.length">
         <view v-if="plan.tips.length" class="tip-group">
           <view v-for="(tip, index) in plan.tips" :key="`tip-${index}`" class="tip-row">
-            <text class="tip-emoji">💡</text>
+            <text class="tip-emoji">📌</text>
             <text class="tip-text">{{ tip }}</text>
           </view>
         </view>
@@ -128,7 +132,7 @@
 
       <view v-if="!planItems.length" class="empty-state">
         <text class="empty-icon">🍽️</text>
-        <text class="empty-text">这天还没安排食物，让 AI 帮你生成吧</text>
+        <text class="empty-text">这一天还没有安排食物，让 AI 帮你生成吧</text>
       </view>
 
       <view class="meal-flow">
@@ -146,10 +150,10 @@
             >
               <view class="food-info">
                 <text class="food-name">{{ item.foodName }}</text>
-                <text class="food-desc">{{ formatNumber(item.quantity) }}g · {{ formatNumber(item.calories) }}kcal <text v-if="item.note" class="food-note">| {{ item.note }}</text></text>
+                <text class="food-desc">{{ formatNumber(item.quantity) }}g 路 {{ formatNumber(item.calories) }}kcal <text v-if="item.note" class="food-note">| {{ item.note }}</text></text>
               </view>
               <view class="food-remove" @click="removePlanItem(item.originalIndex)">
-                <text class="remove-icon">×</text>
+                <text class="remove-icon">脳</text>
               </view>
             </view>
           </view>
@@ -165,14 +169,14 @@
     <view class="manual-edit-panel">
       <view class="edit-header" @click="editorExpanded = !editorExpanded">
         <view class="header-left">
-          <text class="panel-main-title">手动补充 & 微调</text>
+          <text class="panel-main-title">手动补充与微调</text>
         </view>
-        <text class="expand-icon" :class="{ 'is-open': editorExpanded }">›</text>
+        <text class="expand-icon" :class="{ 'is-open': editorExpanded }">⌄</text>
       </view>
 
       <view class="edit-body" :class="{ 'is-expanded': editorExpanded }">
-        <input v-model="planForm.title" class="custom-input" placeholder="计划标题 (选填)" />
-        <textarea v-model="planForm.notes" class="custom-textarea" placeholder="补充说明 (选填)" />
+        <input v-model="planForm.title" class="custom-input" placeholder="计划标题（选填）" />
+        <textarea v-model="planForm.notes" class="custom-textarea" placeholder="补充说明（选填）" />
 
         <text class="sub-label">选择餐次</text>
         <view class="meal-tags">
@@ -196,13 +200,13 @@
           <picker :range="foods" range-key="name" :value="selectedFoodIndex" @change="handleFoodSelect">
             <view class="picker-box">
               <text class="picker-text" :class="{ 'has-val': foods.length > 0 }">{{ selectedFoodLabel }}</text>
-              <text class="picker-arrow">▾</text>
+              <text class="picker-arrow">▼</text>
             </view>
           </picker>
 
           <view class="input-grid">
             <input v-model="quantity" class="custom-input half" type="digit" placeholder="数量(g)" />
-            <input v-model="itemNote" class="custom-input half" placeholder="备注(选填)" />
+            <input v-model="itemNote" class="custom-input half" placeholder="备注（选填）" />
           </view>
 
           <button class="btn-add-food" @click="addPlanItem">+ 加入计划清单</button>
@@ -211,6 +215,97 @@
     </view>
 
     <view class="safe-area-bottom"></view>
+
+    <view
+      class="guide-modal-overlay"
+      :class="{ 'is-visible': showReferenceModal || showProcessModal }"
+      @tap="closeDetailModal"
+    >
+      <view
+        v-if="showReferenceModal || showProcessModal"
+        class="guide-modal-card plan-detail-modal"
+        @tap.stop
+      >
+        <view class="guide-header">
+          <view class="guide-header-main">
+            <text class="guide-title">{{ showReferenceModal ? '生成依据' : '多 Agent 过程' }}</text>
+            <text class="guide-subtitle">{{ showReferenceModal ? '这份计划为什么这样安排' : '本次计划的生成步骤与阶段输出' }}</text>
+          </view>
+          <view class="guide-close" @tap="closeDetailModal">
+            <text class="guide-close-text">×</text>
+          </view>
+        </view>
+
+        <scroll-view scroll-y class="guide-body plan-detail-body">
+          <view class="plan-detail-scroll-content">
+            <view v-if="showReferenceModal" class="detail-section">
+              <view class="detail-hero-card">
+                <text class="detail-hero-label">计划摘要</text>
+                <text class="detail-hero-title">{{ plan.summary || '系统已根据你的目标、记录和知识依据生成本次饮食计划。' }}</text>
+              </view>
+
+              <text class="detail-section-title">GraphRAG 命中依据</text>
+              <view class="detail-card-list">
+                <view
+                  v-for="(item, index) in referenceCards"
+                  :key="`reference-${index}`"
+                  class="detail-card-item reference-card"
+                >
+                  <view class="detail-card-head">
+                    <text class="detail-card-index">{{ item.index }}</text>
+                    <text class="detail-card-label">{{ item.title }}</text>
+                  </view>
+                  <text class="detail-card-text">{{ item.content }}</text>
+                </view>
+              </view>
+            </view>
+
+            <view v-if="showReferenceModal && plan.tips.length" class="detail-section">
+              <text class="detail-section-title">关键执行建议</text>
+              <view class="detail-card-list">
+                <view
+                  v-for="(item, index) in plan.tips"
+                  :key="`tip-detail-${index}`"
+                  class="detail-card-item"
+                >
+                  <text class="detail-card-text">{{ item }}</text>
+                </view>
+              </view>
+            </view>
+
+            <view v-if="showProcessModal && hasExecutionSteps" class="detail-section">
+              <view class="process-summary-card">
+                <text class="detail-hero-label">{{ executionSceneTitle }}</text>
+                <text class="process-summary-title">{{ executionModeLabel }}</text>
+                <text v-if="plan.executionDetail?.finalSummary" class="process-summary-text">{{ plan.executionDetail.finalSummary }}</text>
+              </view>
+
+              <text class="detail-section-title">协同步骤</text>
+              <view class="detail-card-list">
+                <view
+                  v-for="step in executionSteps"
+                  :key="`process-${step.stepOrder}`"
+                  class="process-step-card"
+                >
+                  <view class="process-step-head">
+                    <text class="process-step-order">#{{ step.stepOrder }}</text>
+                    <text class="process-step-agent">{{ step.agentName || formatExecutionStage(step.stageName) }}</text>
+                    <text class="process-step-stage">{{ formatExecutionStage(step.stageName) }}</text>
+                  </view>
+                  <text v-if="step.inputSummary" class="process-step-line">输入：{{ step.inputSummary }}</text>
+                  <text v-if="step.outputSummary" class="process-step-line">输出：{{ step.outputSummary }}</text>
+                  <text v-if="step.referenceSummary" class="process-step-line">依据：{{ step.referenceSummary }}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+
+        <view class="guide-footer">
+          <button class="btn-primary" @click="closeDetailModal">我知道了</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -237,6 +332,8 @@ const generatePreference = ref('')
 const generatingDaily = ref(false)
 const generatingWeek = ref(false)
 const editorExpanded = ref(false)
+const showReferenceModal = ref(false)
+const showProcessModal = ref(false)
 
 const foods = ref([])
 const selectedFoodIndex = ref(0)
@@ -247,6 +344,10 @@ const itemNote = ref('')
 
 const selectedFood = computed(() => foods.value[selectedFoodIndex.value] || null)
 const hasPlanInsights = computed(() => Boolean(plan.value.summary || plan.value.generationMode))
+const hasExecutionSteps = computed(() => Array.isArray(plan.value.executionDetail?.steps) && plan.value.executionDetail.steps.length > 0)
+const executionSteps = computed(() => Array.isArray(plan.value.executionDetail?.steps) ? plan.value.executionDetail.steps : [])
+const executionModeLabel = computed(() => generationModeLabel(plan.value.executionDetail?.generationMode || plan.value.generationMode))
+const executionSceneTitle = computed(() => formatSceneType(plan.value.executionDetail?.sceneType))
 const showTargetStrip = computed(() =>
   Boolean(
     plan.value.targetCalories ||
@@ -272,17 +373,39 @@ const groupedPlanItems = computed(() =>
 )
 
 const selectedFoodLabel = computed(() => {
-  if (!foods.value.length) return '搜出食物后在此选择'
+  if (!foods.value.length) return '搜索出食物后在此选择'
   const food = foods.value[selectedFoodIndex.value]
   return food ? `${food.name} · ${food.unit || '100g'}` : '请选择食物'
 })
 
+const referenceCards = computed(() =>
+  (Array.isArray(plan.value.references) ? plan.value.references : []).map((item, index) => ({
+    index: String(index + 1).padStart(2, '0'),
+    title: index === 0 ? '核心依据' : `补充依据 ${index}`,
+    content: item
+  }))
+)
+
 function createEmptyPlan() {
   return {
-    title: '', notes: '', status: 'DRAFT',
-    totalCalories: 0, totalProtein: 0, totalFat: 0, totalCarbohydrate: 0,
-    targetCalories: null, targetProtein: null, calorieGap: null, proteinGap: null,
-    generationMode: '', summary: '', tips: [], warnings: [], references: [], items: []
+    title: '',
+    notes: '',
+    status: 'DRAFT',
+    totalCalories: 0,
+    totalProtein: 0,
+    totalFat: 0,
+    totalCarbohydrate: 0,
+    targetCalories: null,
+    targetProtein: null,
+    calorieGap: null,
+    proteinGap: null,
+    generationMode: '',
+    summary: '',
+    tips: [],
+    warnings: [],
+    references: [],
+    executionDetail: null,
+    items: []
   }
 }
 
@@ -290,15 +413,16 @@ function normalizePlan(payload) {
   const next = payload || createEmptyPlan()
   const items = Array.isArray(next.items) ? next.items : []
   plan.value = {
-    ...createEmptyPlan(), ...next,
+    ...createEmptyPlan(),
+    ...next,
     tips: Array.isArray(next.tips) ? next.tips : [],
     warnings: Array.isArray(next.warnings) ? next.warnings : [],
     references: Array.isArray(next.references) ? next.references : [],
+    executionDetail: next.executionDetail || null,
     items
   }
   planForm.value = { title: next.title || '', notes: next.notes || '' }
   planItems.value = items.map((item, index) => ({ ...item, sortOrder: item.sortOrder ?? index }))
-  // 如果没有内容，自动展开编辑区
   editorExpanded.value = !items.length
 }
 
@@ -364,7 +488,7 @@ async function generateWeekPlan() {
 function clearCurrentPlan() {
   uni.showModal({
     title: '清空计划',
-    content: '确认清空当前日期的饮食计划吗？清空后可重新生成新的计划。',
+    content: '确认清空当前日期的饮食计划吗？清空后可以重新生成新的计划。',
     success: async (result) => {
       if (!result.confirm) return
       try {
@@ -411,7 +535,7 @@ function addPlanItem() {
   }
   const numericQuantity = Number(quantity.value)
   if (Number.isNaN(numericQuantity) || numericQuantity <= 0) {
-    uni.showToast({ title: '输入正确数量', icon: 'none' })
+    uni.showToast({ title: '请输入正确数量', icon: 'none' })
     return
   }
 
@@ -487,13 +611,49 @@ function shortDate(value, withText = false) {
 }
 
 function generationModeLabel(value) {
-  const map = { 'AI_AGENT': 'AI 智能生成', 'RULE_BASED': '基础生成', 'MIXED': '混合生成' }
+  const map = { 'AI_AGENT': 'AI 智能生成', 'RULE_BASED': '规则生成', 'MIXED': '混合生成' }
   return map[value] || '智能生成'
 }
 
 function planStatusLabel(value) {
   const map = { DRAFT: '草稿阶段', GENERATED: 'AI 已生成', READY: '待执行', APPLIED: '已应用' }
   return map[value] || '规划中'
+}
+
+function formatExecutionStage(value) {
+  const map = {
+    PERCEPTION: '感知',
+    GRAPH_RETRIEVAL: '图谱检索',
+    DOCUMENT_RETRIEVAL: '知识检索',
+    PLAN_GENERATION: '计划生成',
+    PLAN_VALIDATION: '结果校验',
+    RESPONSE_GENERATION: '回答生成'
+  }
+  return map[String(value || '').toUpperCase()] || String(value || '处理中')
+}
+
+function formatSceneType(value) {
+  const map = {
+    MEAL_PLAN_DAILY: '今日计划执行链路',
+    MEAL_PLAN_WEEK: '本周计划执行链路',
+    ADVISOR_CHAT: '营养顾问链路'
+  }
+  return map[String(value || '').toUpperCase()] || '智能执行链路'
+}
+
+function openReferenceModal() {
+  showProcessModal.value = false
+  showReferenceModal.value = true
+}
+
+function openProcessModal() {
+  showReferenceModal.value = false
+  showProcessModal.value = true
+}
+
+function closeDetailModal() {
+  showReferenceModal.value = false
+  showProcessModal.value = false
 }
 
 function signedNumber(value) {
@@ -508,25 +668,25 @@ onShow(() => {
 </script>
 
 <style scoped>
-/* 白绿清爽主题变量 */
+/* 鐧界豢娓呯埥涓婚鍙橀噺 */
 .page-modern {
-  --app-bg: #ffffff; /* 纯白大背景 */
+  --app-bg: #ffffff; /* 绾櫧澶ц儗鏅?*/
   --card-bg: #ffffff;
-  --primary: #059669; /* 鲜明现代的核心绿色 */
-  --primary-dark: #047857; /* 深绿色，用于悬浮或强调 */
-  --primary-light: #d1fae5; /* 极浅绿，用于辅助背景 */
-  --text-main: #111827; /* 深灰/黑文本 */
-  --text-sub: #6b7280; /* 中灰色辅助文本 */
-  --border-light: #e5e7eb; /* 浅色分割线和边框 */
-  --warn-color: #d97706; /* 橙色用于警告替代 */
-  --warn-bg: #fef3c7; /* 浅橙色背景 */
+  --primary: #059669; /* 椴滄槑鐜颁唬鐨勬牳蹇冪豢鑹?*/
+  --primary-dark: #047857; /* 娣辩豢鑹诧紝鐢ㄤ簬鎮诞鎴栧己璋?*/
+  --primary-light: #d1fae5; /* 鏋佹祬缁匡紝鐢ㄤ簬杈呭姪鑳屾櫙 */
+  --text-main: #111827; /* 娣辩伆/榛戞枃鏈?*/
+  --text-sub: #6b7280; /* 涓伆鑹茶緟鍔╂枃鏈?*/
+  --border-light: #e5e7eb; /* 娴呰壊鍒嗗壊绾垮拰杈规 */
+  --warn-color: #d97706; /* 姗欒壊鐢ㄤ簬璀﹀憡鏇夸唬 */
+  --warn-bg: #fef3c7; /* 娴呮鑹茶儗鏅?*/
 
   min-height: 100vh;
   background-color: var(--app-bg);
   padding: 24rpx;
 }
 
-/* --- 1. AI 智能规划区 --- */
+/* --- 1. AI 鏅鸿兘瑙勫垝鍖?--- */
 .ai-planner-card {
   background: var(--card-bg);
   border: 1rpx solid var(--border-light);
@@ -587,7 +747,7 @@ onShow(() => {
   color: var(--primary);
 }
 
-/* 对话框式输入 */
+/* 瀵硅瘽妗嗗紡杈撳叆 */
 .prompt-box {
   background: #ffffff;
   border: 2rpx solid var(--border-light);
@@ -712,7 +872,7 @@ onShow(() => {
   background: #ffffff;
 }
 
-/* --- 2. 计划摘要仪表盘 --- */
+/* --- 2. 璁″垝鎽樿浠〃鐩?--- */
 .summary-dashboard {
   background: var(--card-bg);
   border: 1rpx solid var(--border-light);
@@ -749,7 +909,7 @@ onShow(() => {
 .status-badge.ready { background: #f0fdf4; color: #166534; border: 1rpx solid #bbf7d0; }
 .status-badge.applied { background: #ecfdf5; color: var(--primary-dark); border: 1rpx solid #a7f3d0; }
 
-/* 网格仪表 */
+/* 缃戞牸浠〃 */
 .macro-grid {
   display: flex;
   justify-content: space-between;
@@ -804,7 +964,7 @@ onShow(() => {
 .c-value { font-size: 28rpx; font-weight: 700; color: var(--text-main); }
 .c-value.is-over { color: var(--warn-color); }
 
-/* AI 洞察 */
+/* AI 娲炲療 */
 .ai-insight-card {
   background: #ffffff;
   border: 1rpx solid var(--primary-light);
@@ -836,6 +996,31 @@ onShow(() => {
   line-height: 1.6;
 }
 
+.insight-actions {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.insight-action-btn {
+  flex: 1;
+  height: 72rpx;
+  border-radius: 18rpx;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 26rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.insight-action-btn.ghost {
+  background: #ffffff;
+  border: 1rpx solid var(--border-light);
+  color: var(--text-main);
+}
+
 /* Tips */
 .tips-container {
   display: flex;
@@ -864,7 +1049,213 @@ onShow(() => {
 .tip-text { font-size: 26rpx; color: #374151; line-height: 1.5; flex: 1; }
 .warning .tip-text { color: #92400e; }
 
-/* --- 3. 执行清单区 --- */
+.guide-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 120;
+}
+.guide-modal-overlay.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.guide-modal-card {
+  width: 88%;
+  max-height: 78vh;
+  background: #ffffff;
+  border-radius: 32rpx;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24rpx 72rpx rgba(15, 23, 42, 0.18);
+}
+.plan-detail-modal {
+  height: 78vh;
+}
+.plan-detail-modal .guide-body {
+  flex: none;
+  height: calc(78vh - 220rpx);
+}
+.guide-header {
+  padding: 28rpx 28rpx 20rpx;
+  border-bottom: 1rpx solid var(--border-light);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+.guide-header-main {
+  flex: 1;
+}
+.guide-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.guide-subtitle {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: var(--text-sub);
+}
+.guide-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 999rpx;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.guide-close-text {
+  font-size: 34rpx;
+  line-height: 1;
+  color: #6b7280;
+}
+.guide-body {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  padding: 24rpx 28rpx;
+  box-sizing: border-box;
+}
+.guide-footer {
+  padding: 18rpx 28rpx 24rpx;
+  border-top: 1rpx solid var(--border-light);
+  background: #ffffff;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.plan-detail-body {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+  box-sizing: border-box;
+}
+.plan-detail-scroll-content {
+  display: flex;
+  flex-direction: column;
+  gap: 22rpx;
+  padding-bottom: 220rpx;
+  box-sizing: border-box;
+}
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+.detail-section-title {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.detail-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+.detail-card-item,
+.process-summary-card,
+.process-step-card {
+  padding: 22rpx 24rpx;
+  border-radius: 18rpx;
+  background: #f8fafc;
+  border: 1rpx solid var(--border-light);
+}
+.detail-hero-card {
+  padding: 24rpx;
+  border-radius: 20rpx;
+  background: linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1rpx solid #d1fae5;
+}
+.detail-hero-label {
+  display: block;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 1rpx;
+}
+.detail-hero-title {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.detail-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
+}
+.detail-card-index {
+  min-width: 44rpx;
+  height: 44rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: #dcfce7;
+  color: var(--primary-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 800;
+}
+.detail-card-label {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.detail-card-text,
+.process-summary-text,
+.process-step-line {
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #64748b;
+}
+.process-summary-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 800;
+  color: var(--text-main);
+}
+.process-summary-text {
+  display: block;
+  margin-top: 8rpx;
+}
+.process-step-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-bottom: 8rpx;
+}
+.process-step-order {
+  font-size: 22rpx;
+  font-weight: 800;
+  color: var(--primary);
+}
+.process-step-agent {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--text-main);
+}
+.process-step-stage {
+  font-size: 22rpx;
+  color: var(--text-sub);
+}
+
+/* --- 3. 鎵ц娓呭崟鍖?--- */
 .execution-panel {
   background: var(--card-bg);
   border: 1rpx solid var(--border-light);
@@ -962,7 +1353,7 @@ onShow(() => {
 .btn-save { background: #ffffff; border: 1rpx solid var(--border-light); color: var(--text-main); }
 .btn-apply { background: var(--primary); color: #ffffff; box-shadow: 0 4rpx 12rpx rgba(5, 150, 105, 0.2); }
 
-/* --- 4. 手动微调区 --- */
+/* --- 4. 鎵嬪姩寰皟鍖?--- */
 .manual-edit-panel {
   background: var(--card-bg);
   border: 1rpx solid var(--border-light);
@@ -1114,3 +1505,5 @@ onShow(() => {
   height: calc(40rpx + env(safe-area-inset-bottom));
 }
 </style>
+
+

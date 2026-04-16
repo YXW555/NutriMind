@@ -1,5 +1,5 @@
 <template>
-  <view class="page-header">
+  <view class="page-header" :style="headerSafeStyle">
     <view class="header-left">
       <view v-if="displayBack" class="back-button" @click="goBack">
         <view class="back-icon"></view>
@@ -19,6 +19,7 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { createSafeAreaTopStyle } from '@/utils/layout.js'
 
 const props = defineProps({
   title: {
@@ -47,6 +48,7 @@ function updateStackState() {
 }
 
 const displayBack = computed(() => props.showBack && canGoBack.value)
+const headerSafeStyle = computed(() => createSafeAreaTopStyle(8))
 
 function goBack() {
   const pages = getCurrentPages()

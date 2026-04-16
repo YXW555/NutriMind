@@ -22,5 +22,7 @@ public class AdvisorMessageResponse {
 
     private List<AdvisorReferenceResponse> references;
 
+    private AgentExecutionDetailResponse executionDetail;
+
     private LocalDateTime createdAt;
 }

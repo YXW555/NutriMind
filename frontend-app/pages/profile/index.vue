@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <view class="page-container">
     
     <view v-show="activePage === 'main'" class="main-dashboard">
-      <view class="custom-nav">
+      <view class="custom-nav" :style="mainNavSafeStyle">
         <view class="nav-left">
           <text class="user-id">ID: {{ overview.userId || '--' }}</text>
         </view>
@@ -11,16 +11,21 @@
       <view class="user-header" @click="openPage('account')">
         <view class="avatar-wrap">
           <view class="avatar-circle">
-            <image v-if="overview.avatarUrl" class="avatar-image" :src="overview.avatarUrl" mode="aspectFill"></image>
+            <image
+              v-if="overview.avatarUrl"
+              class="avatar-image"
+              :src="overview.avatarUrl"
+              mode="aspectFill"
+            ></image>
             <text v-else class="avatar-text">{{ avatarText }}</text>
           </view>
         </view>
         <view class="user-info">
-          <text class="user-name">{{ overview.nickname || overview.username || '未命名用户' }}</text>
+          <text class="user-name">{{ overview.nickname || overview.username || '--' }}</text>
           <view class="user-badges">
             <text class="badge">勋章 0</text>
             <text class="badge">积分 0</text>
-            <text class="role-badge" v-if="overview.role === 'ADMIN'">管理员</text>
+            <text v-if="overview.role === 'ADMIN'" class="role-badge">管理员</text>
           </view>
         </view>
         <view class="header-right">
@@ -30,7 +35,7 @@
 
       <view class="vip-card" @click="openPage('goal')">
         <view class="vip-top">
-          <text class="vip-title">🌱 {{ goalTypeLabel }}方案</text>
+          <text class="vip-title">💡 {{ goalTypeLabel }}方案</text>
           <view class="vip-btn">
             <text class="vip-btn-text">立即调整 ></text>
             <text class="vip-btn-sub">让计划更精准</text>
@@ -47,7 +52,7 @@
           </view>
         </view>
         <view class="vip-bottom">
-          <text class="vip-tag">💎 知食分子专属</text>
+          <text class="vip-tag">🥗 知食分子专属</text>
           <text class="vip-hint">坚持记录，遇见更好的自己</text>
         </view>
       </view>
@@ -74,7 +79,7 @@
         <view class="list-item" @click="openPage('weight')">
           <view class="list-left">
             <text class="list-icon">⚖️</text>
-            <text class="list-text">数据统计 (体重记录)</text>
+            <text class="list-text">数据统计（体重记录）</text>
           </view>
           <view class="list-right">
             <text class="arrow">></text>
@@ -89,18 +94,27 @@
             <text class="arrow">></text>
           </view>
         </view>
-        
+        <view class="list-item" @click="openPage('reminders')">
+          <view class="list-left">
+            <text class="list-icon">🔔</text>
+            <text class="list-text">智能提醒设置</text>
+          </view>
+          <view class="list-right">
+            <text class="arrow">></text>
+          </view>
+        </view>
       </view>
-      
+
+
       <view style="height: 180rpx;"></view> </view>
 
 
     <view v-if="activePage !== 'main'" class="sub-page">
-      <view class="sub-nav">
+      <view class="sub-nav" :style="subNavSafeStyle">
         <view class="back-btn" @click="closePage">
-          <text class="back-arrow">‹</text>
+          <text class="back-arrow">←</text>
         </view>
-        <text class="sub-nav-title">{{ subPageTitle }}</text>
+        <text class="sub-nav-title">{{ activePage === 'reminders' ? '智能提醒' : subPageTitle }}</text>
         <view class="placeholder-box"></view>
       </view>
 
@@ -144,7 +158,7 @@
 
             <view v-else>
               <view class="info-list" style="margin-bottom: 16rpx;">
-                <view class="info-row"><text class="info-label">用户名</text><text class="info-value" style="color: #9ca3af;">{{ overview.username || '--' }} (不可修改)</text></view>
+                <view class="info-row"><text class="info-label">用户名</text><text class="info-value" style="color: #9ca3af;">{{ overview.username || '--' }}（不可修改）</text></view>
               </view>
               <input v-model="accountForm.nickname" class="field-input" placeholder="昵称，例如：健身小达人" confirm-type="next" adjust-position />
               <input v-model="accountForm.email" class="field-input" type="text" placeholder="邮箱地址" confirm-type="next" adjust-position />
@@ -222,7 +236,7 @@
               </picker>
             </view>
 
-            <textarea v-model="goalForm.note" :class="['textarea-field', { readonly: !isEditingHealthGoal }]" maxlength="300" auto-height :disabled="!isEditingHealthGoal" :placeholder="isEditingHealthGoal ? '补充说明，想在 8 周减 4kg 等' : '未填写目标说明'"></textarea>
+            <textarea v-model="goalForm.note" :class="['textarea-field', { readonly: !isEditingHealthGoal }]" maxlength="300" auto-height :disabled="!isEditingHealthGoal" :placeholder="isEditingHealthGoal ? '补充说明，例如想在 8 周减 4kg' : '未填写目标说明'"></textarea>
 
             <button :class="isEditingHealthGoal ? 'primary-button' : 'secondary-button'" :loading="savingHealthGoal" :disabled="savingHealthGoal" @click="handleHealthGoalAction">
               {{ healthGoalActionLabel }}
@@ -247,7 +261,7 @@
             <input v-model="weightForm.note" class="field-input" placeholder="备注，例如晨起空腹、训练后" confirm-type="done" cursor-spacing="24" adjust-position />
 
             <view class="button-row">
-              <button class="secondary-button" @click="resetWeightForm">重置</button>
+              <button class="secondary-button" @click="resetWeightForm">閲嶇疆</button>
               <button class="primary-button" :loading="savingWeightLog" :disabled="savingWeightLog" @click="saveWeightLog">
                 {{ savingWeightLog ? '保存中...' : '保存体重' }}
               </button>
@@ -261,9 +275,65 @@
             <view v-for="item in weightLogs" :key="item.id" class="weight-log-card">
               <view class="weight-log-main">
                 <text class="weight-log-value">{{ formatNumber(item.weightKg, 1) }} kg</text>
-                <text class="weight-log-meta">{{ item.recordDate }}{{ item.note ? ` · ${item.note}` : '' }}</text>
+                <text class="weight-log-meta">{{ item.recordDate }}{{ item.note ? ` 路 ${item.note}` : '' }}</text>
               </view>
               <button class="danger-button small" @click="deleteWeightLog(item.id)">删除</button>
+            </view>
+          </block>
+
+          <block v-if="activePage === 'reminders'">
+            <view class="section-head">
+              <view class="section-head-left">
+                <text class="section-title">智能提醒</text>
+                <text class="section-desc">系统会结合记录、目标和 GraphRAG 分析结果生成主动提醒。</text>
+              </view>
+            </view>
+
+            <view class="reminder-hero-card">
+              <text class="reminder-hero-title">当前策略</text>
+              <text class="reminder-hero-desc">{{ reminderSummary }}</text>
+            </view>
+
+            <view class="reminder-setting-card">
+              <view class="reminder-setting-row">
+                <view class="reminder-setting-copy">
+                  <text class="reminder-setting-title">开启智能提醒</text>
+                  <text class="reminder-setting-desc">首页显示今日提醒卡，并驱动后续提醒动作。</text>
+                </view>
+                <switch color="#38D07D" :checked="reminderSettings.enabled" @change="event => handleReminderToggle('enabled', event)" />
+              </view>
+
+              <view class="reminder-setting-row">
+                <view class="reminder-setting-copy">
+                  <text class="reminder-setting-title">关键提醒弹窗</text>
+                  <text class="reminder-setting-desc">高优先级提醒每天弹出一次，适合比赛演示和真实使用。</text>
+                </view>
+                <switch color="#38D07D" :checked="reminderSettings.popupEnabled" @change="event => handleReminderToggle('popupEnabled', event)" :disabled="!reminderSettings.enabled" />
+              </view>
+
+              <view class="reminder-setting-row">
+                <view class="reminder-setting-copy">
+                  <text class="reminder-setting-title">缺餐补记提醒</text>
+                  <text class="reminder-setting-desc">提醒早餐、午餐和晚餐是否缺失，并引导补记。</text>
+                </view>
+                <switch color="#38D07D" :checked="reminderSettings.mealRecordReminder" @change="event => handleReminderToggle('mealRecordReminder', event)" :disabled="!reminderSettings.enabled" />
+              </view>
+
+              <view class="reminder-setting-row">
+                <view class="reminder-setting-copy">
+                  <text class="reminder-setting-title">营养偏差提醒</text>
+                  <text class="reminder-setting-desc">自动关注热量、蛋白质等偏差，并给出修正方向。</text>
+                </view>
+                <switch color="#38D07D" :checked="reminderSettings.nutritionAnalysisReminder" @change="event => handleReminderToggle('nutritionAnalysisReminder', event)" :disabled="!reminderSettings.enabled" />
+              </view>
+
+              <view class="reminder-setting-row">
+                <view class="reminder-setting-copy">
+                  <text class="reminder-setting-title">执行建议提醒</text>
+                  <text class="reminder-setting-desc">提供继续记录、生成方案和执行入口，推动用户真正行动。</text>
+                </view>
+                <switch color="#38D07D" :checked="reminderSettings.executionSuggestionReminder" @change="event => handleReminderToggle('executionSuggestionReminder', event)" :disabled="!reminderSettings.enabled" />
+              </view>
             </view>
           </block>
 
@@ -277,13 +347,18 @@
 
 <script setup>
 import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
 import { clearSession, formatToday, getToken, isLoggedIn, openAuthPage, saveSession } from '@/utils/auth.js'
 import { formatNumber } from '@/utils/format.js'
+import { createSafeAreaTopStyle } from '@/utils/layout.js'
+import { resolveApiAssetUrl } from '@/utils/config.js'
+import { getReminderSettings, saveReminderSettings } from '@/utils/reminders.js'
 
-// === 页面状态控制 ===
-const activePage = ref('main') // 'main', 'account', 'health', 'goal', 'weight'
+// 页面状态控制
+const activePage = ref('main') // 'main', 'account', 'health', 'goal', 'weight', 'reminders'
+const mainNavSafeStyle = createSafeAreaTopStyle(16)
+const subNavSafeStyle = createSafeAreaTopStyle(20)
 const subPageTitle = computed(() => {
   const map = { account: '个人信息', health: '健康档案', goal: '体重管理方案', weight: '数据统计' }
   return map[activePage.value] || '详情'
@@ -298,6 +373,26 @@ function closePage() {
 function goMyPosts() {
   uni.navigateTo({
     url: '/pages/community/manage'
+  })
+}
+
+function handleReminderToggle(key, event) {
+  const checked = Boolean(event?.detail?.value)
+  reminderSettings.value = saveReminderSettings({
+    ...reminderSettings.value,
+    [key]: checked
+  })
+
+  if (key === 'enabled' && !checked) {
+    reminderSettings.value = saveReminderSettings({
+      ...reminderSettings.value,
+      popupEnabled: false
+    })
+  }
+
+  uni.showToast({
+    title: '提醒设置已更新',
+    icon: 'success'
   })
 }
 
@@ -342,6 +437,7 @@ const savingAvatar = ref(false)
 const savingHealthProfile = ref(false)
 const savingHealthGoal = ref(false)
 const savingWeightLog = ref(false)
+const reminderSettings = ref(getReminderSettings())
 
 const avatarText = computed(() => {
   const source = overview.value.nickname || overview.value.username || '我'
@@ -361,6 +457,20 @@ const goalTypeLabel = computed(() => {
 const goalCaloriesText = computed(() => {
   if (!goalForm.value.targetCalories) return '--'
   return `${formatNumber(goalForm.value.targetCalories)} kcal`
+})
+
+const reminderSummary = computed(() => {
+  if (!reminderSettings.value.enabled) {
+    return '当前已关闭全部主动提醒，首页不会再展示智能提醒卡。'
+  }
+
+  const parts = []
+  if (reminderSettings.value.mealRecordReminder) parts.push('缺餐补记')
+  if (reminderSettings.value.nutritionAnalysisReminder) parts.push('营养偏差')
+  if (reminderSettings.value.executionSuggestionReminder) parts.push('执行建议')
+  const popupText = reminderSettings.value.popupEnabled ? '高优先级提醒会弹窗提示。' : '当前只在页面内展示，不做弹窗打扰。'
+
+  return `系统当前会关注${parts.join('、') || '基础状态'}。${popupText}`
 })
 
 const hasSavedHealthProfile = computed(() => hasHealthProfileContent(overview.value?.healthProfile))
@@ -489,23 +599,26 @@ async function loadOverview() {
 
   try {
     const data = await request.get('/profile/overview')
-    overview.value = data || {}
+    overview.value = {
+      ...(data || {}),
+      avatarUrl: resolveApiAssetUrl(data?.avatarUrl)
+    }
     saveSession(getToken(), {
       userId: data?.userId,
       username: data?.username,
       nickname: data?.nickname,
-      avatarUrl: data?.avatarUrl,
+      avatarUrl: resolveApiAssetUrl(data?.avatarUrl),
       email: data?.email,
       phone: data?.phone,
       role: data?.role
     })
-    assignForms(data)
+    assignForms(overview.value)
   } catch (error) {
     console.log('load profile overview failed', error)
   }
 }
 
-// ---- 基本资料操作 ----
+// ---- 鍩烘湰璧勬枡鎿嶄綔 ----
 async function handleAccountAction() {
   if (!isEditingAccount.value) {
     accountForm.value = {
@@ -620,7 +733,7 @@ async function saveHealthProfile() {
     return
   }
   if (heightCm !== null && (heightCm < 50 || heightCm > 260)) {
-    showInlineToast('身高需在50-260cm')
+    showInlineToast('身高需在 50-260cm')
     return
   }
 
@@ -670,7 +783,7 @@ async function saveHealthGoal() {
       return
     }
     if (field.value !== null && field.value < 0) {
-      showInlineToast(`${field.label}不能小于0`)
+      showInlineToast(`${field.label}涓嶈兘灏忎簬0`)
       return
     }
   }
@@ -768,18 +881,25 @@ function logout() {
   setTimeout(() => { openAuthPage() }, 250)
 }
 
+onLoad((query) => {
+  if (query?.tab) {
+    activePage.value = query.tab
+  }
+})
+
 onShow(() => {
   if (!isLoggedIn()) {
     openAuthPage()
     return
   }
+  reminderSettings.value = getReminderSettings()
   loadOverview()
 })
 </script>
 
 <style scoped>
 /* =========================================================
-   全局页面样式
+   鍏ㄥ眬椤甸潰鏍峰紡
 ========================================================= */
 .page-container {
   min-height: 100vh;
@@ -789,15 +909,15 @@ onShow(() => {
 }
 
 /* =========================================================
-   1. 主仪表盘样式 (Main Dashboard)
+   1. 涓讳华琛ㄧ洏鏍峰紡 (Main Dashboard)
 ========================================================= */
 .main-dashboard {
   padding-bottom: 20rpx;
 }
 
-/* 自定义顶部导航 */
+/* 鑷畾涔夐《閮ㄥ鑸?*/
 .custom-nav {
-  padding: 80rpx 40rpx 20rpx; /* 给状态栏留出空间 */
+  padding: calc(env(safe-area-inset-top) + 24rpx) 40rpx 20rpx;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -805,7 +925,7 @@ onShow(() => {
 }
 .user-id { font-size: 24rpx; color: #999; }
 
-/* 用户头部信息 */
+/* 鐢ㄦ埛澶撮儴淇℃伅 */
 .user-header {
   padding: 20rpx 40rpx 40rpx;
   display: flex;
@@ -829,7 +949,7 @@ onShow(() => {
 .header-right { padding-left: 20rpx; }
 .profile-link { font-size: 24rpx; color: #999; }
 
-/* VIP / 目标数据卡片 */
+/* VIP / 鐩爣鏁版嵁鍗＄墖 */
 .vip-card {
   margin: 0 30rpx;
   background: linear-gradient(135deg, #2E3238 0%, #1A1D21 100%);
@@ -853,7 +973,7 @@ onShow(() => {
 .vip-tag { font-size: 22rpx; background: linear-gradient(90deg, #E8F3EE, #fff); color: #2E3238; padding: 4rpx 16rpx; border-radius: 100rpx; font-weight: bold; }
 .vip-hint { font-size: 22rpx; color: #666; }
 
-/* 列表菜单 (已移除上方八宫格间距，调整 margin) */
+/* 鍒楄〃鑿滃崟 (宸茬Щ闄や笂鏂瑰叓瀹牸闂磋窛锛岃皟鏁?margin) */
 .list-menu {
   background: #fff; margin: 40rpx 30rpx 30rpx; border-radius: 32rpx;
   padding: 10rpx 30rpx; box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02);
@@ -861,6 +981,31 @@ onShow(() => {
 .list-item {
   display: flex; justify-content: space-between; align-items: center;
   padding: 34rpx 0; border-bottom: 1rpx solid #F0F0F0;
+}
+.reminder-entry-card {
+  margin: 0 30rpx 20rpx;
+  padding: 30rpx;
+  border-radius: 28rpx;
+  background: #F5FBF8;
+  border: 1rpx solid #D4F2E1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+.reminder-entry-copy { flex: 1; min-width: 0; }
+.reminder-entry-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 800;
+  color: #1F2937;
+}
+.reminder-entry-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #6B7280;
 }
 .border-none { border-bottom: none; }
 .list-left { display: flex; align-items: center; gap: 20rpx; }
@@ -870,7 +1015,7 @@ onShow(() => {
 .arrow { color: #CCC; font-size: 30rpx; font-weight: bold; }
 
 /* =========================================================
-   2. 子页面样式 (Sub Page for Forms)
+   2. 瀛愰〉闈㈡牱寮?(Sub Page for Forms)
 ========================================================= */
 .sub-page {
   position: fixed;
@@ -887,7 +1032,7 @@ onShow(() => {
 }
 
 .sub-nav {
-  padding: 100rpx 30rpx 30rpx; /* 状态栏留白 */
+  padding: calc(env(safe-area-inset-top) + 24rpx) 30rpx 30rpx;
   background: #fff;
   display: flex; justify-content: space-between; align-items: center;
   box-shadow: 0 2rpx 10rpx rgba(0,0,0,0.02);
@@ -896,7 +1041,7 @@ onShow(() => {
 .back-btn { width: 60rpx; height: 60rpx; display: flex; align-items: center; }
 .back-arrow { font-size: 60rpx; color: #262626; margin-top: -10rpx; font-weight: 300; }
 .sub-nav-title { font-size: 34rpx; font-weight: bold; color: #262626; }
-.placeholder-box { width: 60rpx; } /* 占位符保持标题居中 */
+.placeholder-box { width: 60rpx; } /* 鍗犱綅绗︿繚鎸佹爣棰樺眳涓?*/
 
 .sub-scroll {
   flex: 1;
@@ -908,13 +1053,13 @@ onShow(() => {
   box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.02); margin-bottom: 60rpx;
 }
 
-/* 表单内部样式 */
+/* 琛ㄥ崟鍐呴儴鏍峰紡 */
 .section-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30rpx;}
 .section-head-left { flex: 1; min-width: 0; padding-right: 16rpx; }
 .section-title { display: block; font-size: 36rpx; font-weight: 800; color: #262626; }
 .section-desc { display: block; margin-top: 10rpx; font-size: 24rpx; color: #999; line-height: 1.4; }
 
-/* 关键修复：加入 flex-shrink 和 white-space 保证标签不被挤压换行 */
+/* 鍏抽敭淇锛氬姞鍏?flex-shrink 鍜?white-space 淇濊瘉鏍囩涓嶈鎸ゅ帇鎹㈣ */
 .section-status { 
   flex-shrink: 0;
   white-space: nowrap;
@@ -995,4 +1140,55 @@ onShow(() => {
 .weight-log-card { margin-top: 20rpx; padding: 28rpx; border-radius: 24rpx; background: #F9FAFB; display: flex; justify-content: space-between; align-items: center;}
 .weight-log-main { flex: 1; }
 .weight-log-value { display: block; font-size: 34rpx; font-weight: bold; color: #262626; margin-bottom: 8rpx;}
+.reminder-hero-card {
+  padding: 30rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
+  margin-bottom: 24rpx;
+}
+.reminder-hero-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #D1FAE5;
+}
+.reminder-hero-desc {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  line-height: 1.7;
+  color: #F9FAFB;
+}
+.reminder-setting-card {
+  border-radius: 24rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #E5E7EB;
+  overflow: hidden;
+}
+.reminder-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24rpx;
+  padding: 28rpx 24rpx;
+  border-bottom: 1rpx solid #F3F4F6;
+}
+.reminder-setting-row:last-child { border-bottom: none; }
+.reminder-setting-copy {
+  flex: 1;
+  min-width: 0;
+}
+.reminder-setting-title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 800;
+  color: #1F2937;
+}
+.reminder-setting-desc {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #6B7280;
+}
 </style>

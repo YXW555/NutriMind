@@ -1,6 +1,8 @@
 const API_BASE_KEY = 'nutrimind_api_base'
-const DEFAULT_API_BASE = 'http://localhost:8080/api'
-const DEFAULT_NATIVE_API_BASE = 'http://10.100.233.124:8080/api'
+const DEFAULT_API_BASE = 'http://10.100.233.124:8080/api'
+const DEFAULT_NATIVE_PROXY_API_BASE = 'http://127.0.0.1:8080/api'
+const DEFAULT_NATIVE_LAN_API_BASE = 'http://10.100.233.124:8080/api'
+const DEFAULT_NATIVE_API_BASE = DEFAULT_NATIVE_PROXY_API_BASE
 
 function isH5Runtime() {
   return typeof window !== 'undefined' && typeof window.location !== 'undefined'
@@ -62,6 +64,10 @@ function getApiBaseStorageKey() {
   return `${API_BASE_KEY}:h5:${hostname}`
 }
 
+function getNativeCandidateApiBases() {
+  return [DEFAULT_NATIVE_PROXY_API_BASE, DEFAULT_NATIVE_LAN_API_BASE]
+}
+
 export function normalizeApiBaseUrl(value) {
   let next = String(value || '').trim()
   if (!next) {
@@ -86,7 +92,27 @@ export function getApiBaseUrl() {
   }
 
   const storedValue = uni.getStorageSync(getApiBaseStorageKey())
-  return normalizeApiBaseUrl(storedValue || DEFAULT_API_BASE)
+  const normalized = normalizeApiBaseUrl(storedValue || getRuntimeDefaultApiBaseUrl())
+
+  if (normalized === DEFAULT_NATIVE_LAN_API_BASE) {
+    return DEFAULT_NATIVE_PROXY_API_BASE
+  }
+
+  return normalized
+}
+
+export function getApiBaseCandidates() {
+  if (isH5Runtime()) {
+    return [getRuntimeDefaultApiBaseUrl()]
+  }
+
+  const storedValue = uni.getStorageSync(getApiBaseStorageKey())
+  const normalizedStoredValue = storedValue ? normalizeApiBaseUrl(storedValue) : ''
+  const candidates = normalizedStoredValue
+    ? [normalizedStoredValue, ...getNativeCandidateApiBases()]
+    : getNativeCandidateApiBases()
+
+  return [...new Set(candidates.map((item) => normalizeApiBaseUrl(item)))]
 }
 
 export function setApiBaseUrl(value) {
@@ -110,6 +136,26 @@ export function getDefaultApiBaseUrl() {
   return getRuntimeDefaultApiBaseUrl()
 }
 
+export function resolveApiAssetUrl(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(raw)) {
+    return raw
+  }
+
+  const apiBase = getApiBaseUrl().replace(/\/+$/, '')
+  const serviceBase = apiBase.replace(/\/api$/i, '')
+
+  if (raw.startsWith('/')) {
+    return `${serviceBase}${raw}`
+  }
+
+  return `${serviceBase}/${raw.replace(/^\/+/, '')}`
+}
+
 export function getApiBaseHint() {
-  return '\u771f\u673a\u8c03\u8bd5\u65f6\uff0c\u8bf7\u4f7f\u7528\u4f60\u7535\u8111\u7684\u5c40\u57df\u7f51 IP\uff0c\u4f8b\u5982 10.100.233.124:8080\u3002\u5982\u679c\u66f4\u6362\u7f51\u7edc\uff0c\u9700\u540c\u6b65\u66f4\u65b0'
+  return '真机调试会优先尝试 USB 反向代理地址 127.0.0.1:8080，失败时再回退到局域网地址 10.100.233.124:8080。'
 }

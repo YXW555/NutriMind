@@ -43,5 +43,7 @@ public class GeneratedMealPlanResponse {
 
     private List<String> references;
 
+    private AgentExecutionDetailResponse executionDetail;
+
     private List<MealPlanItemResponse> items;
 }

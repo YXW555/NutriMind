@@ -19,4 +19,6 @@ public class AuthRequest {
     private String phone;
 
     private String confirmPassword;
+
+    private String verifyCode;
 }

@@ -32,8 +32,8 @@
       </scroll-view>
     </view>
 
-    <view class="content-shell">
-      <view class="sticky-topbar">
+    <view class="content-shell" :style="contentShellStyle">
+      <view class="sticky-topbar" :style="topbarSafeStyle">
         <view class="custom-nav-bar">
           <view class="nav-left">
             <view class="menu-icon-btn" @click="openSidebar">
@@ -110,6 +110,43 @@
                   </view>
                 </view>
               </view>
+
+              <view
+                v-if="!isUserMessage(message) && message.executionDetail && message.executionDetail.steps && message.executionDetail.steps.length"
+                class="process-shell"
+              >
+                <view class="reference-toggle" @click="toggleProcess(message)">
+                  <text class="reference-toggle-text">
+                    {{ isProcessExpanded(message) ? '收起多 Agent 过程' : `查看多 Agent 过程 ${message.executionDetail.steps.length}` }}
+                  </text>
+                  <text class="reference-toggle-icon">{{ isProcessExpanded(message) ? '-' : '+' }}</text>
+                </view>
+
+                <view v-if="isProcessExpanded(message)" class="process-list">
+                  <view class="process-summary-card">
+                    <text class="process-summary-title">{{ formatSceneType(message.executionDetail.sceneType) }}</text>
+                    <text class="process-summary-meta">
+                      {{ formatGenerationMode(message.executionDetail.generationMode) }} · {{ formatExecutionStatus(message.executionDetail.finalStatus) }}
+                    </text>
+                    <text v-if="message.executionDetail.finalSummary" class="process-summary-text">{{ message.executionDetail.finalSummary }}</text>
+                  </view>
+
+                  <view
+                    v-for="step in message.executionDetail.steps"
+                    :key="`${message.id}-step-${step.stepOrder}`"
+                    class="process-step-card"
+                  >
+                    <view class="process-step-head">
+                      <text class="process-step-order">#{{ step.stepOrder }}</text>
+                      <text class="process-step-agent">{{ step.agentName || formatStageName(step.stageName) }}</text>
+                      <text class="process-step-stage">{{ formatStageName(step.stageName) }}</text>
+                    </view>
+                    <text v-if="step.inputSummary" class="process-step-line">输入：{{ step.inputSummary }}</text>
+                    <text v-if="step.outputSummary" class="process-step-line">输出：{{ step.outputSummary }}</text>
+                    <text v-if="step.referenceSummary" class="process-step-line">依据：{{ step.referenceSummary }}</text>
+                  </view>
+                </view>
+              </view>
             </view>
 
             <view v-if="isUserMessage(message)" class="message-avatar user">
@@ -152,12 +189,19 @@ import { computed, nextTick, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
 import { ensureLoggedIn, getProfile } from '@/utils/auth.js'
+import { createSafeAreaTopStyle, getStatusBarHeight } from '@/utils/layout.js'
 
 const rawMessages = ref([])
 const draft = ref('')
 const sending = ref(false)
 const overview = ref(getProfile() || {})
 const expandedReferenceState = ref({})
+const expandedProcessState = ref({})
+const statusBarHeight = getStatusBarHeight()
+const topbarSafeStyle = createSafeAreaTopStyle(0)
+const contentShellStyle = {
+  paddingTop: `${statusBarHeight + 60}px`
+}
 
 // 侧边栏和多会话状态管理
 const showSidebar = ref(false)
@@ -295,6 +339,7 @@ function normalizeMessageItem(message) {
     role: String(message?.role || 'ASSISTANT').toUpperCase(),
     content,
     references: Array.isArray(message?.references) ? message.references : [],
+    executionDetail: message?.executionDetail || null,
     createdAt: message?.createdAt || new Date().toISOString()
   }
 }
@@ -314,6 +359,59 @@ function toggleReferences(message) {
     return
   }
   expandedReferenceState.value[messageId] = !expandedReferenceState.value[messageId]
+}
+
+function isProcessExpanded(message) {
+  return Boolean(expandedProcessState.value[String(message?.id)])
+}
+
+function toggleProcess(message) {
+  const messageId = String(message?.id || '')
+  if (!messageId) {
+    return
+  }
+  expandedProcessState.value[messageId] = !expandedProcessState.value[messageId]
+}
+
+function formatStageName(value) {
+  const map = {
+    PERCEPTION: '感知',
+    GRAPH_RETRIEVAL: '图谱检索',
+    DOCUMENT_RETRIEVAL: '知识检索',
+    RESPONSE_GENERATION: '回答生成',
+    PLAN_GENERATION: '计划生成',
+    PLAN_VALIDATION: '结果校验'
+  }
+  return map[String(value || '').toUpperCase()] || String(value || '处理中')
+}
+
+function formatGenerationMode(value) {
+  const map = {
+    AI_GRAPH_RAG: 'GraphRAG 增强回答',
+    RULE_GRAPH_RAG: '规则兜底回答',
+    AI_AGENT: '多 Agent 生成',
+    RULE_BASED: '规则生成',
+    MIXED: '混合生成'
+  }
+  return map[String(value || '').toUpperCase()] || '智能生成'
+}
+
+function formatExecutionStatus(value) {
+  const map = {
+    SUCCESS: '已完成',
+    FAILED: '失败',
+    RUNNING: '执行中'
+  }
+  return map[String(value || '').toUpperCase()] || String(value || '已完成')
+}
+
+function formatSceneType(value) {
+  const map = {
+    ADVISOR_CHAT: '营养顾问处理链路',
+    MEAL_PLAN_DAILY: '今日计划生成链路',
+    MEAL_PLAN_WEEK: '周计划生成链路'
+  }
+  return map[String(value || '').toUpperCase()] || '智能执行链路'
 }
 
 // 侧边栏：新建对话
@@ -761,6 +859,12 @@ onShow(async () => {
   border-top: 1rpx solid rgba(0, 0, 0, 0.05);
 }
 
+.process-shell {
+  margin-top: 16rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx dashed rgba(15, 23, 42, 0.08);
+}
+
 .reference-toggle {
   display: flex;
   justify-content: space-between;
@@ -776,6 +880,79 @@ onShow(async () => {
 
 .reference-list {
   margin-top: 12rpx;
+}
+
+.process-list {
+  margin-top: 12rpx;
+}
+
+.process-summary-card {
+  padding: 18rpx;
+  border-radius: 14rpx;
+  background: #f8faf9;
+  margin-bottom: 12rpx;
+}
+
+.process-summary-title {
+  display: block;
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--nm-text);
+}
+
+.process-summary-meta {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 22rpx;
+  color: var(--nm-primary);
+}
+
+.process-summary-text {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #64748b;
+}
+
+.process-step-card {
+  padding: 16rpx;
+  border-radius: 14rpx;
+  background: #f8fafc;
+  margin-bottom: 12rpx;
+}
+
+.process-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  margin-bottom: 8rpx;
+  flex-wrap: wrap;
+}
+
+.process-step-order {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--nm-primary);
+}
+
+.process-step-agent {
+  font-size: 24rpx;
+  font-weight: 700;
+  color: var(--nm-text);
+}
+
+.process-step-stage {
+  font-size: 22rpx;
+  color: #64748b;
+}
+
+.process-step-line {
+  display: block;
+  margin-top: 6rpx;
+  font-size: 23rpx;
+  line-height: 1.6;
+  color: #64748b;
 }
 
 .reference-title {

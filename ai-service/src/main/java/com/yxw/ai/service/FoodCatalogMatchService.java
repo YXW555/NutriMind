@@ -36,6 +36,7 @@ public class FoodCatalogMatchService {
     private static final BigDecimal SECONDARY_CONCEPT_BONUS = new BigDecimal("0.12");
     private static final BigDecimal DIRECT_KEYWORD_BONUS = new BigDecimal("0.10");
     private static final BigDecimal DIRECT_ALIAS_BONUS = new BigDecimal("0.08");
+    private static final BigDecimal MAX_BONUS_SCORE = new BigDecimal("0.46");
 
     private static final Map<String, ConceptTemplate> EXACT_CONCEPT_TEMPLATES = Map.ofEntries(
             Map.entry("whitemeat", ConceptTemplate.generic("白肉类", List.of("鸡肉", "鸡胸肉", "鸡腿肉", "禽肉", "鱼肉"))),
@@ -165,9 +166,8 @@ public class FoodCatalogMatchService {
                     continue;
                 }
 
-                BigDecimal score = baseConfidence
-                        .add(searchPlan.bonus())
-                        .add(computeLexicalBonus(food, searchPlan.term()));
+                BigDecimal lexicalBonus = computeLexicalBonus(food, searchPlan.term());
+                BigDecimal score = computeMatchScore(baseConfidence, searchPlan.bonus(), lexicalBonus);
 
                 ScoredFoodMatch current = bestMatches.get(food.getId());
                 if (current == null || current.score().compareTo(score) < 0) {
@@ -498,6 +498,37 @@ public class FoodCatalogMatchService {
             normalized = BigDecimal.ONE;
         }
         return normalized.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal computeMatchScore(BigDecimal baseConfidence,
+                                         BigDecimal searchPlanBonus,
+                                         BigDecimal lexicalBonus) {
+        BigDecimal normalizedBase = normalizeConfidence(baseConfidence);
+        BigDecimal totalBonus = safeBonus(searchPlanBonus).add(safeBonus(lexicalBonus));
+        if (totalBonus.compareTo(MAX_BONUS_SCORE) > 0) {
+            totalBonus = MAX_BONUS_SCORE;
+        }
+
+        BigDecimal bonusRatio = totalBonus
+                .divide(MAX_BONUS_SCORE, 4, RoundingMode.HALF_UP);
+
+        BigDecimal weightedScore = normalizedBase.multiply(new BigDecimal("0.65"))
+                .add(bonusRatio.multiply(new BigDecimal("0.35")));
+
+        if (weightedScore.compareTo(new BigDecimal("0.98")) > 0) {
+            weightedScore = new BigDecimal("0.98");
+        }
+        if (weightedScore.compareTo(new BigDecimal("0.35")) < 0) {
+            weightedScore = new BigDecimal("0.35");
+        }
+        return weightedScore.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal safeBonus(BigDecimal value) {
+        if (value == null || value.compareTo(BigDecimal.ZERO) < 0) {
+            return BigDecimal.ZERO;
+        }
+        return value;
     }
 
     private BigDecimal scoreFallbackConfidence(int index) {

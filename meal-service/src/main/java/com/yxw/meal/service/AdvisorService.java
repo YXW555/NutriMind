@@ -14,6 +14,7 @@ import com.yxw.meal.client.dto.WeightLogSnapshot;
 import com.yxw.meal.dto.AdvisorMessageRequest;
 import com.yxw.meal.dto.AdvisorMessageResponse;
 import com.yxw.meal.dto.AdvisorReferenceResponse;
+import com.yxw.meal.dto.AgentExecutionDetailResponse;
 import com.yxw.meal.entity.AdvisorMessage;
 import com.yxw.meal.entity.MealPlan;
 import com.yxw.meal.entity.MealRecord;
@@ -55,6 +56,8 @@ public class AdvisorService {
     private final UserProfileClient userProfileClient;
     private final NutritionKnowledgeBaseService nutritionKnowledgeBaseService;
     private final MilvusKnowledgeStoreService milvusKnowledgeStoreService;
+    private final FoodGraphContextService foodGraphContextService;
+    private final AgentExecutionLogService agentExecutionLogService;
     private final QwenModelStudioService qwenModelStudioService;
     private final RagProperties ragProperties;
     private final ObjectMapper objectMapper;
@@ -65,6 +68,8 @@ public class AdvisorService {
                           UserProfileClient userProfileClient,
                           NutritionKnowledgeBaseService nutritionKnowledgeBaseService,
                           MilvusKnowledgeStoreService milvusKnowledgeStoreService,
+                          FoodGraphContextService foodGraphContextService,
+                          AgentExecutionLogService agentExecutionLogService,
                           QwenModelStudioService qwenModelStudioService,
                           RagProperties ragProperties,
                           ObjectMapper objectMapper) {
@@ -74,6 +79,8 @@ public class AdvisorService {
         this.userProfileClient = userProfileClient;
         this.nutritionKnowledgeBaseService = nutritionKnowledgeBaseService;
         this.milvusKnowledgeStoreService = milvusKnowledgeStoreService;
+        this.foodGraphContextService = foodGraphContextService;
+        this.agentExecutionLogService = agentExecutionLogService;
         this.qwenModelStudioService = qwenModelStudioService;
         this.ragProperties = ragProperties;
         this.objectMapper = objectMapper;
@@ -109,7 +116,9 @@ public class AdvisorService {
         assistantMessage.setContent(generatedReply.content());
         assistantMessage.setReferencesJson(writeReferences(generatedReply.references()));
         advisorMessageMapper.insert(assistantMessage);
-        return toResponse(assistantMessage);
+        AdvisorMessageResponse response = toResponse(assistantMessage);
+        response.setExecutionDetail(generatedReply.executionDetail());
+        return response;
     }
 
     private void ensureWelcomeMessage(Long userId) {
@@ -127,17 +136,75 @@ public class AdvisorService {
     }
 
     private GeneratedReply generateReply(Long userId, String question, List<AdvisorMessage> recentMessages) {
-        AdvisorContext context = buildContext(userId);
-        String retrievalQuery = buildRetrievalQuery(question, recentMessages, context);
-        List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits = searchKnowledge(retrievalQuery);
-        List<AdvisorReferenceResponse> references = knowledgeHits.stream()
-                .map(this::toReference)
-                .toList();
-        String content = generateWithQwen(question, recentMessages, context, knowledgeHits);
-        if (!StringUtils.hasText(content)) {
-            content = composeReply(question, context, knowledgeHits);
+        AgentExecutionLogService.AgentExecutionTracker tracker = agentExecutionLogService.start(
+                "ADVISOR_CHAT",
+                userId,
+                limitForPrompt(question, 240));
+        try {
+            long perceptionStart = System.currentTimeMillis();
+            AdvisorContext context = buildContext(userId);
+            String retrievalQuery = buildRetrievalQuery(question, recentMessages, context);
+            List<String> anchorFoods = extractAdvisorAnchorFoods(question, recentMessages);
+            tracker.step(
+                    "PerceptionAgent",
+                    "PERCEPTION",
+                    "SUCCESS",
+                    limitForPrompt(question, 240),
+                    "query=" + limitForPrompt(retrievalQuery, 180) + ", anchors=" + String.join(", ", anchorFoods),
+                    buildContextSummary(context),
+                    System.currentTimeMillis() - perceptionStart);
+
+            long graphStart = System.currentTimeMillis();
+            FoodGraphContextService.GraphContext graphContext = foodGraphContextService.buildContext(
+                    retrievalQuery,
+                    anchorFoods,
+                    Math.max(4, resolveKnowledgeLimit()));
+            tracker.step(
+                    "GraphRetrievalAgent",
+                    "GRAPH_RETRIEVAL",
+                    "SUCCESS",
+                    limitForPrompt(retrievalQuery, 180),
+                    limitForPrompt(buildGraphSummary(graphContext), 400),
+                    graphContext == null ? null : String.join(" | ", graphContext.planReferences()),
+                    System.currentTimeMillis() - graphStart);
+
+            long knowledgeStart = System.currentTimeMillis();
+            List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits = searchKnowledge(retrievalQuery);
+            tracker.step(
+                    "KnowledgeRetrievalAgent",
+                    "DOCUMENT_RETRIEVAL",
+                    "SUCCESS",
+                    limitForPrompt(retrievalQuery, 180),
+                    "hits=" + knowledgeHits.size(),
+                    buildKnowledgeTitles(knowledgeHits),
+                    System.currentTimeMillis() - knowledgeStart);
+
+            List<AdvisorReferenceResponse> references = mergeReferences(graphContext, knowledgeHits);
+
+            long generationStart = System.currentTimeMillis();
+            String content = generateWithQwen(question, recentMessages, context, graphContext, knowledgeHits);
+            String generationMode = "AI_GRAPH_RAG";
+            if (!StringUtils.hasText(content)) {
+                content = composeReply(question, context, graphContext, knowledgeHits);
+                generationMode = "RULE_GRAPH_RAG";
+            }
+            tracker.step(
+                    "NutritionAdvisorAgent",
+                    "RESPONSE_GENERATION",
+                    "SUCCESS",
+                    limitForPrompt(question, 240),
+                    limitForPrompt(content, 400),
+                    "references=" + references.size(),
+                    System.currentTimeMillis() - generationStart);
+            tracker.complete("SUCCESS", limitForPrompt(content, 240), generationMode);
+            return new GeneratedReply(
+                    limitMessage(content),
+                    references,
+                    agentExecutionLogService.getExecutionDetail(tracker.getExecutionId()));
+        } catch (RuntimeException exception) {
+            tracker.fail(exception);
+            throw exception;
         }
-        return new GeneratedReply(limitMessage(content), references);
     }
 
     private AdvisorContext buildContext(Long userId) {
@@ -199,6 +266,7 @@ public class AdvisorService {
 
     private String composeReply(String question,
                                 AdvisorContext context,
+                                FoodGraphContextService.GraphContext graphContext,
                                 List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
         List<String> lines = new ArrayList<>();
         lines.add(context.displayName() + "，我把你的最近记录、目标和营养知识库内容一起看了一下。");
@@ -214,7 +282,7 @@ public class AdvisorService {
 
         lines.add("");
         lines.add("更适合你的做法：");
-        List<String> adviceItems = buildAdviceItems(question, context, knowledgeHits);
+        List<String> adviceItems = buildAdviceItems(question, context, graphContext, knowledgeHits);
         for (int index = 0; index < adviceItems.size(); index++) {
             lines.add((index + 1) + ". " + adviceItems.get(index));
         }
@@ -232,9 +300,13 @@ public class AdvisorService {
 
     private List<String> buildAdviceItems(String question,
                                           AdvisorContext context,
+                                          FoodGraphContextService.GraphContext graphContext,
                                           List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
         List<String> items = new ArrayList<>();
         items.add(buildPersonalizedAction(question, context));
+        if (graphContext != null && graphContext.actionHints() != null) {
+            items.addAll(graphContext.actionHints());
+        }
 
         if (context.todayPlan() != null
                 && context.todayPlan().getTotalCalories() != null
@@ -420,6 +492,35 @@ public class AdvisorService {
         return queryBuilder.toString();
     }
 
+    private List<String> extractAdvisorAnchorFoods(String question, List<AdvisorMessage> recentMessages) {
+        LinkedHashSet<String> anchorFoods = new LinkedHashSet<>();
+        collectFoodNames(anchorFoods, question);
+        if (recentMessages != null) {
+            recentMessages.stream()
+                    .filter(message -> "USER".equalsIgnoreCase(message.getRole()))
+                    .map(AdvisorMessage::getContent)
+                    .limit(2)
+                    .forEach(content -> collectFoodNames(anchorFoods, content));
+        }
+        return new ArrayList<>(anchorFoods).stream().limit(6).toList();
+    }
+
+    private void collectFoodNames(Set<String> anchorFoods, String text) {
+        if (!StringUtils.hasText(text)) {
+            return;
+        }
+        String normalized = text.trim();
+        String[] candidates = {
+                "鸡腿", "鸡胸肉", "鸡蛋", "牛肉", "三文鱼", "鱼", "虾", "豆腐", "燕麦", "燕麦片",
+                "米饭", "全麦面包", "牛奶", "酸奶", "西兰花", "黄瓜", "番茄", "苹果", "香蕉"
+        };
+        for (String candidate : candidates) {
+            if (normalized.contains(candidate)) {
+                anchorFoods.add(candidate);
+            }
+        }
+    }
+
     private List<NutritionKnowledgeBaseService.KnowledgeHit> searchKnowledge(String retrievalQuery) {
         int limit = resolveKnowledgeLimit();
         List<NutritionKnowledgeBaseService.KnowledgeHit> milvusHits =
@@ -437,6 +538,7 @@ public class AdvisorService {
     private String generateWithQwen(String question,
                                     List<AdvisorMessage> recentMessages,
                                     AdvisorContext context,
+                                    FoodGraphContextService.GraphContext graphContext,
                                     List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
         if (!ragProperties.isEnabled() || !qwenModelStudioService.isReady()) {
             return null;
@@ -445,7 +547,7 @@ public class AdvisorService {
         try {
             return qwenModelStudioService.generateAdvisorAnswer(
                     buildSystemPrompt(),
-                    buildUserPrompt(question, recentMessages, context, knowledgeHits)
+                    buildUserPrompt(question, recentMessages, context, graphContext, knowledgeHits)
             );
         } catch (RuntimeException exception) {
             log.warn("Advisor fallback: failed to generate answer with Qwen", exception);
@@ -469,6 +571,7 @@ public class AdvisorService {
     private String buildUserPrompt(String question,
                                    List<AdvisorMessage> recentMessages,
                                    AdvisorContext context,
+                                   FoodGraphContextService.GraphContext graphContext,
                                    List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
         StringBuilder prompt = new StringBuilder();
         prompt.append("【用户当前问题】\n")
@@ -477,6 +580,8 @@ public class AdvisorService {
                 .append(buildHistorySummary(recentMessages))
                 .append("\n\n【用户画像与记录】\n")
                 .append(buildContextSummary(context))
+                .append("\n\n[GRAPH_CONTEXT]\n")
+                .append(buildGraphSummary(graphContext))
                 .append("\n\n【检索到的营养知识】\n")
                 .append(buildKnowledgeSummary(knowledgeHits))
                 .append("\n\n请给出一段最终回复，优先结合用户的实际记录和检索知识，先判断问题，再给 2 到 3 条最值得执行的建议；如果有必要，最后补一句风险提醒。");
@@ -551,6 +656,56 @@ public class AdvisorService {
                     + limitForPrompt(firstNonBlank(hit.summary(), hit.excerpt(), "无摘要"), 220));
         }
         return String.join("\n", lines);
+    }
+
+    private String buildGraphSummary(FoodGraphContextService.GraphContext graphContext) {
+        if (graphContext == null || !StringUtils.hasText(graphContext.promptSummary())) {
+            return "No graph relation matched.";
+        }
+        return graphContext.promptSummary();
+    }
+
+    private String buildKnowledgeTitles(List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
+        if (knowledgeHits == null || knowledgeHits.isEmpty()) {
+            return null;
+        }
+        List<String> titles = new ArrayList<>();
+        for (NutritionKnowledgeBaseService.KnowledgeHit knowledgeHit : knowledgeHits) {
+            titles.add(firstNonBlank(knowledgeHit.title(), knowledgeHit.sourceName(), "knowledge-hit"));
+        }
+        return String.join(" | ", titles);
+    }
+
+    private List<AdvisorReferenceResponse> mergeReferences(FoodGraphContextService.GraphContext graphContext,
+                                                           List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
+        List<AdvisorReferenceResponse> merged = new ArrayList<>();
+        Set<String> fingerprints = new LinkedHashSet<>();
+        if (graphContext != null && graphContext.advisorReferences() != null) {
+            for (AdvisorReferenceResponse reference : graphContext.advisorReferences()) {
+                appendReference(merged, fingerprints, reference);
+            }
+        }
+        if (knowledgeHits != null) {
+            for (NutritionKnowledgeBaseService.KnowledgeHit knowledgeHit : knowledgeHits) {
+                appendReference(merged, fingerprints, toReference(knowledgeHit));
+            }
+        }
+        return merged.stream().limit(6).toList();
+    }
+
+    private void appendReference(List<AdvisorReferenceResponse> merged,
+                                 Set<String> fingerprints,
+                                 AdvisorReferenceResponse reference) {
+        if (reference == null) {
+            return;
+        }
+        String fingerprint = String.join("|",
+                safeText(reference.getTitle()),
+                safeText(reference.getSection()),
+                safeText(reference.getSourceName()));
+        if (fingerprints.add(fingerprint)) {
+            merged.add(reference);
+        }
     }
 
     private String limitForPrompt(String text, int maxLength) {
@@ -662,6 +817,10 @@ public class AdvisorService {
         return "你";
     }
 
+    private String safeText(String value) {
+        return StringUtils.hasText(value) ? value.trim() : "";
+    }
+
     private BigDecimal zeroSafe(BigDecimal value) {
         return value == null ? BigDecimal.ZERO : value;
     }
@@ -707,11 +866,14 @@ public class AdvisorService {
                 .role(StringUtils.hasText(message.getRole()) ? message.getRole() : "ASSISTANT")
                 .content(message.getContent())
                 .references(readReferences(message.getReferencesJson()))
+                .executionDetail(null)
                 .createdAt(message.getCreatedAt())
                 .build();
     }
 
-    private record GeneratedReply(String content, List<AdvisorReferenceResponse> references) {
+    private record GeneratedReply(String content,
+                                  List<AdvisorReferenceResponse> references,
+                                  AgentExecutionDetailResponse executionDetail) {
     }
 
     private record AdvisorContext(

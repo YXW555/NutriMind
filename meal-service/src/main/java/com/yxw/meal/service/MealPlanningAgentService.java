@@ -12,6 +12,7 @@ import com.yxw.meal.client.dto.ProfileOverviewSnapshot;
 import com.yxw.meal.config.RagProperties;
 import com.yxw.meal.dto.GeneratedMealPlanResponse;
 import com.yxw.meal.dto.GeneratedMealPlanWeekResponse;
+import com.yxw.meal.dto.AgentExecutionDetailResponse;
 import com.yxw.meal.dto.MealPlanGenerateDailyRequest;
 import com.yxw.meal.dto.MealPlanGenerateWeekRequest;
 import com.yxw.meal.dto.MealPlanItemCommand;
@@ -63,6 +64,8 @@ public class MealPlanningAgentService {
     private final QwenModelStudioService qwenModelStudioService;
     private final MilvusKnowledgeStoreService milvusKnowledgeStoreService;
     private final NutritionKnowledgeBaseService nutritionKnowledgeBaseService;
+    private final FoodGraphContextService foodGraphContextService;
+    private final AgentExecutionLogService agentExecutionLogService;
     private final UserProfileClient userProfileClient;
     private final FoodCatalogClient foodCatalogClient;
     private final MealPlanService mealPlanService;
@@ -72,6 +75,8 @@ public class MealPlanningAgentService {
                                     QwenModelStudioService qwenModelStudioService,
                                     MilvusKnowledgeStoreService milvusKnowledgeStoreService,
                                     NutritionKnowledgeBaseService nutritionKnowledgeBaseService,
+                                    FoodGraphContextService foodGraphContextService,
+                                    AgentExecutionLogService agentExecutionLogService,
                                     UserProfileClient userProfileClient,
                                     FoodCatalogClient foodCatalogClient,
                                     MealPlanService mealPlanService,
@@ -80,6 +85,8 @@ public class MealPlanningAgentService {
         this.qwenModelStudioService = qwenModelStudioService;
         this.milvusKnowledgeStoreService = milvusKnowledgeStoreService;
         this.nutritionKnowledgeBaseService = nutritionKnowledgeBaseService;
+        this.foodGraphContextService = foodGraphContextService;
+        this.agentExecutionLogService = agentExecutionLogService;
         this.userProfileClient = userProfileClient;
         this.foodCatalogClient = foodCatalogClient;
         this.mealPlanService = mealPlanService;
@@ -89,7 +96,7 @@ public class MealPlanningAgentService {
     public Object generateDaily(Long userId, MealPlanGenerateDailyRequest request) {
         boolean saveDraft = Boolean.TRUE.equals(request.getSaveDraft());
         PlanContext context = loadPlanContext();
-        PlanningDraft draft = generatePlanningDraft(context, request.getPlanDate(), request.getPreference(), 0, List.of());
+        PlanningDraft draft = generatePlanningDraft(userId, "MEAL_PLAN_DAILY", context, request.getPlanDate(), request.getPreference(), 0, List.of());
         MealPlanSaveRequest saveRequest = toSaveRequest(request.getPlanDate(), draft);
 
         if (saveDraft) {
@@ -111,7 +118,7 @@ public class MealPlanningAgentService {
 
         for (int i = 0; i < 7; i++) {
             LocalDate planDate = weekStart.plusDays(i);
-            PlanningDraft draft = generatePlanningDraft(context, planDate, request.getPreference(), i, recentFoodNames);
+            PlanningDraft draft = generatePlanningDraft(userId, "MEAL_PLAN_WEEK", context, planDate, request.getPreference(), i, recentFoodNames);
             MealPlanSaveRequest saveRequest = toSaveRequest(planDate, draft);
             if (saveDraft) {
                 mealPlanService.saveDailyPlan(userId, saveRequest);
@@ -135,24 +142,109 @@ public class MealPlanningAgentService {
                 .build();
     }
 
-    private PlanningDraft generatePlanningDraft(PlanContext context,
+    private PlanningDraft generatePlanningDraft(Long userId,
+                                                String sceneType,
+                                                PlanContext context,
                                                 LocalDate planDate,
                                                 String preference,
                                                 int dayIndex,
                                                 List<String> recentFoodNames) {
-        CandidateFoodPool pool = buildCandidateFoodPool(context, preference);
-        List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits = searchKnowledge(buildKnowledgeQuery(context, preference), 4);
-        PlanningDraft aiDraft = tryGenerateWithAi(context, planDate, preference, pool, knowledgeHits, recentFoodNames);
-        if (isUsableDraft(aiDraft)) {
-            return aiDraft;
+        AgentExecutionLogService.AgentExecutionTracker tracker = agentExecutionLogService.start(
+                sceneType,
+                userId,
+                limit(planDate + " " + nullToEmpty(preference), 240));
+        try {
+            long perceptionStart = System.currentTimeMillis();
+            CandidateFoodPool pool = buildCandidateFoodPool(context, preference);
+            String knowledgeQuery = buildKnowledgeQuery(context, preference);
+            List<String> anchorFoods = collectPlanAnchorFoods(pool, recentFoodNames);
+            tracker.step(
+                    "PerceptionAgent",
+                    "PERCEPTION",
+                    "SUCCESS",
+                    limit(knowledgeQuery, 240),
+                    "anchors=" + String.join(", ", anchorFoods),
+                    "goal=" + resolveGoalLabel(context.goalType()),
+                    System.currentTimeMillis() - perceptionStart);
+
+            long graphStart = System.currentTimeMillis();
+            FoodGraphContextService.GraphContext graphContext = foodGraphContextService.buildContext(
+                    knowledgeQuery,
+                    anchorFoods,
+                    6);
+            tracker.step(
+                    "GraphRetrievalAgent",
+                    "GRAPH_RETRIEVAL",
+                    "SUCCESS",
+                    limit(knowledgeQuery, 240),
+                    limit(graphContext == null ? null : graphContext.promptSummary(), 400),
+                    graphContext == null ? null : String.join(" | ", graphContext.planReferences()),
+                    System.currentTimeMillis() - graphStart);
+
+            long knowledgeStart = System.currentTimeMillis();
+            List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits = searchKnowledge(knowledgeQuery, 4);
+            tracker.step(
+                    "KnowledgeRetrievalAgent",
+                    "DOCUMENT_RETRIEVAL",
+                    "SUCCESS",
+                    limit(knowledgeQuery, 240),
+                    "hits=" + knowledgeHits.size(),
+                    buildKnowledgeReferenceSummary(knowledgeHits),
+                    System.currentTimeMillis() - knowledgeStart);
+
+            long generationStart = System.currentTimeMillis();
+            PlanningDraft aiDraft = tryGenerateWithAi(context, planDate, preference, pool, graphContext, knowledgeHits, recentFoodNames);
+            if (isUsableDraft(aiDraft)) {
+                tracker.step(
+                        "PlanningAgent",
+                        "PLAN_GENERATION",
+                        "SUCCESS",
+                        limit(knowledgeQuery, 240),
+                        limit(aiDraft.summary(), 300),
+                        String.join(" | ", aiDraft.references()),
+                        System.currentTimeMillis() - generationStart);
+                tracker.step(
+                        "VerificationAgent",
+                        "PLAN_VALIDATION",
+                        "SUCCESS",
+                        "items=" + aiDraft.items().size(),
+                        limit(aiDraft.notes(), 240),
+                        null,
+                        0L);
+                tracker.complete("SUCCESS", limit(aiDraft.summary(), 240), aiDraft.generationMode());
+                return withExecutionDetail(aiDraft, agentExecutionLogService.getExecutionDetail(tracker.getExecutionId()));
+            }
+
+            PlanningDraft draft = buildRuleBasedDraft(context, planDate, preference, dayIndex, pool, graphContext, knowledgeHits, recentFoodNames);
+            tracker.step(
+                    "PlanningAgent",
+                    "PLAN_GENERATION",
+                    "SUCCESS",
+                    limit(knowledgeQuery, 240),
+                    limit(draft.summary(), 300),
+                    String.join(" | ", draft.references()),
+                    System.currentTimeMillis() - generationStart);
+            tracker.step(
+                    "VerificationAgent",
+                    "PLAN_VALIDATION",
+                    "SUCCESS",
+                    "items=" + draft.items().size(),
+                    limit(draft.notes(), 240),
+                    null,
+                    0L);
+            tracker.complete("SUCCESS", limit(draft.summary(), 240), draft.generationMode());
+            return withExecutionDetail(draft, agentExecutionLogService.getExecutionDetail(tracker.getExecutionId()));
+        } catch (RuntimeException exception) {
+            tracker.fail(exception);
+            throw exception;
         }
-        return buildRuleBasedDraft(context, planDate, preference, dayIndex, pool, knowledgeHits, recentFoodNames);
     }
 
     private PlanningDraft tryGenerateWithAi(PlanContext context,
                                             LocalDate planDate,
                                             String preference,
                                             CandidateFoodPool pool,
+                                            FoodGraphContextService.GraphContext graphContext,
                                             List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits,
                                             List<String> recentFoodNames) {
         if (!ragProperties.isEnabled() || !qwenModelStudioService.isReady()) {
@@ -160,9 +252,9 @@ public class MealPlanningAgentService {
         }
 
         try {
-            String prompt = buildDailyPlannerPrompt(context, planDate, preference, pool, knowledgeHits, recentFoodNames);
+            String prompt = buildDailyPlannerPrompt(context, planDate, preference, pool, graphContext, knowledgeHits, recentFoodNames);
             JsonNode draft = callPlannerModel(prompt);
-            return toPlanningDraft(draft, context, planDate, pool, knowledgeHits);
+            return toPlanningDraft(draft, context, planDate, pool, graphContext, knowledgeHits);
         } catch (Exception exception) {
             log.warn("Meal planning agent fallback to rule-based generator", exception);
             return null;
@@ -193,6 +285,7 @@ public class MealPlanningAgentService {
                                           PlanContext context,
                                           LocalDate planDate,
                                           CandidateFoodPool pool,
+                                          FoodGraphContextService.GraphContext graphContext,
                                           List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
         if (draft == null || !draft.has("items") || !draft.get("items").isArray()) {
             return null;
@@ -229,10 +322,11 @@ public class MealPlanningAgentService {
                 firstNonBlank(textOrNull(draft, "title"), buildPlanTitle(context, planDate, true)),
                 firstNonBlank(textOrNull(draft, "notes"), buildPlanNotes(context, null, true)),
                 firstNonBlank(textOrNull(draft, "summary"), buildPlanSummary(context, items, true)),
-                uniqueStrings(readStringList(draft, "tips"), 3),
+                mergePlanHints(uniqueStrings(readStringList(draft, "tips"), 3), graphContext),
                 uniqueStrings(readStringList(draft, "warnings"), 3),
-                toReferenceList(knowledgeHits),
-                items
+                mergePlanReferences(graphContext, knowledgeHits),
+                items,
+                null
         );
     }
 
@@ -241,6 +335,7 @@ public class MealPlanningAgentService {
                                               String preference,
                                               int dayIndex,
                                               CandidateFoodPool pool,
+                                              FoodGraphContextService.GraphContext graphContext,
                                               List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits,
                                               List<String> recentFoodNames) {
         Set<Long> usedFoodIds = new LinkedHashSet<>();
@@ -283,10 +378,11 @@ public class MealPlanningAgentService {
                 buildPlanTitle(context, planDate, false),
                 buildPlanNotes(context, preference, false),
                 buildPlanSummary(context, items, false),
-                buildPlanTips(context, preference, knowledgeHits),
+                buildPlanTips(context, preference, graphContext, knowledgeHits),
                 buildWarnings(context),
-                toReferenceList(knowledgeHits),
-                reIndex(items)
+                mergePlanReferences(graphContext, knowledgeHits),
+                reIndex(items),
+                null
         );
     }
 
@@ -381,6 +477,7 @@ public class MealPlanningAgentService {
                                            LocalDate planDate,
                                            String preference,
                                            CandidateFoodPool pool,
+                                           FoodGraphContextService.GraphContext graphContext,
                                            List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits,
                                            List<String> recentFoodNames) {
         StringBuilder builder = new StringBuilder();
@@ -435,6 +532,10 @@ public class MealPlanningAgentService {
         builder.append("\n【主食候选】").append(joinFoodNames(pool.carbs()));
         builder.append("\n【蔬菜候选】").append(joinFoodNames(pool.vegetables()));
         builder.append("\n【加餐候选】").append(joinFoodNames(pool.snacks()));
+
+        if (graphContext != null && StringUtils.hasText(graphContext.promptSummary())) {
+            builder.append("\n\n[GRAPH_RELATIONS]\n").append(graphContext.promptSummary());
+        }
 
         if (!knowledgeHits.isEmpty()) {
             builder.append("\n\n【营养知识要点】\n");
@@ -550,8 +651,26 @@ public class MealPlanningAgentService {
                 .tips(uniqueStrings(draft.tips(), 3))
                 .warnings(mergeWarnings(draft.warnings(), context, calorieGap, proteinGap))
                 .references(uniqueStrings(draft.references(), 4))
+                .executionDetail(draft.executionDetail())
                 .items(items)
                 .build();
+    }
+
+    private PlanningDraft withExecutionDetail(PlanningDraft draft, AgentExecutionDetailResponse executionDetail) {
+        if (draft == null) {
+            return null;
+        }
+        return new PlanningDraft(
+                draft.generationMode(),
+                draft.title(),
+                draft.notes(),
+                draft.summary(),
+                draft.tips(),
+                draft.warnings(),
+                draft.references(),
+                draft.items(),
+                executionDetail
+        );
     }
 
     private MealPlanSaveRequest toSaveRequest(LocalDate planDate, PlanningDraft draft) {
@@ -764,6 +883,7 @@ public class MealPlanningAgentService {
 
     private List<String> buildPlanTips(PlanContext context,
                                        String preference,
+                                       FoodGraphContextService.GraphContext graphContext,
                                        List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
         List<String> tips = new ArrayList<>();
         if ("FAT_LOSS".equalsIgnoreCase(context.goalType())) {
@@ -776,6 +896,9 @@ public class MealPlanningAgentService {
         tips.add("每餐尽量保留一种优质蛋白，计划执行会更稳。");
         if (StringUtils.hasText(preference)) {
             tips.add("今天的偏好已纳入规划，执行时优先按计划主框架走。");
+        }
+        if (graphContext != null && graphContext.planHints() != null) {
+            tips.addAll(graphContext.planHints());
         }
         if (!knowledgeHits.isEmpty()) {
             tips.add(knowledgeHits.get(0).summary());
@@ -837,6 +960,60 @@ public class MealPlanningAgentService {
         return "本周计划从周一到周日覆盖 7 天，围绕“" + resolveGoalLabel(context.goalType())
                 + "”目标做了多样化安排，平均每日约 " + formatDecimal(avgCalories) + " 千卡、"
                 + formatDecimal(avgProtein) + " 克蛋白。";
+    }
+
+    private List<String> collectPlanAnchorFoods(CandidateFoodPool pool, List<String> recentFoodNames) {
+        LinkedHashSet<String> anchors = new LinkedHashSet<>();
+        addFoodNames(anchors, pool.breakfastStaples());
+        addFoodNames(anchors, pool.breakfastProteins());
+        addFoodNames(anchors, pool.proteins());
+        addFoodNames(anchors, pool.carbs());
+        addFoodNames(anchors, pool.vegetables());
+        if (recentFoodNames != null) {
+            recentFoodNames.stream()
+                    .filter(StringUtils::hasText)
+                    .map(String::trim)
+                    .forEach(anchors::add);
+        }
+        return new ArrayList<>(anchors).stream().limit(8).toList();
+    }
+
+    private void addFoodNames(Set<String> anchors, List<FoodNutritionSnapshot> foods) {
+        if (foods == null) {
+            return;
+        }
+        foods.stream()
+                .filter(Objects::nonNull)
+                .map(FoodNutritionSnapshot::getName)
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .limit(3)
+                .forEach(anchors::add);
+    }
+
+    private List<String> mergePlanHints(List<String> tips, FoodGraphContextService.GraphContext graphContext) {
+        List<String> merged = new ArrayList<>(tips == null ? List.of() : tips);
+        if (graphContext != null && graphContext.planHints() != null) {
+            merged.addAll(graphContext.planHints());
+        }
+        return uniqueStrings(merged, 4);
+    }
+
+    private List<String> mergePlanReferences(FoodGraphContextService.GraphContext graphContext,
+                                             List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
+        List<String> references = new ArrayList<>();
+        if (graphContext != null && graphContext.planReferences() != null) {
+            references.addAll(graphContext.planReferences());
+        }
+        references.addAll(toReferenceList(knowledgeHits));
+        return uniqueStrings(references, 6);
+    }
+
+    private String buildKnowledgeReferenceSummary(List<NutritionKnowledgeBaseService.KnowledgeHit> knowledgeHits) {
+        if (knowledgeHits == null || knowledgeHits.isEmpty()) {
+            return null;
+        }
+        return String.join(" | ", toReferenceList(knowledgeHits));
     }
 
     private String resolveWeekGenerationMode(Set<String> modes) {
@@ -1139,7 +1316,8 @@ public class MealPlanningAgentService {
             List<String> tips,
             List<String> warnings,
             List<String> references,
-            List<PlannedItem> items
+            List<PlannedItem> items,
+            AgentExecutionDetailResponse executionDetail
     ) {
     }
 }

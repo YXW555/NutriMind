@@ -32,3 +32,4 @@ model/**/*.h5
 model/**/*.ckpt
 model/**/*.pt
 model/**/*.pth
+.m2/

@@ -3,6 +3,8 @@ package com.yxw.meal.client;
 import com.yxw.common.core.ApiResponse;
 import com.yxw.common.core.PageResponse;
 import com.yxw.common.core.dto.FoodNutritionSnapshot;
+import com.yxw.meal.client.dto.FoodGraphProfileSnapshot;
+import com.yxw.meal.client.dto.FoodGraphRelationSnapshot;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,12 @@ public class FoodCatalogClient {
             };
 
     private static final ParameterizedTypeReference<ApiResponse<PageResponse<FoodNutritionSnapshot>>> FOOD_PAGE_RESPONSE_TYPE =
+            new ParameterizedTypeReference<>() {
+            };
+    private static final ParameterizedTypeReference<ApiResponse<List<FoodGraphRelationSnapshot>>> GRAPH_RELATION_LIST_RESPONSE_TYPE =
+            new ParameterizedTypeReference<>() {
+            };
+    private static final ParameterizedTypeReference<ApiResponse<FoodGraphProfileSnapshot>> GRAPH_PROFILE_RESPONSE_TYPE =
             new ParameterizedTypeReference<>() {
             };
 
@@ -86,5 +94,41 @@ public class FoodCatalogClient {
             }
         }
         return candidates.get(0);
+    }
+
+    public List<FoodGraphRelationSnapshot> listGraphRelations(String keyword, String relationType, int size) {
+        ApiResponse<List<FoodGraphRelationSnapshot>> response = foodServiceRestClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder.path("/foods/graph/relations")
+                            .queryParam("size", Math.max(1, size));
+                    if (StringUtils.hasText(keyword)) {
+                        builder.queryParam("keyword", keyword.trim());
+                    }
+                    if (StringUtils.hasText(relationType)) {
+                        builder.queryParam("relationType", relationType.trim());
+                    }
+                    return builder.build();
+                })
+                .retrieve()
+                .body(GRAPH_RELATION_LIST_RESPONSE_TYPE);
+
+        if (response == null || response.getCode() == null || response.getCode() != 200 || response.getData() == null) {
+            return Collections.emptyList();
+        }
+        return response.getData();
+    }
+
+    public FoodGraphProfileSnapshot getFoodGraphProfile(Long foodId, int size) {
+        ApiResponse<FoodGraphProfileSnapshot> response = foodServiceRestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/foods/{id}/graph")
+                        .queryParam("size", Math.max(1, size))
+                        .build(foodId))
+                .retrieve()
+                .body(GRAPH_PROFILE_RESPONSE_TYPE);
+
+        if (response == null || response.getCode() == null || response.getCode() != 200 || response.getData() == null) {
+            throw new IllegalArgumentException("failed to fetch food graph profile: " + foodId);
+        }
+        return response.getData();
     }
 }

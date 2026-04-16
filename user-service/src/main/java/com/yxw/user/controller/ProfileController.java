@@ -27,7 +27,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
@@ -59,7 +59,7 @@ public class ProfileController {
     }
 
     @PostMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ApiResponse<AvatarUploadResponse> uploadAvatar(@RequestPart("file") MultipartFile file) {
+    public ApiResponse<AvatarUploadResponse> uploadAvatar(@RequestParam("file") MultipartFile file) {
         Long currentUserId = SecurityContextUtils.requireCurrentUserId();
         String avatarUrl = profileAvatarMediaService.storeAvatar(file);
         profileService.saveAvatar(currentUserId, avatarUrl);

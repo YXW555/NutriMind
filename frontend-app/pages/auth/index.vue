@@ -1,10 +1,9 @@
-<template>
-  <view class="page">
+﻿<template>
+  <view class="page" :style="pageSafeStyle">
     <view class="auth-shell">
       <view class="auth-card">
         <view class="auth-brand">
           <image class="brand-icon-image" src="/static/logo.png" mode="aspectFit"></image>
-          
           <view class="brand-copy">
             <text class="brand-title">知食分子</text>
             <text class="brand-subtitle">你的智能营养顾问</text>
@@ -20,13 +19,13 @@
           <view class="field-block">
             <view class="field-head">
               <text class="field-label">{{ mode === 'login' ? '账号' : '用户名' }}</text>
-              <text v-if="mode === 'register'" class="field-tip">4-20 位</text>
+              <text v-if="mode === 'register'" class="field-tip">4-20 位字母、数字或下划线</text>
             </view>
             <input
               v-model="form.username"
               class="field-input"
               maxlength="32"
-              :placeholder="mode === 'login' ? '请输入用户名、邮箱或手机号' : '请输入用户名'"
+              :placeholder="mode === 'login' ? '请输入用户名或邮箱' : '请输入用户名'"
               confirm-type="next"
               cursor-spacing="24"
               adjust-position
@@ -42,44 +41,26 @@
             </text>
           </view>
 
-          <view v-if="mode === 'register'" class="field-grid">
-            <view class="field-block compact">
-              <view class="field-head">
-                <text class="field-label">邮箱</text>
-                <text class="field-tip">选填</text>
-              </view>
-              <input
-                v-model="form.email"
-                class="field-input"
-                maxlength="64"
-                placeholder="请输入邮箱地址"
-                confirm-type="next"
-                cursor-spacing="24"
-                adjust-position
-              />
+          <view v-if="mode === 'register'" class="field-block">
+            <view class="field-head">
+              <text class="field-label">邮箱</text>
+              <text class="field-tip">必填</text>
             </view>
-
-            <view class="field-block compact">
-              <view class="field-head">
-                <text class="field-label">手机号</text>
-                <text class="field-tip">选填</text>
-              </view>
-              <input
-                v-model="form.phone"
-                class="field-input"
-                maxlength="20"
-                placeholder="请输入常用手机号"
-                confirm-type="next"
-                cursor-spacing="24"
-                adjust-position
-              />
-            </view>
+            <input
+              v-model="form.email"
+              class="field-input"
+              maxlength="64"
+              placeholder="请输入邮箱地址"
+              confirm-type="next"
+              cursor-spacing="24"
+              adjust-position
+            />
           </view>
 
           <view v-if="mode === 'register'" class="field-block">
             <view class="field-head">
-              <text class="field-label">验证码</text>
-              <text class="field-tip">如有填手机/邮箱</text>
+              <text class="field-label">邮箱验证码</text>
+              <text class="field-tip">发送到上方邮箱</text>
             </view>
             <view class="verify-wrap">
               <input
@@ -87,14 +68,14 @@
                 class="field-input verify-input"
                 maxlength="6"
                 type="number"
-                placeholder="请输入6位验证码"
+                placeholder="请输入 6 位验证码"
                 confirm-type="next"
                 cursor-spacing="24"
                 adjust-position
               />
-              <text 
-                class="verify-action" 
-                :class="{ disabled: countdown > 0 }" 
+              <text
+                class="verify-action"
+                :class="{ disabled: countdown > 0 }"
                 @click="sendVerifyCode"
               >
                 {{ countdown > 0 ? `${countdown}s 后重新获取` : '获取验证码' }}
@@ -113,7 +94,7 @@
                 class="field-input password-input"
                 :password="!showPassword"
                 maxlength="32"
-                :placeholder="mode === 'login' ? '请输入密码' : '设置登录密码'"
+                placeholder="请输入密码"
                 confirm-type="next"
                 cursor-spacing="24"
                 adjust-position
@@ -123,7 +104,7 @@
                 {{ showPassword ? '隐藏' : '显示' }}
               </text>
             </view>
-            
+
             <view v-if="mode === 'login'" class="action-row">
               <text class="forgot-link" @click="handleForgotPwd">忘记密码？</text>
             </view>
@@ -175,27 +156,26 @@
 </template>
 
 <script setup>
-import { computed, ref, onUnmounted } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
-// 增加引入 setFirstLoginFlag 函数 (需要你稍后在 auth.js 中定义它)
-import { clearSession, isLoggedIn, openHomePage, saveSession, setToken, setFirstLoginFlag } from '@/utils/auth.js'
+import { createSafeAreaTopStyle } from '@/utils/layout.js'
+import { clearSession, isLoggedIn, openHomePage, saveSession, setFirstLoginFlag, setToken } from '@/utils/auth.js'
 
 const USERNAME_PATTERN = /^[A-Za-z0-9_]{4,20}$/
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/
-const PHONE_PATTERN = /^\+?[0-9-]{7,20}$/
 
 const mode = ref('login')
 const submitting = ref(false)
 const checkingUsername = ref(false)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
-const form = ref(createEmptyForm())
-const usernameStatus = ref(createUsernameStatus())
-
-// 状态：协议勾选与倒计时
 const agreedToTerms = ref(false)
 const countdown = ref(0)
+const form = ref(createEmptyForm())
+const usernameStatus = ref(createUsernameStatus())
+const pageSafeStyle = createSafeAreaTopStyle(20)
+
 let timer = null
 
 const submitLabel = computed(() => {
@@ -204,6 +184,7 @@ const submitLabel = computed(() => {
   }
   return mode.value === 'login' ? '登录' : '注册'
 })
+
 const submitDisabled = computed(() => submitting.value || (mode.value === 'register' && checkingUsername.value))
 
 function createEmptyForm() {
@@ -212,7 +193,6 @@ function createEmptyForm() {
     password: '',
     confirmPassword: '',
     email: '',
-    phone: '',
     verifyCode: ''
   }
 }
@@ -230,7 +210,6 @@ function resetForm() {
   usernameStatus.value = createUsernameStatus()
   showPassword.value = false
   showConfirmPassword.value = false
-  // 重置模式时不重置协议勾选，体验更好
 }
 
 function switchMode(nextMode) {
@@ -281,7 +260,7 @@ async function ensureUsernameAvailable() {
     usernameStatus.value = {
       checked: true,
       available: Boolean(response?.available),
-      message: response?.available ? '用户名可用，可以继续注册。' : '这个用户名已被占用，换一个会更稳。'
+      message: response?.available ? '用户名可用，可以继续注册。' : '这个用户名已经被占用，换一个更稳妥。'
     }
     return Boolean(response?.available)
   } catch (error) {
@@ -297,41 +276,53 @@ async function ensureUsernameAvailable() {
   }
 }
 
-// 发送验证码逻辑
-function sendVerifyCode() {
-  if (countdown.value > 0) return
-  
-  const email = form.value.email.trim()
-  const phone = form.value.phone.trim()
-  
-  if (!email && !phone) {
-    uni.showToast({ title: '请先填写手机号或邮箱', icon: 'none' })
+function clearCountdown() {
+  if (!timer) {
+    return
+  }
+  clearInterval(timer)
+  timer = null
+}
+
+async function sendVerifyCode() {
+  if (countdown.value > 0) {
     return
   }
 
-  // 此处可调用后端发送验证码接口：await request.post('/auth/send-code', { email, phone })
-  uni.showToast({ title: '验证码已发送，请注意查收', icon: 'none' })
-  
-  countdown.value = 60
-  timer = setInterval(() => {
-    countdown.value--
-    if (countdown.value <= 0) {
-      clearInterval(timer)
-    }
-  }, 1000)
+  const email = form.value.email.trim()
+  if (!email) {
+    uni.showToast({ title: '请先填写邮箱', icon: 'none' })
+    return
+  }
+  if (!EMAIL_PATTERN.test(email)) {
+    uni.showToast({ title: '邮箱格式不正确', icon: 'none' })
+    return
+  }
+
+  try {
+    await request.post('/auth/send-code', { email })
+    uni.showToast({ title: '验证码已发送，请注意查收', icon: 'none' })
+    countdown.value = 60
+    clearCountdown()
+    timer = setInterval(() => {
+      countdown.value -= 1
+      if (countdown.value <= 0) {
+        countdown.value = 0
+        clearCountdown()
+      }
+    }, 1000)
+  } catch (error) {
+    console.log('send verify code failed', error)
+  }
 }
 
-// 忘记密码点击跳转
 function handleForgotPwd() {
   uni.showToast({ title: '忘记密码功能开发中', icon: 'none' })
-  // uni.navigateTo({ url: '/pages/auth/forgot' })
 }
 
-// 打开协议
 function openAgreement(type) {
   const title = type === 'terms' ? '用户协议' : '隐私政策'
   uni.showToast({ title: `查看${title}`, icon: 'none' })
-  // 实际可跳转webview或富文本页面
 }
 
 function validateLoginForm() {
@@ -353,7 +344,6 @@ function validateLoginForm() {
 function validateRegisterForm() {
   const username = form.value.username.trim()
   const email = form.value.email.trim()
-  const phone = form.value.phone.trim()
   const password = form.value.password.trim()
   const confirmPassword = form.value.confirmPassword.trim()
   const verifyCode = form.value.verifyCode.trim()
@@ -365,16 +355,16 @@ function validateRegisterForm() {
     })
     return null
   }
-  if (email && !EMAIL_PATTERN.test(email)) {
+  if (!email) {
     uni.showToast({
-      title: '邮箱格式不正确',
+      title: '请填写邮箱并完成验证',
       icon: 'none'
     })
     return null
   }
-  if (phone && !PHONE_PATTERN.test(phone)) {
+  if (!EMAIL_PATTERN.test(email)) {
     uni.showToast({
-      title: '手机号格式不正确',
+      title: '邮箱格式不正确',
       icon: 'none'
     })
     return null
@@ -393,13 +383,19 @@ function validateRegisterForm() {
     })
     return null
   }
+  if (!verifyCode) {
+    uni.showToast({
+      title: '请输入邮箱验证码',
+      icon: 'none'
+    })
+    return null
+  }
 
   return {
     username,
     password,
     confirmPassword,
     email,
-    phone,
     verifyCode
   }
 }
@@ -409,7 +405,6 @@ async function submitAuth() {
     return
   }
 
-  // 提交前必须勾选协议拦截
   if (!agreedToTerms.value) {
     uni.showToast({
       title: '请先阅读并同意用户协议与隐私政策',
@@ -418,9 +413,7 @@ async function submitAuth() {
     return
   }
 
-  const payload = mode.value === 'login'
-    ? validateLoginForm()
-    : validateRegisterForm()
+  const payload = mode.value === 'login' ? validateLoginForm() : validateRegisterForm()
   if (!payload) {
     return
   }
@@ -445,10 +438,8 @@ async function submitAuth() {
     setToken(authResponse.token)
     const profile = await request.get('/auth/me')
     saveSession(authResponse.token, profile)
-    
-    // 【核心修改点】判断是否需要弹出科普引导
-    // 如果是刚注册，必然是首次。如果是登录，检查后端是否返回了类似 isFirstLogin 的标志。
-    if (mode.value === 'register' || authResponse.isFirstLogin) {
+
+    if (mode.value === 'login') {
       if (typeof setFirstLoginFlag === 'function') {
         setFirstLoginFlag(true)
       }
@@ -477,19 +468,17 @@ onShow(() => {
   }
 })
 
-// 组件卸载时清理定时器
 onUnmounted(() => {
-  if (timer) clearInterval(timer)
+  clearCountdown()
 })
 </script>
-
 <style scoped>
 .page {
   min-height: 100vh;
-  padding: 44rpx 28rpx 56rpx;
+  padding: calc(env(safe-area-inset-top) + 44rpx) 28rpx 56rpx;
   background: linear-gradient(180deg, #fbfefc 0%, #eef7f1 100%);
   display: flex;
-  align-items: center; /* 让内容在整个屏幕垂直居中更好看 */
+  align-items: center;
 }
 
 .auth-shell {
@@ -502,10 +491,10 @@ onUnmounted(() => {
 .auth-card {
   width: 100%;
   max-width: 760rpx;
-  padding: 60rpx 40rpx 40rpx; 
+  padding: 60rpx 40rpx 40rpx;
   background: rgba(255, 255, 255, 0.98);
-  border-radius: 32rpx; 
-  box-shadow: 0 16rpx 48rpx rgba(47, 125, 107, 0.08); 
+  border-radius: 32rpx;
+  box-shadow: 0 16rpx 48rpx rgba(47, 125, 107, 0.08);
   border: 1rpx solid rgba(47, 125, 107, 0.05);
 }
 
@@ -528,10 +517,10 @@ onUnmounted(() => {
 }
 
 .brand-icon-image {
-  width: 160rpx; /* 控制图片宽度 */
-  height: 160rpx; /* 控制图片高度 */
-  border-radius: 36rpx; /* 给图片加一点圆角，如果你的图本来就是圆的或者透明的，这个属性不影响 */
-  box-shadow: 0 8rpx 24rpx rgba(47, 125, 107, 0.15); /* 加一点阴影让Logo更立体，不需要可以删掉 */
+  width: 160rpx;
+  height: 160rpx;
+  border-radius: 36rpx;
+  box-shadow: 0 8rpx 24rpx rgba(47, 125, 107, 0.15);
 }
 
 .brand-copy {
@@ -567,7 +556,7 @@ onUnmounted(() => {
   padding: 8rpx;
   border-radius: 18rpx;
   background: var(--nm-surface);
-  margin-bottom: 12rpx; 
+  margin-bottom: 12rpx;
 }
 
 .mode-chip {
@@ -584,7 +573,6 @@ onUnmounted(() => {
 .mode-chip.active {
   background: var(--nm-primary);
   color: #ffffff;
-  box-shadow: none;
 }
 
 .field-list {
@@ -659,7 +647,6 @@ onUnmounted(() => {
   color: var(--nm-primary);
 }
 
-/* 验证码输入框及按钮样式 */
 .verify-wrap {
   position: relative;
   display: flex;
@@ -685,7 +672,6 @@ onUnmounted(() => {
   font-weight: 400;
 }
 
-/* 忘记密码行样式 */
 .action-row {
   display: flex;
   justify-content: flex-end;
@@ -709,7 +695,6 @@ onUnmounted(() => {
   color: var(--nm-danger);
 }
 
-/* 协议勾选框区域样式 */
 .agreement-wrap {
   display: flex;
   align-items: flex-start;
@@ -791,3 +776,5 @@ onUnmounted(() => {
   }
 }
 </style>
+
+

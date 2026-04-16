@@ -1,6 +1,6 @@
 <template>
   <view class="page">
-    <view class="nav-sticky">
+    <view class="nav-sticky" :style="navSafeStyle">
       <view class="search-bar">
         <view class="search-inner">
           <text class="search-icon">🔍</text>
@@ -131,11 +131,13 @@ import request from '@/utils/request.js'
 import { getApiBaseUrl } from '@/utils/config.js'
 import { ensureLoggedIn } from '@/utils/auth.js'
 import { formatRelativeTime } from '@/utils/format.js'
+import { createSafeAreaTopStyle } from '@/utils/layout.js'
 
 const tags = ['关注', '广场', '减脂', '增肌', '素食', '快手菜']
 const keyword = ref('')
 const activeTag = ref('广场')
 const posts = ref([])
+const navSafeStyle = createSafeAreaTopStyle(12)
 
 // 将帖子列表分成左右两列
 const leftPosts = computed(() => posts.value.filter((_, i) => i % 2 === 0))
@@ -222,7 +224,7 @@ onShow(() => { loadPosts() })
   top: 0;
   z-index: 100;
   background-color: #F7F8FA;
-  padding-top: 20rpx;
+  padding-top: calc(env(safe-area-inset-top) + 20rpx);
   padding-bottom: 10rpx;
 }
 

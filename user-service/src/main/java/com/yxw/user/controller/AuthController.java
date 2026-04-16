@@ -7,7 +7,9 @@ import com.yxw.user.dto.AuthAvailabilityResponse;
 import com.yxw.user.dto.AuthRequest;
 import com.yxw.user.dto.AuthResponse;
 import com.yxw.user.dto.UserProfileResponse;
+import com.yxw.user.dto.VerificationCodeSendRequest;
 import com.yxw.user.entity.UserAccount;
+import com.yxw.user.service.EmailVerificationService;
 import com.yxw.user.service.UserAccountService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -43,15 +45,18 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenService jwtTokenService;
     private final AuthenticationManager authenticationManager;
+    private final EmailVerificationService emailVerificationService;
 
     public AuthController(UserAccountService userAccountService,
                           PasswordEncoder passwordEncoder,
                           JwtTokenService jwtTokenService,
-                          AuthenticationManager authenticationManager) {
+                          AuthenticationManager authenticationManager,
+                          EmailVerificationService emailVerificationService) {
         this.userAccountService = userAccountService;
         this.passwordEncoder = passwordEncoder;
         this.jwtTokenService = jwtTokenService;
         this.authenticationManager = authenticationManager;
+        this.emailVerificationService = emailVerificationService;
     }
 
     @GetMapping("/check-username")
@@ -70,6 +75,16 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/send-code")
+    public ApiResponse<Void> sendRegisterCode(@Valid @RequestBody VerificationCodeSendRequest request) {
+        String email = normalizeEmail(request.getEmail());
+        if (StringUtils.hasText(email) && userAccountService.findByEmail(email) != null) {
+            throw new IllegalArgumentException("email already exists");
+        }
+        emailVerificationService.sendRegisterCode(email);
+        return ApiResponse.success("verification code sent", null);
+    }
+
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<AuthResponse>> register(@Valid @RequestBody AuthRequest request) {
         String username = normalizeUsername(request.getUsername());
@@ -78,8 +93,9 @@ public class AuthController {
         String nickname = normalizeOptional(request.getNickname());
         String email = normalizeEmail(request.getEmail());
         String phone = normalizePhone(request.getPhone());
+        String verifyCode = normalizeOptional(request.getVerifyCode());
 
-        validateRegisterRequest(username, password, confirmPassword, nickname, email, phone);
+        validateRegisterRequest(username, password, confirmPassword, nickname, email, phone, verifyCode);
 
         if (userAccountService.findByUsername(username) != null) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(400, "username already exists"));
@@ -89,6 +105,9 @@ public class AuthController {
         }
         if (StringUtils.hasText(phone) && userAccountService.findByPhone(phone) != null) {
             return ResponseEntity.badRequest().body(ApiResponse.fail(400, "phone already exists"));
+        }
+        if (emailVerificationService.isEnabled()) {
+            emailVerificationService.verifyRegisterCode(email, verifyCode);
         }
 
         UserAccount user = UserAccount.builder()
@@ -155,7 +174,8 @@ public class AuthController {
                                          String confirmPassword,
                                          String nickname,
                                          String email,
-                                         String phone) {
+                                         String phone,
+                                         String verifyCode) {
         String usernameMessage = validateUsernameMessage(username);
         if (usernameMessage != null) {
             throw new IllegalArgumentException(usernameMessage);
@@ -174,6 +194,14 @@ public class AuthController {
         }
         if (StringUtils.hasText(phone) && !PHONE_PATTERN.matcher(phone).matches()) {
             throw new IllegalArgumentException("phone format is invalid");
+        }
+        if (emailVerificationService.isEnabled()) {
+            if (!StringUtils.hasText(email)) {
+                throw new IllegalArgumentException("email must not be blank");
+            }
+            if (!StringUtils.hasText(verifyCode)) {
+                throw new IllegalArgumentException("verification code must not be blank");
+            }
         }
     }
 

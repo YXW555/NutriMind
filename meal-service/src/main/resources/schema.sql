@@ -240,3 +240,34 @@ CREATE TABLE IF NOT EXISTS `meal_plan_item` (
   KEY `idx_plan_item_plan` (`plan_id`),
   KEY `idx_plan_item_food` (`food_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='meal plan items';
+
+CREATE TABLE IF NOT EXISTS `agent_execution` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT DEFAULT NULL,
+  `scene_type` VARCHAR(64) NOT NULL COMMENT 'ADVISOR_CHAT/MEAL_PLAN_DAILY/MEAL_PLAN_WEEK',
+  `request_summary` VARCHAR(500) DEFAULT NULL,
+  `generation_mode` VARCHAR(64) DEFAULT NULL,
+  `final_status` VARCHAR(32) DEFAULT 'RUNNING' COMMENT 'RUNNING/SUCCESS/FAILED',
+  `final_summary` VARCHAR(1000) DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_agent_execution_scene_time` (`scene_type`, `created_at`),
+  KEY `idx_agent_execution_user_time` (`user_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='multi-agent execution sessions';
+
+CREATE TABLE IF NOT EXISTS `agent_execution_step` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `execution_id` BIGINT NOT NULL,
+  `step_order` INT DEFAULT 0,
+  `agent_name` VARCHAR(64) NOT NULL,
+  `stage_name` VARCHAR(64) NOT NULL,
+  `status` VARCHAR(32) DEFAULT 'SUCCESS' COMMENT 'SUCCESS/FAILED/SKIPPED',
+  `input_summary` TEXT DEFAULT NULL,
+  `output_summary` TEXT DEFAULT NULL,
+  `reference_summary` TEXT DEFAULT NULL,
+  `duration_ms` BIGINT DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_agent_execution_step_execution` (`execution_id`, `step_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='multi-agent execution steps';

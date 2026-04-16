@@ -10,6 +10,9 @@ const saveMessage = ref('')
 const items = ref([])
 const selectedId = ref('')
 const draft = ref(createDraft(null))
+const graphOverview = ref(null)
+const graphRelations = ref([])
+const graphSyncMessage = ref('')
 
 const authorities = computed(() => ['全部', ...new Set(items.value.map((item) => item.authority).filter(Boolean))])
 const statuses = ['全部', '已启用', '待复核', '草稿']
@@ -130,11 +133,107 @@ async function reloadKnowledgeBase() {
   }
 }
 
-onMounted(loadDocuments)
+async function loadGraphOverview() {
+  try {
+    graphOverview.value = await adminApi.get('/foods/graph/overview')
+    graphRelations.value = await adminApi.get('/foods/graph/relations', { size: 6 })
+  } catch {
+    graphOverview.value = null
+    graphRelations.value = []
+  }
+}
+
+async function syncGraphToNeo4j() {
+  graphSyncMessage.value = ''
+  try {
+    const result = await adminApi.post('/foods/graph/sync')
+    graphSyncMessage.value = result?.detail || '图谱同步完成'
+    await loadGraphOverview()
+  } catch {
+    graphSyncMessage.value = '图谱同步失败'
+  } finally {
+    setTimeout(() => { graphSyncMessage.value = '' }, 2500)
+  }
+}
+
+onMounted(async () => {
+  await Promise.all([loadDocuments(), loadGraphOverview()])
+})
 </script>
 
 <template>
   <section class="page-stack">
+    <div class="panel-card">
+      <div class="panel-head">
+        <div>
+          <p class="panel-kicker">Knowledge Graph</p>
+          <h3 class="panel-title">营养知识图谱概览</h3>
+        </div>
+        <div class="inline-actions">
+          <span v-if="graphSyncMessage" class="status-pill online">{{ graphSyncMessage }}</span>
+          <button class="secondary-button" @click="syncGraphToNeo4j">同步图谱</button>
+          <button class="secondary-button" @click="loadGraphOverview">刷新图谱</button>
+        </div>
+      </div>
+
+      <div v-if="graphOverview" class="top-gap graph-overview">
+        <div class="graph-stat-grid">
+          <div class="graph-stat-card">
+            <span class="graph-stat-label">图谱后端</span>
+            <strong class="graph-stat-value graph-backend">{{ graphOverview.backend || 'MySQL' }}</strong>
+            <p class="cell-subtitle">{{ graphOverview.neo4jReady ? 'Neo4j 已就绪' : '当前回退到关系型图谱' }}</p>
+          </div>
+          <div class="graph-stat-card">
+            <span class="graph-stat-label">食物节点</span>
+            <strong class="graph-stat-value">{{ graphOverview.foodNodeCount }}</strong>
+          </div>
+          <div class="graph-stat-card">
+            <span class="graph-stat-label">图谱节点</span>
+            <strong class="graph-stat-value">{{ graphOverview.graphNodeCount }}</strong>
+          </div>
+          <div class="graph-stat-card">
+            <span class="graph-stat-label">关系数量</span>
+            <strong class="graph-stat-value">{{ graphOverview.relationCount }}</strong>
+          </div>
+          <div class="graph-stat-card">
+            <span class="graph-stat-label">权威来源</span>
+            <strong class="graph-stat-value">{{ graphOverview.knowledgeSourceCount }}</strong>
+          </div>
+        </div>
+
+        <div class="graph-row">
+          <div class="graph-panel">
+            <h4 class="graph-subtitle">关系类型分布</h4>
+            <div class="graph-chip-list">
+              <span
+                v-for="item in graphOverview.relationTypeSummary || []"
+                :key="item.relationType"
+                class="status-pill"
+              >
+                {{ item.relationType }} · {{ item.count }}
+              </span>
+            </div>
+          </div>
+
+          <div class="graph-panel">
+            <h4 class="graph-subtitle">示例关系</h4>
+            <div class="graph-relation-list">
+              <div
+                v-for="item in graphRelations"
+                :key="item.id"
+                class="graph-relation-item"
+              >
+                <strong>{{ item.sourceName }}</strong>
+                <span class="graph-arrow">{{ item.relationType }}</span>
+                <strong>{{ item.targetName }}</strong>
+                <p class="cell-subtitle">{{ item.evidenceSummary || item.knowledgeSourceTitle || '暂无说明' }}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="panel-card">
       <div class="panel-head">
         <div>
@@ -243,3 +342,86 @@ onMounted(loadDocuments)
     </div>
   </section>
 </template>
+
+<style scoped>
+.graph-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.graph-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.graph-stat-card,
+.graph-panel {
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 16px;
+}
+
+.graph-stat-label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.graph-stat-value {
+  font-size: 28px;
+  line-height: 1;
+  color: #0f172a;
+}
+
+.graph-backend {
+  font-size: 22px;
+}
+
+.graph-row {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr;
+  gap: 12px;
+}
+
+.graph-subtitle {
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.graph-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graph-relation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.graph-relation-item {
+  padding: 12px 14px;
+  border-radius: 0;
+  background: #f8fafc;
+}
+
+.graph-arrow {
+  margin: 0 8px;
+  color: #2563eb;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .graph-stat-grid,
+  .graph-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

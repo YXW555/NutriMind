@@ -1,5 +1,5 @@
 import { clearSession, getToken, openAuthPage } from './auth'
-import { getApiBaseUrl } from './config'
+import { getApiBaseCandidates, getApiBaseUrl, setApiBaseUrl } from './config'
 
 const messageMap = {
   success: '操作成功',
@@ -26,6 +26,7 @@ const messageMap = {
   'password must be 6-32 characters': '密码长度需在 6-32 位之间',
   'nickname must be at most 20 characters': '昵称最多 20 个字符',
   'email format is invalid': '邮箱格式不正确',
+  'email must not be blank': '请先填写邮箱',
   'phone format is invalid': '手机号格式不正确',
   'username must not be blank': '请输入用户名',
   'password must not be blank': '请输入密码',
@@ -33,6 +34,14 @@ const messageMap = {
   'invalid username or password': '账号或密码错误',
   'user not found': '用户不存在',
   'authentication failed': '登录校验失败，请重试',
+  'verification code sent': '验证码已发送，请注意查收',
+  'verification code must not be blank': '请输入邮箱验证码',
+  'verification code is invalid': '邮箱验证码不正确',
+  'verification code expired or not found': '验证码已过期或不存在，请重新获取',
+  'verification code requested too frequently': '验证码发送过于频繁，请稍后再试',
+  'email verification is not enabled': '邮箱验证码服务未开启，请先配置发件邮箱',
+  'verification email sender is not configured': '发件邮箱未配置，请联系管理员',
+  'failed to send verification email': '验证码邮件发送失败，请稍后再试',
   'cross-user access is not allowed': '不允许访问其他用户的数据',
   'database operation failed': '数据库写入失败，请检查后端服务和数据库配置',
   'register failed': '注册失败，请稍后重试',
@@ -45,7 +54,10 @@ const messageMap = {
   'food recognition candidates unavailable': '暂时没有生成识别候选，请手动确认食物',
   'no image selected': '请先选择图片',
   'uploaded file must be an image': '请上传图片文件',
-  '帖子不存在': '帖子不存在或已被删除',
+  'avatar uploaded': '头像上传成功',
+  'avatar upload failed': '头像上传失败，请稍后重试',
+  'avatar image must not exceed 3MB': '头像图片不能超过 3MB',
+  'avatar not found': '头像文件不存在或已失效',
   'post not found': '帖子不存在或已被删除',
   'comment not found': '评论不存在或已被删除',
   'comment created': '评论已发布',
@@ -59,7 +71,7 @@ const messageMap = {
   'invalid image url': '图片地址不合法',
   'you can upload at most 3 images': '最多只能上传 3 张图片',
   'failed to serialize image urls': '图片数据处理失败',
-  '食物不存在': '食物不存在或已被删除',
+  'food not found': '食物不存在或已被删除',
   'recognition success': '识别完成'
 }
 
@@ -67,7 +79,6 @@ function normalizeMessage(message) {
   if (!message) {
     return ''
   }
-
   return messageMap[message] || message
 }
 
@@ -159,27 +170,59 @@ function handleBusinessResponse(statusCode, rawBody, resolve, reject) {
   resolve(body)
 }
 
+function persistSuccessfulApiBase(apiBase) {
+  try {
+    setApiBaseUrl(apiBase)
+  } catch (error) {
+    console.warn('[NutriMind persist api base failed]', {
+      apiBase,
+      error
+    })
+  }
+}
+
+function resolveApiBaseCandidates() {
+  const currentApiBase = getApiBaseUrl()
+  const candidates = [currentApiBase, ...getApiBaseCandidates()]
+  return [...new Set(candidates)]
+}
+
 function request(url, method = 'GET', data = {}) {
   return new Promise((resolve, reject) => {
-    const requestUrl = `${getApiBaseUrl()}${url}`
-    uni.request({
-      url: requestUrl,
-      method,
-      data,
-      header: getJsonHeaders(),
-      success: (res) => {
-        handleBusinessResponse(res.statusCode, res.data, resolve, reject)
-      },
-      fail: (error) => {
-        console.error('[NutriMind request failed]', {
-          url: requestUrl,
-          method,
-          error
-        })
-        showError('网络异常，请稍后再试')
-        reject(error)
-      }
-    })
+    const apiBases = resolveApiBaseCandidates()
+
+    const tryRequest = (index) => {
+      const apiBase = apiBases[index]
+      const requestUrl = `${apiBase}${url}`
+
+      uni.request({
+        url: requestUrl,
+        method,
+        data,
+        header: getJsonHeaders(),
+        success: (res) => {
+          persistSuccessfulApiBase(apiBase)
+          handleBusinessResponse(res.statusCode, res.data, resolve, reject)
+        },
+        fail: (error) => {
+          console.error('[NutriMind request failed]', {
+            url: requestUrl,
+            method,
+            error
+          })
+
+          if (index < apiBases.length - 1) {
+            tryRequest(index + 1)
+            return
+          }
+
+          showError('网络异常，请稍后再试')
+          reject(error)
+        }
+      })
+    }
+
+    tryRequest(0)
   })
 }
 
@@ -199,42 +242,58 @@ function resolveUploadPayload(options = {}) {
 
 function upload(url, options = {}) {
   return new Promise((resolve, reject) => {
-    const requestUrl = `${getApiBaseUrl()}${url}`
     const payload = resolveUploadPayload(options)
-    const uploadTaskOptions = {
-      url: requestUrl,
-      name: options.name || 'file',
-      header: getUploadHeaders(),
-      formData: options.formData || {},
-      success: (res) => {
-        const statusCode = Number(res.statusCode || 0)
-        handleBusinessResponse(statusCode, res.data, resolve, reject)
-      },
-      fail: (error) => {
-        console.error('[NutriMind upload failed]', {
-          url: requestUrl,
-          error
-        })
-        showError('上传失败，请稍后再试')
-        reject(error)
-      }
-    }
-
     const canUseBrowserFile = typeof window !== 'undefined'
       && typeof File !== 'undefined'
       && payload.file instanceof File
 
-    if (canUseBrowserFile) {
-      uploadTaskOptions.file = payload.file
-    } else if (payload.filePath) {
-      uploadTaskOptions.filePath = payload.filePath
-    } else {
+    if (!canUseBrowserFile && !payload.filePath) {
       showError('no image selected')
       reject(new Error('no image selected'))
       return
     }
 
-    uni.uploadFile(uploadTaskOptions)
+    const apiBases = resolveApiBaseCandidates()
+
+    const tryUpload = (index) => {
+      const apiBase = apiBases[index]
+      const requestUrl = `${apiBase}${url}`
+      const uploadTaskOptions = {
+        url: requestUrl,
+        name: options.name || 'file',
+        header: getUploadHeaders(),
+        formData: options.formData || {},
+        success: (res) => {
+          const statusCode = Number(res.statusCode || 0)
+          persistSuccessfulApiBase(apiBase)
+          handleBusinessResponse(statusCode, res.data, resolve, reject)
+        },
+        fail: (error) => {
+          console.error('[NutriMind upload failed]', {
+            url: requestUrl,
+            error
+          })
+
+          if (index < apiBases.length - 1) {
+            tryUpload(index + 1)
+            return
+          }
+
+          showError('上传失败，请稍后再试')
+          reject(error)
+        }
+      }
+
+      if (canUseBrowserFile) {
+        uploadTaskOptions.file = payload.file
+      } else {
+        uploadTaskOptions.filePath = payload.filePath
+      }
+
+      uni.uploadFile(uploadTaskOptions)
+    }
+
+    tryUpload(0)
   })
 }
 
