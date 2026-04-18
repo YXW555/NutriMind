@@ -10,22 +10,30 @@ spring:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         enabled: ${NACOS_DISCOVERY_ENABLED:false}
     gateway:
-      server:
-        webflux:
-          globalcors:
-            cors-configurations:
-              '[/**]':
-                allowedOriginPatterns:
-                  - "*"
-                allowedMethods:
-                  - "*"
-                allowedHeaders:
-                  - "*"
-                allowCredentials: true
-          routes:
-            - id: user-service-auth
-              uri: ${USER_SERVICE_URI:http://localhost:8081}
-              predicates:
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+              - "http://39.106.9.9:*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - Authorization
+            allowCredentials: true
+            maxAge: 3600
+      routes:
+        - id: user-service-auth
+          uri: ${USER_SERVICE_URI:http://localhost:8081}
+          predicates:
                 - Path=/api/auth/**,/api/profile/**,/api/test/**
             - id: food-service
               uri: ${FOOD_SERVICE_URI:http://localhost:8082}

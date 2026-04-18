@@ -1,8 +1,8 @@
 const API_BASE_KEY = 'nutrimind_api_base'
-const DEFAULT_API_BASE = 'http://10.100.233.124:8080/api'
-const DEFAULT_NATIVE_PROXY_API_BASE = 'http://127.0.0.1:8080/api'
-const DEFAULT_NATIVE_LAN_API_BASE = 'http://10.100.233.124:8080/api'
-const DEFAULT_NATIVE_API_BASE = DEFAULT_NATIVE_PROXY_API_BASE
+const DEFAULT_API_BASE = 'http://39.106.9.9:8080/api'
+const DEFAULT_NATIVE_PROXY_API_BASE = 'http://39.106.9.9:8080/api'
+const DEFAULT_NATIVE_LAN_API_BASE = 'http://39.106.9.9:8080/api'
+const DEFAULT_NATIVE_API_BASE = DEFAULT_NATIVE_LAN_API_BASE
 
 function isH5Runtime() {
   return typeof window !== 'undefined' && typeof window.location !== 'undefined'
@@ -34,6 +34,21 @@ function isPrivateNetworkHost(hostname) {
   return segment >= 16 && segment <= 31
 }
 
+function shouldForceCloudApiBase(value) {
+  const raw = String(value || '').trim()
+  if (!raw) {
+    return false
+  }
+
+  try {
+    const target = /^https?:\/\//i.test(raw) ? raw : `http://${raw}`
+    const { hostname } = new URL(target)
+    return hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateNetworkHost(hostname)
+  } catch (error) {
+    return false
+  }
+}
+
 function getH5DefaultApiBaseUrl() {
   if (!isH5Runtime()) {
     return DEFAULT_API_BASE
@@ -44,11 +59,11 @@ function getH5DefaultApiBaseUrl() {
     return DEFAULT_API_BASE
   }
 
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateNetworkHost(hostname)) {
-    return `http://${hostname}:8080/api`
+  if (hostname === '39.106.9.9') {
+    return `${String(origin || '').replace(/\/+$/, '')}/api`
   }
 
-  return `${String(origin || '').replace(/\/+$/, '')}/api`
+  return DEFAULT_API_BASE
 }
 
 function getRuntimeDefaultApiBaseUrl() {
@@ -83,6 +98,10 @@ export function normalizeApiBaseUrl(value) {
     next = `${next}/api`
   }
 
+  if (shouldForceCloudApiBase(next)) {
+    return DEFAULT_API_BASE
+  }
+
   return next
 }
 
@@ -91,13 +110,12 @@ export function getApiBaseUrl() {
     return getRuntimeDefaultApiBaseUrl()
   }
 
-  const storedValue = uni.getStorageSync(getApiBaseStorageKey())
+  const storageKey = getApiBaseStorageKey()
+  const storedValue = uni.getStorageSync(storageKey)
   const normalized = normalizeApiBaseUrl(storedValue || getRuntimeDefaultApiBaseUrl())
-
-  if (normalized === DEFAULT_NATIVE_LAN_API_BASE) {
-    return DEFAULT_NATIVE_PROXY_API_BASE
+  if (storedValue && normalized !== storedValue) {
+    uni.setStorageSync(storageKey, normalized)
   }
-
   return normalized
 }
 
@@ -106,8 +124,13 @@ export function getApiBaseCandidates() {
     return [getRuntimeDefaultApiBaseUrl()]
   }
 
-  const storedValue = uni.getStorageSync(getApiBaseStorageKey())
+  const storageKey = getApiBaseStorageKey()
+  const storedValue = uni.getStorageSync(storageKey)
   const normalizedStoredValue = storedValue ? normalizeApiBaseUrl(storedValue) : ''
+  if (storedValue && normalizedStoredValue && normalizedStoredValue !== storedValue) {
+    uni.setStorageSync(storageKey, normalizedStoredValue)
+  }
+
   const candidates = normalizedStoredValue
     ? [normalizedStoredValue, ...getNativeCandidateApiBases()]
     : getNativeCandidateApiBases()
@@ -120,6 +143,7 @@ export function setApiBaseUrl(value) {
   if (isH5Runtime()) {
     return normalized
   }
+
   uni.setStorageSync(getApiBaseStorageKey(), normalized)
   return normalized
 }
@@ -128,6 +152,7 @@ export function resetApiBaseUrl() {
   if (isH5Runtime()) {
     return getRuntimeDefaultApiBaseUrl()
   }
+
   uni.removeStorageSync(getApiBaseStorageKey())
   return getRuntimeDefaultApiBaseUrl()
 }
@@ -157,5 +182,5 @@ export function resolveApiAssetUrl(value) {
 }
 
 export function getApiBaseHint() {
-  return '真机调试会优先尝试 USB 反向代理地址 127.0.0.1:8080，失败时再回退到局域网地址 10.100.233.124:8080。'
+  return '当前默认连接云服务器 39.106.9.9:8080，本地预览、真机调试和打包后的应用都会优先使用这个地址；如果仍然连接到旧地址，请清理应用缓存。'
 }
