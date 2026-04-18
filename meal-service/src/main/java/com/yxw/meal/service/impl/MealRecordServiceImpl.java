@@ -12,8 +12,10 @@ import com.yxw.meal.entity.MealRecord;
 import com.yxw.meal.mapper.MealRecordMapper;
 import com.yxw.meal.service.MealDetailService;
 import com.yxw.meal.service.MealRecordService;
+import com.yxw.meal.service.RewardService;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -31,21 +33,33 @@ public class MealRecordServiceImpl extends ServiceImpl<MealRecordMapper, MealRec
 
     private final MealDetailService mealDetailService;
     private final FoodCatalogClient foodCatalogClient;
+    private final RewardService rewardService;
 
-    public MealRecordServiceImpl(MealDetailService mealDetailService, FoodCatalogClient foodCatalogClient) {
+    public MealRecordServiceImpl(MealDetailService mealDetailService,
+                                 FoodCatalogClient foodCatalogClient,
+                                 RewardService rewardService) {
         this.mealDetailService = mealDetailService;
         this.foodCatalogClient = foodCatalogClient;
+        this.rewardService = rewardService;
     }
 
     @Override
+    @Transactional
     public MealRecordResponse createMeal(Long userId, CreateMealRequest request) {
         MealRecord record = getOrCreateRecord(userId, request.getRecordDate());
+        java.util.Set<String> beforeMealTypes = listDetails(record.getId()).stream()
+                .map(MealDetail::getMealType)
+                .collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
         for (MealDetailCommand detailCommand : request.getDetails()) {
             FoodNutritionSnapshot food = foodCatalogClient.getFoodById(detailCommand.getFoodId());
             MealDetail detail = buildDetail(record.getId(), detailCommand, food);
             mealDetailService.save(detail);
         }
-        return recalculateAndBuild(record);
+        MealRecordResponse response = recalculateAndBuild(record);
+        response.setRewardFeedback(
+                rewardService.handleMealRecorded(userId, request.getRecordDate(), beforeMealTypes, listDetails(record.getId()))
+        );
+        return response;
     }
 
     @Override

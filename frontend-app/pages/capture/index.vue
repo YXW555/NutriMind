@@ -1,8 +1,8 @@
-<template>
+﻿<template>
   <view class="page">
     <app-page-header
       title="智能记录"
-      subtitle="拍照秒识别，轻松记饮食"
+      subtitle="拍照秒识别，轻松记录饮食"
       fallback-url="/pages/index/index"
     >
       <template #right>
@@ -17,15 +17,15 @@
       <image v-if="selectedImage" class="upload-image" :src="selectedImage" mode="aspectFill" />
       <view v-else class="upload-placeholder">
         <view class="camera-icon-wrap">
-          <text class="camera-emoji">📸</text>
+          <text class="camera-emoji">📷</text>
         </view>
         <text class="upload-title">点击拍照 / 上传</text>
-        <text class="upload-desc">AI 自动识别食物并计算热量</text>
+        <text class="upload-desc">AI 自动识别食物并估算营养</text>
       </view>
       
       <view v-if="recognizing" class="recognizing-mask">
         <view class="loading-spinner"></view>
-        <text class="loading-text">AI 努力识别中...</text>
+        <text class="loading-text">AI 正在识别中...</text>
       </view>
     </view>
 
@@ -49,20 +49,20 @@
     <view class="section-container record-section">
       <view class="section-head">
         <view>
-          <text class="section-title">今天已记录</text>
+          <text class="section-title">今日已记录</text>
           <text class="section-subtitle">{{ today }}</text>
         </view>
         <text class="section-link" @click="goMeals">查看全部 ></text>
       </view>
 
       <view v-if="!dailyRecord.details.length" class="empty-card">
-        <text class="empty-desc">今天还没有记录饮食，快拍张照记录你的第一餐吧！</text>
+        <text class="empty-desc">今天还没有记录饮食，快拍张照记录你的第一餐吧。</text>
       </view>
 
       <view v-for="detail in dailyRecord.details.slice(0, 4)" :key="detail.id" class="record-card">
         <view class="record-left">
           <text class="record-name">{{ detail.foodName }}</text>
-          <text class="record-meta">{{ mealTypeLabel(detail.mealType) }} · {{ formatTime(detail.createdAt) }}</text>
+          <text class="record-meta">{{ mealTypeLabel(detail.mealType) }} 路 {{ formatTime(detail.createdAt) }}</text>
         </view>
         <view class="record-side">
           <text class="record-kcal">{{ formatNumber(detail.calories) }}</text>
@@ -104,6 +104,7 @@
             <text v-if="recognizedConcept.confidence !== undefined && recognizedConcept.confidence !== null" class="concept-confidence">
               {{ Math.round(Number(recognizedConcept.confidence) * 100) }}%
             </text>
+
           </view>
           <text class="concept-name">{{ recognizedConcept.displayName || recognizedConcept.canonicalLabel || recognizedConcept.rawLabel }}</text>
           <text class="concept-desc">{{ conceptDescription }}</text>
@@ -125,6 +126,15 @@
               {{ item }}
             </text>
           </view>
+          <text v-if="directRecordCandidate && directRecordCandidate.estimated" class="concept-private-tip">
+            当前识别结果已自动加入你的食物库，可直接记录并在后续重复使用。
+          </text>
+          <view v-if="directRecordCandidate" class="concept-actions">
+            <button class="concept-primary-action" @click="openQuantityPopup(directRecordCandidate)">
+              直接按“{{ directRecordCandidate.name }}”记录
+            </button>
+            <text class="concept-action-tip">如果下方候选里没有更合适的条目，就直接使用当前识别结果。</text>
+          </view>
         </view>
 
         <scroll-view scroll-y class="selector-scroll-view">
@@ -137,6 +147,11 @@
             >
               <view class="food-chip-info">
                 <text class="food-chip-name">{{ food.name }}</text>
+                <view v-if="food.estimated" class="food-chip-badges">
+                  <text class="food-chip-badge estimated">系统估算</text>
+                  <text v-if="food.estimateSourceSummary" class="food-chip-badge source">{{ food.estimateSourceSummary }}</text>
+                </view>
+                <text v-if="food.estimated" class="food-private-note">已加入我的食物库</text>
                 <text class="food-chip-meta">{{ foodMetaLabel(food) }}</text>
               </view>
               <view class="food-chip-add">+</view>
@@ -145,9 +160,9 @@
 
           <view v-if="!foods.length" class="empty-search-card">
             <text class="empty-emoji">🍽️</text>
-            <text class="empty-search-title">未找到相关食物</text>
-            <text class="empty-search-desc">换个词搜索，或者去食物库手动添加吧</text>
-            <button class="empty-search-button" @click="goFoods">去食物库新增</button>
+            <text class="empty-search-title">暂未命中标准食物库</text>
+            <text class="empty-search-desc">你可以换个关键词重试，或者继续使用当前识别结果，我们会优先自动估算营养值并加入你的食物库。</text>
+            <button class="empty-search-button" @click="openManualSearch">重新搜索</button>
           </view>
         </scroll-view>
       </view>
@@ -165,6 +180,9 @@
           <view class="selected-main">
             <text class="selected-name">{{ selectedFood.name }}</text>
             <text class="selected-meta">{{ selectedFood.category || '未分类' }} · {{ selectedFood.unit || '100克' }}</text>
+            <text v-if="selectedFood.estimated" class="selected-estimate-tip">
+              该营养值已根据识别结果和相似食物自动估算，并同步加入你的食物库，确认后即可直接记录。
+            </text>
           </view>
           <view class="selected-energy">
             <text class="selected-kcal">{{ formatNumber(selectedFood.calories) }}</text>
@@ -188,7 +206,7 @@
         </view>
 
         <view class="quantity-block">
-          <text class="quantity-label">食用量 (克/毫升)</text>
+          <text class="quantity-label">食用量（克 / 毫升）</text>
           <input v-model="quantity" class="quantity-input-large" type="digit" placeholder="输入分量" />
         </view>
 
@@ -204,7 +222,7 @@
           </view>
         </view>
 
-        <button class="save-button" @click="saveMeal">记录到 {{ currentMealLabel }}</button>
+        <button class="save-button" @click="saveMeal">记录到{{ currentMealLabel }}</button>
       </view>
     </view>
 
@@ -238,12 +256,13 @@ const recognitionMode = ref('')
 const hasRecognitionResults = ref(false)
 const recognizedConcept = ref(null)
 const foods = ref([])
+const recognizedPrimaryCandidate = ref(null)
 const selectedFood = ref(null)
 const dailyRecord = ref({ details: [] })
 
-// --- 弹窗控制状态 (双层堆叠) ---
-const showSelectorPopup = ref(false) // 第一层：搜索/候选列表
-const showQuantityPopup = ref(false) // 第二层：确认分量
+// --- 寮圭獥鎺у埗鐘舵€?(鍙屽眰鍫嗗彔) ---
+const showSelectorPopup = ref(false) // 绗竴灞傦細鎼滅储/鍊欓€夊垪琛?
+const showQuantityPopup = ref(false) // 绗簩灞傦細纭鍒嗛噺
 
 const currentMealLabel = computed(() => {
   const meal = mealTypes.find(m => m.value === mealType.value)
@@ -252,7 +271,7 @@ const currentMealLabel = computed(() => {
 
 const recognitionModeLabel = computed(() => {
   const mode = String(recognitionMode.value || '').toLowerCase()
-  if (!mode) return '本地检索'
+  if (!mode) return '本地识别'
   if (mode.includes('onnx')) return '本地 ONNX 模型'
   if (mode.includes('clip')) return 'CLIP 视觉检索'
   if (mode.includes('python')) return '云端 AI 推理'
@@ -276,7 +295,7 @@ const recognizedInsightChips = computed(() => {
     ? `估重 ${exactWeight}g`
     : (weightMin && weightMax
         ? `估重 ${weightMin}-${weightMax}g`
-        : (weightMin ? `估重 ${weightMin}g 左右` : (weightMax ? `估重 ${weightMax}g 内外` : '')))
+        : (weightMin ? `估重 ${weightMin}g 左右` : (weightMax ? `估重不超过 ${weightMax}g` : '')))
 
   return [
     recognizedConcept.value.cookingMethod ? `做法 ${recognizedConcept.value.cookingMethod}` : '',
@@ -292,17 +311,25 @@ const conceptDescription = computed(() => {
     || recognizedConcept.value.rawLabel
     || '当前概念'
   if (recognizedConcept.value.generic) {
-    return `AI 先将图片归入“${conceptName}”，请再从下方候选食物中确认具体条目。`
+    return `AI 先将图片归入“${conceptName}”方向，请再从下方候选食物中确认具体条目。`
   }
   return `AI 已先锁定“${conceptName}”方向，下方展示与该概念最接近的食物候选。`
 })
 
-// --- 弹窗行为控制 ---
+const directRecordCandidate = computed(() => {
+  if (recognizedPrimaryCandidate.value?.id) {
+    return recognizedPrimaryCandidate.value
+  }
+  return pickDirectRecordCandidate(foods.value, recognizedConcept.value)
+})
+
+// --- 寮圭獥琛屼负鎺у埗 ---
 function openManualSearch() {
   keyword.value = ''
   hasRecognitionResults.value = false
   recognizedConcept.value = null
-  foods.value = [] // 开启时清空，或保留历史记录
+  recognizedPrimaryCandidate.value = null
+  foods.value = [] // 寮€鍚椂娓呯┖锛屾垨淇濈暀鍘嗗彶璁板綍
   showSelectorPopup.value = true
 }
 
@@ -312,19 +339,19 @@ function closeSelectorPopup() {
 
 function openQuantityPopup(food) {
   selectedFood.value = food
-  quantity.value = '100' // 默认重置为100g
+  quantity.value = '100' // 榛樿閲嶇疆涓?00g
   showQuantityPopup.value = true
 }
 
 function closeQuantityPopup() {
   showQuantityPopup.value = false
-  // 延迟清空选中的食物，防止动画穿帮
+  // 寤惰繜娓呯┖閫変腑鐨勯鐗╋紝闃叉鍔ㄧ敾绌垮府
   setTimeout(() => {
     selectedFood.value = null
   }, 300)
 }
 
-// --- 业务逻辑 ---
+// --- 涓氬姟閫昏緫 ---
 async function chooseImage() {
   try {
     const result = await uni.chooseImage({
@@ -367,6 +394,7 @@ async function recognizeImage() {
 
     const candidates = Array.isArray(response?.candidates) ? response.candidates : []
     recognizedConcept.value = response?.recognizedConcept || null
+    recognizedPrimaryCandidate.value = pickDirectRecordCandidate(candidates, response?.recognizedConcept)
     foods.value = candidates
     hasRecognitionResults.value = candidates.length > 0 || !!recognizedConcept.value
     recognitionMode.value = response?.recognitionMode || ''
@@ -386,6 +414,7 @@ async function recognizeImage() {
     foods.value = []
     hasRecognitionResults.value = false
     recognizedConcept.value = null
+    recognizedPrimaryCandidate.value = null
     uni.showToast({ title: '识别超时或失败，请重试', icon: 'none' })
   } finally {
     recognizing.value = false
@@ -396,15 +425,13 @@ async function searchFoods() {
   if (!ensureLoggedIn() || !keyword.value.trim()) return
 
   try {
-    hasRecognitionResults.value = false
-    recognitionMode.value = ''
-    recognizedConcept.value = null
     const response = await request.get('/foods', {
       keyword: keyword.value,
       current: 1,
       size: 12
     })
-    foods.value = Array.isArray(response?.records) ? response.records : []
+    const records = Array.isArray(response?.records) ? response.records : []
+    foods.value = mergeSearchResultsWithDirectCandidate(records)
   } catch (error) {
     foods.value = []
     console.log('search foods failed', error)
@@ -427,43 +454,44 @@ async function loadDailyRecord() {
 async function saveMeal() {
   if (!ensureLoggedIn() || !selectedFood.value) return
 
-  const numericQuantity = Number(quantity.value)
-  if (Number.isNaN(numericQuantity) || numericQuantity <= 0) {
-    uni.showToast({ title: '请输入正确的分量', icon: 'none' })
-    return
-  }
+const numericQuantity = Number(quantity.value)
+if (Number.isNaN(numericQuantity) || numericQuantity <= 0) {
+  uni.showToast({ title: '请输入正确的分量', icon: 'none' })
+  return
+}
 
-  try {
-    await request.post('/meals', {
-      recordDate: today,
-      details: [
-        {
-          foodId: selectedFood.value.id,
-          quantity: numericQuantity,
-          mealType: mealType.value
-        }
-      ]
-    })
+try {
+  await request.post('/meals', {
+    recordDate: today,
+    details: [
+      {
+        foodId: selectedFood.value.id,
+        quantity: numericQuantity,
+        mealType: mealType.value
+      }
+    ]
+  })
 
-    await submitRecognitionFeedback()
-    
-    uni.showToast({ title: '记录成功', icon: 'success' })
-    
-    // 一次性关掉所有弹窗并重置
-    closeQuantityPopup()
-    closeSelectorPopup()
-    
-    keyword.value = ''
-    selectedImage.value = ''
-    selectedImageFile.value = null
-    foods.value = []
-    hasRecognitionResults.value = false
-    recognizedConcept.value = null
-    
-    await loadDailyRecord()
-  } catch (error) {
-    uni.showToast({ title: '保存失败，请检查网络', icon: 'none' })
-  }
+  await submitRecognitionFeedback()
+  
+  uni.showToast({ title: '记录成功', icon: 'success' })
+  
+  // 一次性关闭所有弹窗并重置
+  closeQuantityPopup()
+  closeSelectorPopup()
+  
+  keyword.value = ''
+  selectedImage.value = ''
+  selectedImageFile.value = null
+  foods.value = []
+  hasRecognitionResults.value = false
+  recognizedConcept.value = null
+  recognizedPrimaryCandidate.value = null
+  
+  await loadDailyRecord()
+} catch (error) {
+  uni.showToast({ title: '保存失败，请检查网络', icon: 'none' })
+}
 }
 
 async function submitRecognitionFeedback() {
@@ -514,8 +542,50 @@ function foodMetaLabel(food) {
   if (typeof food?.confidence === 'number') {
     parts.push(`${Math.round(food.confidence * 100)}% 匹配`)
   }
+  if (food?.estimated) {
+    parts.push('已入我的食物库')
+  }
   return parts.join(' · ')
 }
+
+function normalizeFoodName(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, '')
+    .toLowerCase()
+}
+
+function mergeSearchResultsWithDirectCandidate(records) {
+  const direct = directRecordCandidate.value
+  if (!direct?.id) return records
+
+  const directName = normalizeFoodName(direct.name)
+  const exists = records.some((item) => normalizeFoodName(item?.name) === directName)
+  if (exists) return records
+
+  return [direct, ...records]
+}
+
+function pickDirectRecordCandidate(candidates, concept) {
+  const list = Array.isArray(candidates) ? candidates : []
+  if (!list.length) return null
+
+  const conceptName = normalizeFoodName(
+    concept?.displayName
+    || concept?.canonicalLabel
+    || concept?.rawLabel
+  )
+
+  const exact = conceptName
+    ? list.find((item) => normalizeFoodName(item?.name) === conceptName)
+    : null
+  if (exact?.id) return exact
+
+  const estimated = list.find((item) => item?.estimated && item?.id)
+  if (estimated?.id) return estimated
+
+  return null
+} // 这里补上缺失的 }
 
 onShow(() => {
   if (!ensureLoggedIn()) return
@@ -525,7 +595,7 @@ onShow(() => {
 
 <style scoped>
 .page {
-  --nm-primary: #6B9E78; /* 抹茶绿主色 */
+  --nm-primary: #6B9E78; /* 茶绿色主色 */
   --nm-primary-dark: #588563;
   --nm-primary-light: rgba(107, 158, 120, 0.12);
   --nm-bg: #f5f7f9;
@@ -538,7 +608,6 @@ onShow(() => {
   padding: 24rpx 28rpx 0;
 }
 
-/* --- 角落里的手动输入按钮 --- */
 .nav-manual-btn {
   display: flex;
   align-items: center;
@@ -561,7 +630,7 @@ onShow(() => {
   margin-right: 8rpx;
 }
 
-/* --- 通用容器 --- */
+
 .section-container {
   margin-top: 24rpx;
   padding: 32rpx;
@@ -578,7 +647,7 @@ onShow(() => {
   display: block;
 }
 
-/* --- 1. 核心上传区 --- */
+/* --- 1. 鏍稿績涓婁紶鍖?--- */
 .upload-card {
   position: relative;
   overflow: hidden;
@@ -663,7 +732,7 @@ onShow(() => {
   font-weight: 600;
 }
 
-/* --- 2. 餐次选择 --- */
+/* --- 2. 椁愭閫夋嫨 --- */
 .meal-type-scroll {
   width: 100%;
   white-space: nowrap;
@@ -697,7 +766,7 @@ onShow(() => {
   color: #ffffff;
 }
 
-/* --- 3. 记录概览 --- */
+/* --- 3. 璁板綍姒傝 --- */
 .section-head {
   display: flex;
   justify-content: space-between;
@@ -764,15 +833,15 @@ onShow(() => {
 }
 
 
-/* ================= 双层底部弹窗 (Bottom Sheets) ================= */
+/* ================= 鍙屽眰搴曢儴寮圭獥 (Bottom Sheets) ================= */
 
-/* 统一的遮罩层 */
+/* 缁熶竴鐨勯伄缃╁眰 */
 .popup-mask {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(2px);
-  z-index: 900; /* 第一层级 */
+  z-index: 900; /* 绗竴灞傜骇 */
   opacity: 0;
   visibility: hidden;
   transition: all 0.3s ease;
@@ -784,11 +853,11 @@ onShow(() => {
 }
 
 .popup-mask.sub-mask {
-  z-index: 902; /* 第二层级遮罩，覆盖在第一层sheet之上 */
-  background: rgba(0, 0, 0, 0.2); /* 更柔和一点 */
+  z-index: 902; /* 绗簩灞傜骇閬僵锛岃鐩栧湪绗竴灞俿heet涔嬩笂 */
+  background: rgba(0, 0, 0, 0.2); /* 鏇存煍鍜屼竴鐐?*/
 }
 
-/* 统一的 Sheet 底座 */
+/* 缁熶竴鐨?Sheet 搴曞骇 */
 .bottom-sheet {
   position: fixed;
   left: 0; right: 0; bottom: 0;
@@ -803,7 +872,7 @@ onShow(() => {
   transform: translateY(0);
 }
 
-/* 层级控制 */
+/* 灞傜骇鎺у埗 */
 .selector-sheet {
   z-index: 901;
 }
@@ -836,9 +905,9 @@ onShow(() => {
   padding: 0 40rpx 40rpx;
 }
 
-/* --- 第一层 Sheet 内容 (搜索与候选) --- */
+/* --- 绗竴灞?Sheet 鍐呭 (鎼滅储涓庡€欓€? --- */
 .selector-scroll-view {
-  max-height: 55vh; /* 限制最高高度，保证可滑动 */
+  max-height: 55vh; /* 闄愬埗鏈€楂橀珮搴︼紝淇濊瘉鍙粦鍔?*/
   width: 100%;
 }
 
@@ -964,6 +1033,44 @@ onShow(() => {
   background: rgba(107, 158, 120, 0.12);
 }
 
+.concept-actions {
+  margin-top: 22rpx;
+}
+
+.concept-primary-action {
+  height: 82rpx;
+  line-height: 82rpx;
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, var(--nm-primary) 0%, var(--nm-primary-dark) 100%);
+  color: #ffffff;
+  font-size: 28rpx;
+  font-weight: 700;
+  box-shadow: 0 12rpx 24rpx rgba(107, 158, 120, 0.18);
+}
+
+.concept-primary-action::after {
+  display: none;
+}
+
+.concept-action-tip {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--nm-muted);
+}
+
+.concept-private-tip {
+  display: block;
+  margin-top: 18rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 18rpx;
+  background: rgba(107, 158, 120, 0.1);
+  color: var(--nm-primary-dark);
+  font-size: 22rpx;
+  line-height: 1.5;
+}
+
 .suggestion-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1002,11 +1109,46 @@ onShow(() => {
   text-overflow: ellipsis;
 }
 
+.food-chip-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 10rpx;
+}
+
+.food-chip-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.food-chip-badge.estimated {
+  background: rgba(107, 158, 120, 0.12);
+  color: var(--nm-primary-dark);
+}
+
+.food-chip-badge.source {
+  background: #eef2f5;
+  color: #66707a;
+}
+
 .food-chip-meta {
   display: block;
   margin-top: 8rpx;
   font-size: 24rpx;
   color: var(--nm-muted);
+}
+
+.food-private-note {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: var(--nm-primary-dark);
+  font-weight: 600;
 }
 
 .food-chip-add {
@@ -1061,7 +1203,7 @@ onShow(() => {
 }
 .empty-search-button::after { display: none; }
 
-/* --- 第二层 Sheet 内容 (分量确认) --- */
+/* --- 绗簩灞?Sheet 鍐呭 (鍒嗛噺纭) --- */
 .selected-head {
   display: flex;
   justify-content: space-between;
@@ -1083,6 +1225,17 @@ onShow(() => {
   color: var(--nm-muted);
   margin-top: 8rpx;
   display: block;
+}
+
+.selected-estimate-tip {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 22rpx;
+  line-height: 1.5;
+  color: var(--nm-primary-dark);
+  background: rgba(107, 158, 120, 0.1);
+  padding: 12rpx 16rpx;
+  border-radius: 18rpx;
 }
 
 .selected-energy {
@@ -1192,6 +1345,12 @@ onShow(() => {
   border-radius: 48rpx;
   box-shadow: 0 12rpx 24rpx var(--nm-primary-light);
 }
-.save-button::after { display: none; }
-.save-button:active { transform: scale(0.98); }
+.save-button::after {
+  display: none;
+}
+.save-button:active {
+  transform: scale(0.98);
+}
 </style>
+
+

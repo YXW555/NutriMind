@@ -25,6 +25,10 @@ public class FoodBasic {
 
     private String barcode;
 
+    private Long ownerUserId;
+
+    private String sourceType;
+
     private String unit;
 
     private BigDecimal calories;

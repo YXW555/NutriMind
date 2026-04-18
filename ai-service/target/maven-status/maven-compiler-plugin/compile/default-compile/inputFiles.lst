@@ -1,4 +1,5 @@
 D:\workspace\NutriMind\ai-service\src\main\java\com\yxw\ai\AiServiceApplication.java
+D:\workspace\NutriMind\ai-service\src\main\java\com\yxw\ai\client\dto\FoodCatalogCreateRequest.java
 D:\workspace\NutriMind\ai-service\src\main\java\com\yxw\ai\client\FoodCatalogClient.java
 D:\workspace\NutriMind\ai-service\src\main\java\com\yxw\ai\client\PythonInferenceClient.java
 D:\workspace\NutriMind\ai-service\src\main\java\com\yxw\ai\client\QwenVisionClient.java

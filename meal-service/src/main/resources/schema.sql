@@ -271,3 +271,41 @@ CREATE TABLE IF NOT EXISTS `agent_execution_step` (
   PRIMARY KEY (`id`),
   KEY `idx_agent_execution_step_execution` (`execution_id`, `step_order`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='multi-agent execution steps';
+
+CREATE TABLE IF NOT EXISTS `reward_account` (
+  `user_id` BIGINT NOT NULL,
+  `total_points` INT DEFAULT 0,
+  `badge_count` INT DEFAULT 0,
+  `current_streak` INT DEFAULT 0,
+  `last_check_in_date` DATE DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='lightweight reward account';
+
+CREATE TABLE IF NOT EXISTS `reward_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `event_type` VARCHAR(32) NOT NULL,
+  `biz_key` VARCHAR(128) NOT NULL,
+  `points` INT DEFAULT 0,
+  `title` VARCHAR(64) DEFAULT NULL,
+  `description` VARCHAR(255) DEFAULT NULL,
+  `record_date` DATE DEFAULT NULL,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_reward_log_biz_key` (`biz_key`),
+  KEY `idx_reward_log_user_time` (`user_id`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='reward points log';
+
+CREATE TABLE IF NOT EXISTS `user_badge` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT NOT NULL,
+  `badge_code` VARCHAR(64) NOT NULL,
+  `badge_name` VARCHAR(64) NOT NULL,
+  `badge_description` VARCHAR(255) DEFAULT NULL,
+  `earned_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_user_badge` (`user_id`, `badge_code`),
+  KEY `idx_user_badge_user_time` (`user_id`, `earned_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='earned badges';

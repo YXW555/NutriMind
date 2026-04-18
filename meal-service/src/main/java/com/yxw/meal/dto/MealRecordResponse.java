@@ -30,4 +30,6 @@ public class MealRecordResponse {
     private BigDecimal totalCarbohydrate;
 
     private List<MealDetailResponse> details;
+
+    private RewardFeedbackResponse rewardFeedback;
 }

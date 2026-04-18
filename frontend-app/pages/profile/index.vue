@@ -23,8 +23,8 @@
         <view class="user-info">
           <text class="user-name">{{ overview.nickname || overview.username || '--' }}</text>
           <view class="user-badges">
-            <text class="badge">勋章 0</text>
-            <text class="badge">积分 0</text>
+            <text class="badge">勋章 {{ rewardSummary.badgeCount }}</text>
+            <text class="badge">积分 {{ rewardSummary.totalPoints }}</text>
             <text v-if="overview.role === 'ADMIN'" class="role-badge">管理员</text>
           </view>
         </view>
@@ -187,9 +187,10 @@
               <picker class="picker-wrap" :class="{ 'picker-wrap-disabled': !isEditingHealthProfile }" :range="genderOptions" range-key="label" :value="genderIndex" @change="handleGenderChange">
                 <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ genderLabel }}</view>
               </picker>
-              <picker mode="date" :disabled="!isEditingHealthProfile" :value="healthForm.birthDate" @change="handleBirthDateChange">
-                <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ healthForm.birthDate || (isEditingHealthProfile ? '选择出生日期' : '未填写生日') }}</view>
-              </picker>
+              <view class="picker-field date-trigger-field" :class="{ readonly: !isEditingHealthProfile }" @click="openDateSheet('birthDate')">
+                <text>{{ healthForm.birthDate || (isEditingHealthProfile ? '选择出生日期' : '未填写生日') }}</text>
+                <text v-if="isEditingHealthProfile" class="date-trigger-arrow">></text>
+              </view>
               <input v-model="healthForm.heightCm" :class="['field-input', { readonly: !isEditingHealthProfile }]" type="digit" :placeholder="isEditingHealthProfile ? '身高(cm)' : '未填写身高'" confirm-type="next" cursor-spacing="24" :disabled="!isEditingHealthProfile" adjust-position />
               <picker class="picker-wrap" :class="{ 'picker-wrap-disabled': !isEditingHealthProfile }" :range="activityOptions" range-key="label" :value="activityIndex" @change="handleActivityChange">
                 <view class="picker-field" :class="{ readonly: !isEditingHealthProfile }">{{ activityLabel }}</view>
@@ -228,12 +229,14 @@
             </view>
 
             <view class="form-grid">
-              <picker mode="date" :disabled="!isEditingHealthGoal" :value="goalForm.startDate" @change="event => (goalForm.startDate = event.detail.value)">
-                <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalForm.startDate || (isEditingHealthGoal ? '开始日期' : '未填写开始日期') }}</view>
-              </picker>
-              <picker mode="date" :disabled="!isEditingHealthGoal" :value="goalForm.endDate" @change="event => (goalForm.endDate = event.detail.value)">
-                <view class="picker-field" :class="{ readonly: !isEditingHealthGoal }">{{ goalForm.endDate || (isEditingHealthGoal ? '结束日期' : '未填写结束日期') }}</view>
-              </picker>
+              <view class="picker-field date-trigger-field" :class="{ readonly: !isEditingHealthGoal }" @click="openDateSheet('goalStartDate')">
+                <text>{{ goalForm.startDate || (isEditingHealthGoal ? '开始日期' : '未填写开始日期') }}</text>
+                <text v-if="isEditingHealthGoal" class="date-trigger-arrow">></text>
+              </view>
+              <view class="picker-field date-trigger-field" :class="{ readonly: !isEditingHealthGoal }" @click="openDateSheet('goalEndDate')">
+                <text>{{ goalForm.endDate || (isEditingHealthGoal ? '结束日期' : '未填写结束日期') }}</text>
+                <text v-if="isEditingHealthGoal" class="date-trigger-arrow">></text>
+              </view>
             </view>
 
             <textarea v-model="goalForm.note" :class="['textarea-field', { readonly: !isEditingHealthGoal }]" maxlength="300" auto-height :disabled="!isEditingHealthGoal" :placeholder="isEditingHealthGoal ? '补充说明，例如想在 8 周减 4kg' : '未填写目标说明'"></textarea>
@@ -252,16 +255,17 @@
             </view>
 
             <view class="weight-form-row">
-              <picker mode="date" :value="weightForm.recordDate" @change="event => (weightForm.recordDate = event.detail.value)">
-                <view class="picker-field weight-date-field">{{ weightForm.recordDate }}</view>
-              </picker>
+              <view class="picker-field weight-date-field date-trigger-field" @click="openDateSheet('weightRecordDate')">
+                <text>{{ weightForm.recordDate }}</text>
+                <text class="date-trigger-arrow">></text>
+              </view>
               <input v-model="weightForm.weightKg" class="field-input weight-value-field" type="digit" placeholder="体重(kg)" confirm-type="done" cursor-spacing="24" adjust-position />
             </view>
 
             <input v-model="weightForm.note" class="field-input" placeholder="备注，例如晨起空腹、训练后" confirm-type="done" cursor-spacing="24" adjust-position />
 
             <view class="button-row">
-              <button class="secondary-button" @click="resetWeightForm">閲嶇疆</button>
+              <button class="secondary-button" @click="resetWeightForm">重置</button>
               <button class="primary-button" :loading="savingWeightLog" :disabled="savingWeightLog" @click="saveWeightLog">
                 {{ savingWeightLog ? '保存中...' : '保存体重' }}
               </button>
@@ -341,6 +345,16 @@
       </scroll-view>
     </view>
 
+    <app-date-sheet
+      :visible="dateSheetVisible"
+      :title="dateSheetTitle"
+      :value="dateSheetValue"
+      :min-year="dateSheetMinYear"
+      :max-year="dateSheetMaxYear"
+      @close="closeDateSheet"
+      @confirm="handleDateSheetConfirm"
+    />
+
     <app-tab-bar v-show="activePage === 'main'" current="profile" />
   </view>
 </template>
@@ -359,6 +373,12 @@ import { getReminderSettings, saveReminderSettings } from '@/utils/reminders.js'
 const activePage = ref('main') // 'main', 'account', 'health', 'goal', 'weight', 'reminders'
 const mainNavSafeStyle = createSafeAreaTopStyle(16)
 const subNavSafeStyle = createSafeAreaTopStyle(20)
+const dateSheetVisible = ref(false)
+const dateSheetTitle = ref('选择日期')
+const dateSheetValue = ref(formatToday())
+const dateSheetTarget = ref('')
+const dateSheetMinYear = ref(1970)
+const dateSheetMaxYear = ref(new Date().getFullYear() + 5)
 const subPageTitle = computed(() => {
   const map = { account: '个人信息', health: '健康档案', goal: '体重管理方案', weight: '数据统计' }
   return map[activePage.value] || '详情'
@@ -418,6 +438,7 @@ const goalOptions = [
 ]
 
 const overview = ref({})
+const rewardSummary = ref(createEmptyRewardSummary())
 const weightLogs = ref([])
 
 // 表单数据
@@ -527,6 +548,15 @@ function createEmptyWeightForm() {
   return { weightKg: '', recordDate: formatToday(), note: '' }
 }
 
+function createEmptyRewardSummary() {
+  return {
+    totalPoints: 0,
+    badgeCount: 0,
+    currentStreak: 0,
+    badges: []
+  }
+}
+
 function normalizeOptionalText(value) {
   const normalized = String(value ?? '').trim()
   return normalized || null
@@ -598,10 +628,17 @@ async function loadOverview() {
   }
 
   try {
-    const data = await request.get('/profile/overview')
+    const [data, reward] = await Promise.all([
+      request.get('/profile/overview'),
+      request.get('/meals/rewards/summary')
+    ])
     overview.value = {
       ...(data || {}),
       avatarUrl: resolveApiAssetUrl(data?.avatarUrl)
+    }
+    rewardSummary.value = {
+      ...createEmptyRewardSummary(),
+      ...(reward || {})
     }
     saveSession(getToken(), {
       userId: data?.userId,
@@ -610,7 +647,10 @@ async function loadOverview() {
       avatarUrl: resolveApiAssetUrl(data?.avatarUrl),
       email: data?.email,
       phone: data?.phone,
-      role: data?.role
+      role: data?.role,
+      totalPoints: reward?.totalPoints || 0,
+      badgeCount: reward?.badgeCount || 0,
+      currentStreak: reward?.currentStreak || 0
     })
     assignForms(overview.value)
   } catch (error) {
@@ -706,6 +746,77 @@ function handleGoalTypeChange(event) {
 function handleBirthDateChange(event) {
   if (!isEditingHealthProfile.value) return
   healthForm.value.birthDate = event.detail.value
+}
+
+function openDateSheet(target) {
+  const currentYear = new Date().getFullYear()
+  const configMap = {
+    birthDate: {
+      enabled: isEditingHealthProfile.value,
+      title: '选择出生日期',
+      value: healthForm.value.birthDate,
+      minYear: 1960,
+      maxYear: currentYear
+    },
+    goalStartDate: {
+      enabled: isEditingHealthGoal.value,
+      title: '选择开始日期',
+      value: goalForm.value.startDate,
+      minYear: currentYear - 5,
+      maxYear: currentYear + 10
+    },
+    goalEndDate: {
+      enabled: isEditingHealthGoal.value,
+      title: '选择结束日期',
+      value: goalForm.value.endDate || goalForm.value.startDate,
+      minYear: currentYear - 5,
+      maxYear: currentYear + 10
+    },
+    weightRecordDate: {
+      enabled: true,
+      title: '选择记录日期',
+      value: weightForm.value.recordDate,
+      minYear: currentYear - 5,
+      maxYear: currentYear + 1
+    }
+  }
+
+  const config = configMap[target]
+  if (!config || !config.enabled) {
+    return
+  }
+
+  dateSheetTarget.value = target
+  dateSheetTitle.value = config.title
+  dateSheetValue.value = config.value || formatToday()
+  dateSheetMinYear.value = config.minYear
+  dateSheetMaxYear.value = config.maxYear
+  dateSheetVisible.value = true
+}
+
+function closeDateSheet() {
+  dateSheetVisible.value = false
+}
+
+function handleDateSheetConfirm(value) {
+  if (dateSheetTarget.value === 'birthDate') {
+    healthForm.value.birthDate = value
+    return
+  }
+  if (dateSheetTarget.value === 'goalStartDate') {
+    goalForm.value.startDate = value
+    if (goalForm.value.endDate && goalForm.value.endDate < value) {
+      goalForm.value.endDate = value
+    }
+    return
+  }
+  if (dateSheetTarget.value === 'goalEndDate') {
+    goalForm.value.endDate = value
+    return
+  }
+  if (dateSheetTarget.value === 'weightRecordDate') {
+    weightForm.value.recordDate = value
+  }
 }
 
 async function handleHealthProfileAction() {
@@ -1116,6 +1227,15 @@ onShow(() => {
 }
 .field-input, .picker-field { min-height: 100rpx; display: flex; align-items: center; }
 .field-input.readonly, .picker-field.readonly, .textarea-field.readonly { background: #F5F6F8; color: #999; border-color: transparent; }
+.date-trigger-field {
+  justify-content: space-between;
+  gap: 16rpx;
+}
+.date-trigger-arrow {
+  flex-shrink: 0;
+  font-size: 28rpx;
+  color: #9CA3AF;
+}
 .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20rpx; margin-top: 20rpx; }
 .form-grid .field-input, .form-grid .picker-field { margin-top: 0; }
 .textarea-field { min-height: 180rpx; line-height: 1.6; }

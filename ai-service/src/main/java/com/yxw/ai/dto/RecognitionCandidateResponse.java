@@ -37,6 +37,10 @@ public class RecognitionCandidateResponse {
 
     private Boolean manualConfirmationRequired;
 
+    private Boolean estimated;
+
+    private String estimateSourceSummary;
+
     private String recognizedLabel;
 
     private String recognizedCanonicalLabel;
@@ -61,6 +65,7 @@ public class RecognitionCandidateResponse {
                 .confidence(confidence)
                 .matchReason(matchReason)
                 .manualConfirmationRequired(Boolean.TRUE)
+                .estimated(Boolean.FALSE)
                 .recognizedLabel(recognizedLabel)
                 .recognizedCanonicalLabel(recognizedCanonicalLabel)
                 .searchKeywords(searchKeywords == null ? List.of() : searchKeywords)

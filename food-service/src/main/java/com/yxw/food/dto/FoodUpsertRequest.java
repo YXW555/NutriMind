@@ -14,6 +14,10 @@ public class FoodUpsertRequest {
 
     private String category;
 
+    private Long ownerUserId;
+
+    private String sourceType;
+
     private String unit = "100g";
 
     @DecimalMin(value = "0.0", message = "热量不能小于0")

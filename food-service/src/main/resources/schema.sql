@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS `food_basics` (
   `category_id` BIGINT DEFAULT NULL COMMENT 'linked food_categories.id',
   `concept_id` BIGINT DEFAULT NULL COMMENT 'linked food_concepts.id',
   `barcode` VARCHAR(64) DEFAULT NULL COMMENT 'barcode',
+  `owner_user_id` BIGINT DEFAULT NULL COMMENT 'private food owner from user-service',
+  `source_type` VARCHAR(32) DEFAULT 'SYSTEM' COMMENT 'SYSTEM, USER_ESTIMATED, USER_MANUAL',
   `unit` VARCHAR(32) DEFAULT '100g' COMMENT 'nutrition unit',
   `calories` DECIMAL(8,2) DEFAULT 0 COMMENT 'calories per 100g',
   `protein` DECIMAL(8,2) DEFAULT 0 COMMENT 'protein per 100g',
@@ -48,7 +50,9 @@ CREATE TABLE IF NOT EXISTS `food_basics` (
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `status` TINYINT DEFAULT 1 COMMENT '0 disabled, 1 enabled',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_food_name` (`name`),
+  KEY `idx_food_name` (`name`),
+  KEY `idx_food_owner_user` (`owner_user_id`),
+  KEY `idx_food_source_type` (`source_type`),
   KEY `idx_food_category_id` (`category_id`),
   KEY `idx_food_concept_id` (`concept_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='food basics';
@@ -215,6 +219,38 @@ PREPARE barcode_stmt FROM @barcode_sql;
 EXECUTE barcode_stmt;
 DEALLOCATE PREPARE barcode_stmt;
 
+SET @owner_user_id_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'food_basics'
+    AND COLUMN_NAME = 'owner_user_id'
+);
+SET @owner_user_id_sql := IF(
+  @owner_user_id_exists = 0,
+  'ALTER TABLE `food_basics` ADD COLUMN `owner_user_id` BIGINT DEFAULT NULL COMMENT ''private food owner from user-service'' AFTER `barcode`',
+  'SELECT 1'
+);
+PREPARE owner_user_id_stmt FROM @owner_user_id_sql;
+EXECUTE owner_user_id_stmt;
+DEALLOCATE PREPARE owner_user_id_stmt;
+
+SET @source_type_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'food_basics'
+    AND COLUMN_NAME = 'source_type'
+);
+SET @source_type_sql := IF(
+  @source_type_exists = 0,
+  'ALTER TABLE `food_basics` ADD COLUMN `source_type` VARCHAR(32) DEFAULT ''SYSTEM'' COMMENT ''SYSTEM, USER_ESTIMATED, USER_MANUAL'' AFTER `owner_user_id`',
+  'SELECT 1'
+);
+PREPARE source_type_stmt FROM @source_type_sql;
+EXECUTE source_type_stmt;
+DEALLOCATE PREPARE source_type_stmt;
+
 SET @unit_exists := (
   SELECT COUNT(*)
   FROM INFORMATION_SCHEMA.COLUMNS
@@ -230,6 +266,70 @@ SET @unit_sql := IF(
 PREPARE unit_stmt FROM @unit_sql;
 EXECUTE unit_stmt;
 DEALLOCATE PREPARE unit_stmt;
+
+SET @uk_food_name_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'food_basics'
+    AND INDEX_NAME = 'uk_food_name'
+);
+SET @drop_uk_food_name_sql := IF(
+  @uk_food_name_exists > 0,
+  'ALTER TABLE `food_basics` DROP INDEX `uk_food_name`',
+  'SELECT 1'
+);
+PREPARE drop_uk_food_name_stmt FROM @drop_uk_food_name_sql;
+EXECUTE drop_uk_food_name_stmt;
+DEALLOCATE PREPARE drop_uk_food_name_stmt;
+
+SET @idx_food_name_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'food_basics'
+    AND INDEX_NAME = 'idx_food_name'
+);
+SET @idx_food_name_sql := IF(
+  @idx_food_name_exists = 0,
+  'ALTER TABLE `food_basics` ADD INDEX `idx_food_name` (`name`)',
+  'SELECT 1'
+);
+PREPARE idx_food_name_stmt FROM @idx_food_name_sql;
+EXECUTE idx_food_name_stmt;
+DEALLOCATE PREPARE idx_food_name_stmt;
+
+SET @idx_food_owner_user_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'food_basics'
+    AND INDEX_NAME = 'idx_food_owner_user'
+);
+SET @idx_food_owner_user_sql := IF(
+  @idx_food_owner_user_exists = 0,
+  'ALTER TABLE `food_basics` ADD INDEX `idx_food_owner_user` (`owner_user_id`)',
+  'SELECT 1'
+);
+PREPARE idx_food_owner_user_stmt FROM @idx_food_owner_user_sql;
+EXECUTE idx_food_owner_user_stmt;
+DEALLOCATE PREPARE idx_food_owner_user_stmt;
+
+SET @idx_food_source_type_exists := (
+  SELECT COUNT(*)
+  FROM INFORMATION_SCHEMA.STATISTICS
+  WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'food_basics'
+    AND INDEX_NAME = 'idx_food_source_type'
+);
+SET @idx_food_source_type_sql := IF(
+  @idx_food_source_type_exists = 0,
+  'ALTER TABLE `food_basics` ADD INDEX `idx_food_source_type` (`source_type`)',
+  'SELECT 1'
+);
+PREPARE idx_food_source_type_stmt FROM @idx_food_source_type_sql;
+EXECUTE idx_food_source_type_stmt;
+DEALLOCATE PREPARE idx_food_source_type_stmt;
 
 SET @recognized_canonical_label_exists := (
   SELECT COUNT(*)

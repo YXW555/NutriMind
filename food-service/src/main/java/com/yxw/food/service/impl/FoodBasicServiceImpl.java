@@ -1,6 +1,7 @@
 package com.yxw.food.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.yxw.common.core.security.SecurityContextUtils;
 import com.yxw.common.core.PageResponse;
 import com.yxw.common.core.dto.FoodNutritionSnapshot;
 import com.yxw.food.dto.FoodUpsertRequest;
@@ -25,6 +26,8 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
                    b.name,
                    b.category,
                    b.unit,
+                   b.owner_user_id,
+                   b.source_type,
                    b.calories,
                    b.protein,
                    b.fat,
@@ -42,8 +45,9 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
             LEFT JOIN food_aliases fa ON fa.food_id = b.id
             LEFT JOIN food_concept_aliases cca ON cca.concept_id = c.id
             WHERE b.status = 1
+              AND (b.owner_user_id IS NULL OR b.owner_user_id = ?)
             GROUP BY b.id, b.name, b.category, b.unit, b.calories, b.protein, b.fat, b.carbohydrate, b.fiber, b.status,
-                     c.canonical_name, c.canonical_name_en, cat.name
+                     b.owner_user_id, b.source_type, c.canonical_name, c.canonical_name_en, cat.name
             """;
 
     private final JdbcTemplate jdbcTemplate;
@@ -54,7 +58,8 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
 
     @Override
     public PageResponse<FoodNutritionSnapshot> searchFoods(String keyword, String category, long current, long size) {
-        List<SearchableFood> foods = jdbcTemplate.query(SEARCH_SQL, (rs, rowNum) -> new SearchableFood(
+        Long currentUserId = currentUserIdOrNull();
+        List<SearchableFood> foods = jdbcTemplate.query(SEARCH_SQL, ps -> ps.setObject(1, currentUserId), (rs, rowNum) -> new SearchableFood(
                 FoodNutritionSnapshot.builder()
                         .id(rs.getLong("id"))
                         .name(rs.getString("name"))
@@ -67,6 +72,8 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
                         .fiber(defaultValue(rs.getBigDecimal("fiber")))
                         .status((Integer) rs.getObject("status"))
                         .build(),
+                (Long) rs.getObject("owner_user_id"),
+                rs.getString("source_type"),
                 rs.getString("concept_name"),
                 rs.getString("concept_name_en"),
                 splitJoinedValues(rs.getString("food_aliases")),
@@ -75,7 +82,7 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
 
         List<ScoredFood> matched = foods.stream()
                 .filter(item -> matchesCategory(item.snapshot().getCategory(), category))
-                .map(item -> new ScoredFood(item.snapshot(), calculateScore(item, keyword)))
+                .map(item -> new ScoredFood(item.snapshot(), calculateScore(item, keyword, currentUserId)))
                 .filter(item -> !StringUtils.hasText(keyword) || item.score() > 0)
                 .sorted(Comparator.comparingDouble(ScoredFood::score).reversed()
                         .thenComparing(item -> safe(item.snapshot().getName())))
@@ -96,29 +103,30 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
 
     @Override
     public FoodNutritionSnapshot getFood(Long id) {
-        FoodBasic food = requireFood(id);
+        FoodBasic food = requireAccessibleFood(id);
         return toSnapshot(food);
     }
 
     @Override
     public FoodNutritionSnapshot createFood(FoodUpsertRequest request) {
         FoodBasic food = new FoodBasic();
-        applyRequest(food, request);
+        applyRequest(food, request, null);
         save(food);
         return toSnapshot(food);
     }
 
     @Override
     public FoodNutritionSnapshot updateFood(Long id, FoodUpsertRequest request) {
-        FoodBasic food = requireFood(id);
-        applyRequest(food, request);
+        FoodBasic food = requireAccessibleFood(id);
+        applyRequest(food, request, food);
         updateById(food);
         return toSnapshot(food);
     }
 
     @Override
     public void deleteFood(Long id) {
-        removeById(id);
+        FoodBasic food = requireAccessibleFood(id);
+        removeById(food.getId());
     }
 
     private boolean matchesCategory(String foodCategory, String category) {
@@ -131,9 +139,9 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
                 || normalizedCategory.contains(normalizedFoodCategory);
     }
 
-    private double calculateScore(SearchableFood food, String keyword) {
+    private double calculateScore(SearchableFood food, String keyword, Long currentUserId) {
         if (!StringUtils.hasText(keyword)) {
-            return 1.0;
+            return applyOwnershipBoost(1.0, food, currentUserId);
         }
 
         String normalizedKeyword = normalize(keyword);
@@ -159,6 +167,13 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
             score += overlap * 9.0;
         }
 
+        return applyOwnershipBoost(score, food, currentUserId);
+    }
+
+    private double applyOwnershipBoost(double score, SearchableFood food, Long currentUserId) {
+        if (currentUserId != null && currentUserId.equals(food.ownerUserId())) {
+            return score + 18.0;
+        }
         return score;
     }
 
@@ -263,17 +278,41 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
                 .replaceAll("[\\s\\p{Punct}]+", "");
     }
 
-    private FoodBasic requireFood(Long id) {
+    private FoodBasic requireAccessibleFood(Long id) {
         FoodBasic food = getById(id);
-        if (food == null) {
+        if (food == null || !isAccessibleToCurrentUser(food)) {
             throw new IllegalArgumentException("food not found: " + id);
         }
         return food;
     }
 
-    private void applyRequest(FoodBasic food, FoodUpsertRequest request) {
+    private boolean isAccessibleToCurrentUser(FoodBasic food) {
+        if (food.getOwnerUserId() == null) {
+            return true;
+        }
+        return SecurityContextUtils.currentUserId()
+                .map(currentUserId -> currentUserId.equals(food.getOwnerUserId()))
+                .orElse(false);
+    }
+
+    private void applyRequest(FoodBasic food, FoodUpsertRequest request, FoodBasic existing) {
+        Long currentUserId = currentUserIdOrNull();
+        boolean privateFoodRequested = request.getOwnerUserId() != null
+                || isUserOwnedSourceType(request.getSourceType())
+                || (existing != null && existing.getOwnerUserId() != null);
+
         food.setName(request.getName());
         food.setCategory(request.getCategory());
+        if (privateFoodRequested) {
+            if (currentUserId == null) {
+                throw new IllegalArgumentException("private food requires authenticated user");
+            }
+            food.setOwnerUserId(currentUserId);
+            food.setSourceType(StringUtils.hasText(request.getSourceType()) ? request.getSourceType().trim() : "USER_MANUAL");
+        } else {
+            food.setOwnerUserId(null);
+            food.setSourceType(StringUtils.hasText(request.getSourceType()) ? request.getSourceType().trim() : "SYSTEM");
+        }
         food.setUnit(StringUtils.hasText(request.getUnit()) ? request.getUnit() : "100g");
         food.setCalories(defaultValue(request.getCalories()));
         food.setProtein(defaultValue(request.getProtein()));
@@ -281,6 +320,17 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
         food.setCarbohydrate(defaultValue(request.getCarbohydrate()));
         food.setFiber(defaultValue(request.getFiber()));
         food.setStatus(request.getStatus() == null ? 1 : request.getStatus());
+    }
+
+    private boolean isUserOwnedSourceType(String sourceType) {
+        if (!StringUtils.hasText(sourceType)) {
+            return false;
+        }
+        return sourceType.trim().toUpperCase(Locale.ROOT).startsWith("USER_");
+    }
+
+    private Long currentUserIdOrNull() {
+        return SecurityContextUtils.currentUserId().orElse(null);
     }
 
     private BigDecimal defaultValue(BigDecimal value) {
@@ -307,6 +357,8 @@ public class FoodBasicServiceImpl extends ServiceImpl<FoodBasicMapper, FoodBasic
     }
 
     private record SearchableFood(FoodNutritionSnapshot snapshot,
+                                  Long ownerUserId,
+                                  String sourceType,
                                   String conceptName,
                                   String conceptNameEn,
                                   List<String> foodAliases,

@@ -366,6 +366,20 @@ function removePendingItem(index) {
   pendingItems.value.splice(index, 1)
 }
 
+function showRewardFeedback(rewardFeedback, fallbackTitle) {
+  const message = rewardFeedback?.messages?.[0]
+  const pointsEarned = Number(rewardFeedback?.pointsEarned || 0)
+  if (message) {
+    uni.showToast({ title: message, icon: 'none' })
+    return
+  }
+  if (pointsEarned > 0) {
+    uni.showToast({ title: `记录成功 +${pointsEarned}积分`, icon: 'none' })
+    return
+  }
+  uni.showToast({ title: fallbackTitle, icon: 'success' })
+}
+
 async function submitCurrentFood() {
   if (!ensureLoggedIn()) return
   const item = buildDraftItem()
@@ -380,7 +394,7 @@ async function submitCurrentFood() {
     dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
     quantity.value = '100'
     uni.hideLoading()
-    uni.showToast({ title: '已记录', icon: 'success' })
+    showRewardFeedback(response?.rewardFeedback, '已记录')
   } catch (error) {
     uni.hideLoading()
     uni.showToast({ title: '保存失败', icon: 'none' })
@@ -404,7 +418,7 @@ async function submitPendingMeals() {
     dailyRecord.value = normalizeDailyRecord(recordDate.value, response)
     pendingItems.value = []
     uni.hideLoading()
-    uni.showToast({ title: '全部保存成功', icon: 'success' })
+    showRewardFeedback(response?.rewardFeedback, '全部保存成功')
   } catch (error) {
     uni.hideLoading()
     uni.showToast({ title: '保存失败', icon: 'none' })

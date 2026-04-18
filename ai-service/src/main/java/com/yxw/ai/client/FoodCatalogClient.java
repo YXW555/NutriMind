@@ -1,5 +1,6 @@
 package com.yxw.ai.client;
 
+import com.yxw.ai.client.dto.FoodCatalogCreateRequest;
 import com.yxw.common.core.ApiResponse;
 import com.yxw.common.core.PageResponse;
 import com.yxw.common.core.dto.FoodNutritionSnapshot;
@@ -44,5 +45,20 @@ public class FoodCatalogClient {
 
         List<FoodNutritionSnapshot> records = response.getData().getRecords();
         return records == null ? Collections.emptyList() : records;
+    }
+
+    public FoodNutritionSnapshot createFood(FoodCatalogCreateRequest request) {
+        ApiResponse<FoodNutritionSnapshot> response = foodServiceRestClient.post()
+                .uri("/foods")
+                .body(request)
+                .retrieve()
+                .body(new ParameterizedTypeReference<ApiResponse<FoodNutritionSnapshot>>() {
+                });
+
+        if (response == null || response.getCode() == null || response.getCode() != 200 || response.getData() == null) {
+            throw new IllegalArgumentException("failed to create estimated food");
+        }
+
+        return response.getData();
     }
 }

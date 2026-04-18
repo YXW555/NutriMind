@@ -8,6 +8,7 @@ com\yxw\ai\dto\RecognitionCandidateResponse.class
 com\yxw\ai\engine\QwenVisionRecognitionEngine$LocalModelHint.class
 com\yxw\ai\service\FoodCatalogMatchService.class
 com\yxw\ai\engine\PythonFoodRecognitionEngine.class
+com\yxw\ai\service\FoodCatalogMatchService$SearchableFood.class
 com\yxw\ai\engine\RecognitionEngineCandidate$RecognitionEngineCandidateBuilder.class
 com\yxw\ai\config\SecurityConfig.class
 com\yxw\ai\config\VisionProperties.class
@@ -19,14 +20,18 @@ com\yxw\ai\AiServiceApplication.class
 com\yxw\ai\client\PythonInferenceClient$1.class
 com\yxw\ai\client\PythonInferenceClient.class
 com\yxw\ai\config\VisionProperties$Python.class
+com\yxw\ai\client\FoodCatalogClient$2.class
 com\yxw\ai\service\VisionRecognitionService.class
 com\yxw\ai\dto\PythonInferencePrediction.class
 com\yxw\ai\engine\QwenVisionRecognitionEngine.class
 com\yxw\ai\engine\RecognitionEngineResult.class
 com\yxw\ai\engine\FoodRecognitionEngine.class
 com\yxw\ai\client\QwenVisionClient.class
+com\yxw\ai\client\dto\FoodCatalogCreateRequest$FoodCatalogCreateRequestBuilder.class
 com\yxw\ai\config\VisionProperties$Qwen.class
+com\yxw\ai\client\dto\FoodCatalogCreateRequest.class
 com\yxw\ai\config\RestClientConfig.class
+com\yxw\ai\service\FoodCatalogMatchService$EstimatedFoodResult.class
 com\yxw\ai\dto\RecognitionCandidateResponse$RecognitionCandidateResponseBuilder.class
 com\yxw\ai\client\FoodCatalogClient$1.class
 com\yxw\ai\service\FoodCatalogMatchService$ScoredFoodMatch.class
