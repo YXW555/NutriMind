@@ -20,7 +20,7 @@ const search = ref('')
         <input v-model="search" class="search-input" placeholder="搜索页面内容" />
       </label>
       <span class="icon-chip">通</span>
-      <span class="icon-chip">铃</span>
+      <span class="icon-chip">告</span>
       <div class="profile-chip">
         <div class="profile-avatar">YX</div>
         <div>

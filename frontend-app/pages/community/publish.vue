@@ -1,40 +1,43 @@
 <template>
   <view class="page-xhs">
     <app-page-header
-      title="发布图文"
+      :title="pageTitle"
       fallback-url="/pages/community/index"
-      :border="false"
     >
       <template #right>
-        <button 
-          class="xhs-publish-btn" 
-          :class="{ 'is-active': canPublish, 'is-loading': submitting }"
-          :disabled="!canPublish || submitting"
+        <button
+          class="xhs-publish-btn"
+          :class="{ 'is-active': canSubmit, 'is-loading': submitting }"
+          :disabled="!canSubmit || submitting || loadingPost"
           @click="submitPost"
         >
-          {{ submitting ? '发布中...' : '发布' }}
+          {{ submitButtonText }}
         </button>
       </template>
     </app-page-header>
 
-    <view class="editor-body">
-      
+    <view v-if="loadingPost" class="loading-state">
+      <text class="loading-title">正在加载帖子内容</text>
+      <text class="loading-desc">请稍候，我们正在为你准备编辑内容。</text>
+    </view>
+
+    <view v-else class="editor-body">
       <view class="text-section">
-        <input 
-          v-model="form.title" 
-          class="xhs-title-input" 
-          placeholder="填写标题会有更多赞哦~" 
+        <input
+          v-model="form.title"
+          class="xhs-title-input"
+          placeholder="写一个更容易被看到的标题"
           placeholder-class="xhs-placeholder-title"
-          maxlength="40" 
+          maxlength="40"
         />
-        
+
         <view class="content-wrapper">
           <textarea
             v-model="form.content"
             class="xhs-content-textarea"
             maxlength="600"
             :auto-height="true"
-            placeholder="添加正文"
+            placeholder="分享你的饮食记录、做法经验或健康心得"
             placeholder-class="xhs-placeholder-content"
           />
         </view>
@@ -43,94 +46,153 @@
       <view class="media-section">
         <scroll-view scroll-x class="media-scroll" :show-scrollbar="false">
           <view class="media-list">
-            <view 
-              v-for="(item, index) in selectedImages" 
-              :key="item.id" 
+            <view
+              v-for="(item, index) in selectedImages"
+              :key="item.id"
               class="media-item"
             >
-              <image class="media-img" :src="item.localPath" mode="aspectFill" @click="previewSelected(index)" />
+              <image
+                class="media-img"
+                :src="item.localPath"
+                mode="aspectFill"
+                @click="previewSelected(index)"
+              />
               <view class="media-delete" @click.stop="removeImage(index)">
                 <text class="delete-icon">×</text>
               </view>
+              <view v-if="item.uploadedUrl" class="media-badge">
+                <text class="media-badge-text">{{ item.isExisting ? '原图' : '新图' }}</text>
+              </view>
             </view>
-            
+
             <view v-if="selectedImages.length < 3" class="media-add-btn" @click="chooseImages">
               <text class="add-icon">+</text>
             </view>
           </view>
         </scroll-view>
-        <view v-if="selectedImages.length === 0" class="image-tip">
-          <text class="xhs-tag-icon">🖼️</text>
-          <text class="tip-text">添加图片 (最多3张)</text>
+
+        <view class="image-tip">
+          <text class="tip-icon">📷</text>
+          <text class="tip-text">
+            {{ isEditMode ? '可保留原图，也可追加或删除图片，最多 3 张。' : '添加图片最多 3 张，让分享更完整。' }}
+          </text>
         </view>
       </view>
 
       <view class="options-section">
-        
+        <view class="section-head">
+          <text class="section-title">话题标签</text>
+          <text class="section-subtitle">选择一个更适合当前内容的主题</text>
+        </view>
+
         <view class="quick-tags">
-          <view 
-            v-for="t in tags" 
-            :key="t" 
-            class="xhs-tag-chip" 
-            :class="{ 'is-selected': form.tag === t }"
-            @click="form.tag = (form.tag === t ? '' : t)"
+          <view
+            v-for="tag in tags"
+            :key="tag"
+            class="xhs-tag-chip"
+            :class="{ 'is-selected': form.tag === tag }"
+            @click="toggleTag(tag)"
           >
             <text class="hash-mark">#</text>
-            <text class="tag-text">{{ t }}</text>
+            <text class="tag-text">{{ tag }}</text>
           </view>
         </view>
 
-        <view class="xhs-cell">
-          <view class="cell-left">
-            <text class="cell-icon">📍</text>
-            <text class="cell-title">发布分区</text>
-          </view>
-          </view>
-        
-        <view class="partition-chips">
-          <view 
-            v-for="p in partitions" 
-            :key="p" 
-            class="partition-chip" 
-            :class="{ active: form.partition === p }"
-            @click="form.partition = p"
-          >
-            {{ p }}
-          </view>
+        <view class="editor-tips">
+          <text class="tips-title">{{ isEditMode ? '编辑说明' : '发布建议' }}</text>
+          <text class="tips-line">
+            {{ isEditMode ? '保存后会覆盖原帖子内容，但点赞、评论和收藏数据会继续保留。' : '标题可以为空，但建议补充关键信息，方便其他人理解内容。' }}
+          </text>
+          <text class="tips-line">支持上传 0 到 3 张图片；不选标签时会自动归类到“全部”。</text>
         </view>
-
       </view>
     </view>
-    
+
     <view class="safe-bottom"></view>
   </view>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+import { onLoad } from '@dcloudio/uni-app'
 import request from '@/utils/request.js'
 import { ensureLoggedIn, getProfile } from '@/utils/auth.js'
+import { getApiBaseUrl } from '@/utils/config.js'
 
-// --- 数据配置 ---
-const partitions = ['减脂', '增肌', '素食', '快手菜']
 const tags = ['健康饮食', '我的私藏菜谱', '打卡', '减脂餐分享', '神仙吃法']
 
-// --- 状态管理 ---
+const postId = ref('')
+const loadingPost = ref(false)
+const submitting = ref(false)
+
 const form = ref({
   title: '',
   content: '',
-  tag: '',
-  partition: '减脂' // 默认选中分区
+  tag: ''
 })
-const selectedImages = ref([])
-const submitting = ref(false)
 
-// --- 计算属性 ---
-const canPublish = computed(() => {
+const selectedImages = ref([])
+
+const isEditMode = computed(() => Boolean(postId.value))
+const pageTitle = computed(() => (isEditMode.value ? '编辑帖子' : '发布图文'))
+const submitButtonText = computed(() => {
+  if (loadingPost.value) return '加载中...'
+  if (submitting.value) return isEditMode.value ? '保存中...' : '发布中...'
+  return isEditMode.value ? '保存' : '发布'
+})
+
+const canSubmit = computed(() => {
   return form.value.content.trim().length > 0 || selectedImages.value.length > 0
 })
 
-// --- 图片处理逻辑 ---
+function resolveAssetUrl(url) {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  const apiBase = getApiBaseUrl().replace(/\/+$/, '')
+  const origin = apiBase.replace(/\/api$/i, '')
+  return url.startsWith('/') ? `${origin}${url}` : `${origin}/${url}`
+}
+
+function makeImageItem({ localPath, uploadedUrl = '', file = null, isExisting = false }) {
+  return {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 10)}`,
+    localPath,
+    uploadedUrl,
+    file,
+    isExisting
+  }
+}
+
+async function loadPostDetail() {
+  if (!isEditMode.value || !ensureLoggedIn()) return
+  loadingPost.value = true
+  try {
+    const response = await request.get(`/community/posts/${postId.value}`)
+    form.value = {
+      title: response?.title || '',
+      content: response?.content || '',
+      tag: response?.tag && response.tag !== '全部' ? response.tag : ''
+    }
+    selectedImages.value = Array.isArray(response?.imageUrls)
+      ? response.imageUrls.map((url) =>
+          makeImageItem({
+            localPath: resolveAssetUrl(url),
+            uploadedUrl: url,
+            isExisting: true
+          })
+        )
+      : []
+  } catch (error) {
+    console.log('load post detail for edit failed', error)
+    uni.showToast({ title: '帖子加载失败，请稍后重试', icon: 'none' })
+    setTimeout(() => {
+      goBackToCommunity()
+    }, 500)
+  } finally {
+    loadingPost.value = false
+  }
+}
+
 async function chooseImages() {
   const remain = 3 - selectedImages.value.length
   if (remain <= 0) {
@@ -148,21 +210,23 @@ async function chooseImages() {
     const tempFiles = Array.isArray(result?.tempFiles) ? result.tempFiles : []
     const imagePaths = Array.isArray(result?.tempFilePaths)
       ? result.tempFilePaths
-      : tempFiles.map(item => item.path || item.tempFilePath).filter(Boolean)
+      : tempFiles.map((item) => item.path || item.tempFilePath).filter(Boolean)
 
     if (!imagePaths.length) return
 
-    const nextImages = imagePaths.map((path, index) => ({
-      id: `${Date.now()}-${index}-${Math.random().toString(16).slice(2, 8)}`,
-      localPath: path,
-      file: tempFiles[index]?.file || tempFiles[index] || null
-    }))
+    const nextImages = imagePaths.map((path, index) =>
+      makeImageItem({
+        localPath: path,
+        file: tempFiles[index]?.file || tempFiles[index] || null,
+        isExisting: false
+      })
+    )
 
     selectedImages.value = [...selectedImages.value, ...nextImages].slice(0, 3)
   } catch (error) {
     const message = String(error?.errMsg || error?.message || '')
     if (message.includes('cancel')) return
-    uni.showToast({ title: '选图取消', icon: 'none' })
+    uni.showToast({ title: '选择图片失败，请稍后重试', icon: 'none' })
   }
 }
 
@@ -171,26 +235,52 @@ function removeImage(index) {
 }
 
 function previewSelected(index) {
-  const urls = selectedImages.value.map(item => item.localPath)
+  const urls = selectedImages.value.map((item) => item.localPath)
   if (!urls.length) return
-  uni.previewImage({ current: urls[index], urls })
+  uni.previewImage({
+    current: urls[index],
+    urls
+  })
+}
+
+function toggleTag(tag) {
+  form.value.tag = form.value.tag === tag ? '' : tag
 }
 
 async function uploadSelectedImages() {
   if (!selectedImages.value.length) return []
-
   const uploadedUrls = []
+
   for (const item of selectedImages.value) {
+    if (item.uploadedUrl) {
+      uploadedUrls.push(item.uploadedUrl)
+      continue
+    }
+
     const response = await request.upload('/community/images', {
       name: 'file',
       filePath: item.localPath,
       file: item.file
     })
+
     if (response?.url) {
+      item.uploadedUrl = response.url
       uploadedUrls.push(response.url)
     }
   }
+
   return uploadedUrls
+}
+
+function buildPayload(imageUrls) {
+  const profile = getProfile() || {}
+  return {
+    title: form.value.title.trim(),
+    content: form.value.content.trim(),
+    tag: form.value.tag,
+    authorName: profile.nickname || profile.username || '',
+    imageUrls
+  }
 }
 
 function goBackToCommunity() {
@@ -202,9 +292,8 @@ function goBackToCommunity() {
   uni.reLaunch({ url: '/pages/community/index' })
 }
 
-// --- 发布逻辑 ---
 async function submitPost() {
-  if (!ensureLoggedIn() || submitting.value || !canPublish.value) return
+  if (!ensureLoggedIn() || submitting.value || loadingPost.value || !canSubmit.value) return
 
   if (!form.value.content.trim() && !selectedImages.value.length) {
     uni.showToast({ title: '写点内容再发布吧', icon: 'none' })
@@ -212,60 +301,65 @@ async function submitPost() {
   }
 
   submitting.value = true
-
   try {
-    const profile = getProfile() || {}
     const imageUrls = await uploadSelectedImages()
+    const payload = buildPayload(imageUrls)
 
-    await request.post('/community/posts', {
-      title: form.value.title.trim(),
-      content: form.value.content.trim(),
-      tag: form.value.tag,
-      partition: form.value.partition,
-      authorName: profile.nickname || profile.username || '',
-      imageUrls
+    if (isEditMode.value) {
+      await request.put(`/community/posts/${postId.value}`, payload)
+    } else {
+      await request.post('/community/posts', payload)
+    }
+
+    uni.showToast({
+      title: isEditMode.value ? '帖子已更新' : '发布成功',
+      icon: 'success'
     })
-
-    uni.showToast({ title: '发布成功', icon: 'success' })
 
     setTimeout(() => {
       goBackToCommunity()
-    }, 1500)
+    }, 600)
   } catch (error) {
-    uni.showToast({ title: '发布失败，请重试', icon: 'none' })
+    console.log('submit post failed', error)
+    uni.showToast({
+      title: isEditMode.value ? '保存失败，请稍后重试' : '发布失败，请稍后重试',
+      icon: 'none'
+    })
   } finally {
     submitting.value = false
   }
 }
+
+onLoad((query) => {
+  postId.value = String(query?.id || '').trim()
+  loadPostDetail()
+})
 </script>
 
 <style scoped>
 .page-xhs {
-  /* 小红书风格的色彩变量 */
   --xhs-red: #ff2442;
   --xhs-red-light: rgba(255, 36, 66, 0.1);
   --xhs-bg: #ffffff;
   --xhs-text: #333333;
   --xhs-muted: #999999;
-  --xhs-border: #f5f5f5;
-  
+  --xhs-border: #f1f5f9;
   min-height: 100vh;
   background-color: var(--xhs-bg);
+  padding: 0 0 60rpx;
 }
 
-/* 顶部导航栏的药丸发布按钮 */
 .xhs-publish-btn {
   margin: 0;
-  padding: 0 32rpx;
+  padding: 0 30rpx;
   height: 64rpx;
   line-height: 64rpx;
   border-radius: 32rpx;
   background-color: #f5f5f5;
-  color: #cccccc;
+  color: #c1c7d0;
   font-size: 28rpx;
-  font-weight: 600;
+  font-weight: 700;
   border: none;
-  transition: all 0.3s ease;
 }
 
 .xhs-publish-btn::after {
@@ -278,14 +372,32 @@ async function submitPost() {
 }
 
 .xhs-publish-btn.is-loading {
-  opacity: 0.7;
+  opacity: 0.72;
+}
+
+.loading-state {
+  padding: 80rpx 40rpx;
+}
+
+.loading-title {
+  display: block;
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--xhs-text);
+}
+
+.loading-desc {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  line-height: 1.7;
+  color: var(--xhs-muted);
 }
 
 .editor-body {
-  padding: 0; 
+  padding: 16rpx 0 0;
 }
 
-/* --- 文本输入区 (移至上方) --- */
 .text-section {
   padding: 0 32rpx;
 }
@@ -301,204 +413,195 @@ async function submitPost() {
 }
 
 .xhs-placeholder-title {
-  color: #c4c4c4;
-  font-weight: 500;
+  color: #b6beca;
 }
 
 .content-wrapper {
-  position: relative;
+  min-height: 320rpx;
 }
 
 .xhs-content-textarea {
   width: 100%;
-  min-height: 260rpx;
+  min-height: 320rpx;
   font-size: 30rpx;
-  line-height: 1.6;
+  line-height: 1.8;
   color: var(--xhs-text);
-  padding-bottom: 30rpx; /* 留出一点空间给下方的图片区域 */
 }
 
 .xhs-placeholder-content {
-  color: #c4c4c4;
+  color: #b6beca;
 }
 
-/* --- 图片横向滚动区 (现在位于正文下方) --- */
-.media-section {
-  padding: 10rpx 32rpx 30rpx; /* 调整间距 */
-  border-bottom: 1rpx solid var(--xhs-border); /* 在图片下方加一条分割线 */
+.media-section,
+.options-section {
+  margin-top: 36rpx;
+  padding: 0 32rpx;
 }
 
 .media-scroll {
   width: 100%;
-  white-space: nowrap;
 }
 
 .media-list {
   display: inline-flex;
-  gap: 16rpx;
-}
-
-.media-item, .media-add-btn {
-  width: 210rpx; /* 稍微缩小一点，更精致 */
-  height: 210rpx;
-  border-radius: 12rpx;
-  flex-shrink: 0;
-  position: relative;
-  overflow: hidden;
-}
-
-.media-img {
-  width: 100%;
-  height: 100%;
-  background-color: #f8f8f8;
-}
-
-.media-delete {
-  position: absolute;
-  top: 8rpx;
-  right: 8rpx;
-  width: 36rpx;
-  height: 36rpx;
-  background-color: rgba(0, 0, 0, 0.4);
-  border-radius: 50%;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 10;
+  gap: 18rpx;
+  padding-bottom: 12rpx;
 }
 
-.delete-icon {
-  color: #ffffff;
-  font-size: 28rpx;
-  line-height: 1;
+.media-item,
+.media-add-btn {
+  position: relative;
+  width: 210rpx;
+  height: 210rpx;
+  border-radius: 24rpx;
+  overflow: hidden;
+  background: #f8fafc;
+  border: 1rpx solid var(--xhs-border);
 }
 
 .media-add-btn {
-  background-color: #f8f8f8;
-  border: 2rpx dashed #e0e0e0; /* 加个虚线框 */
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .add-icon {
-  font-size: 50rpx;
-  color: #cccccc;
-  font-weight: 300;
+  font-size: 72rpx;
+  color: #94a3b8;
+  line-height: 1;
 }
 
-/* 未选图片时的提示语 */
+.media-img {
+  width: 100%;
+  height: 100%;
+}
+
+.media-delete {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  width: 46rpx;
+  height: 46rpx;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-icon {
+  color: #ffffff;
+  font-size: 30rpx;
+  line-height: 1;
+}
+
+.media-badge {
+  position: absolute;
+  left: 12rpx;
+  bottom: 12rpx;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(15, 23, 42, 0.72);
+}
+
+.media-badge-text {
+  color: #ffffff;
+  font-size: 22rpx;
+}
+
 .image-tip {
   display: flex;
   align-items: center;
-  padding: 20rpx 0;
   gap: 10rpx;
+  margin-top: 18rpx;
 }
 
-.xhs-tag-icon {
-  font-size: 32rpx;
+.tip-icon {
+  font-size: 28rpx;
 }
 
 .tip-text {
-  font-size: 28rpx;
-  color: var(--xhs-muted);
+  flex: 1;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #64748b;
 }
 
-/* --- 功能选项区 (话题、分区) --- */
-.options-section {
-  padding: 0 32rpx;
-  margin-top: 30rpx; /* 调整间距 */
+.section-head {
+  margin-bottom: 22rpx;
 }
 
-/* 话题标签 */
+.section-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #111827;
+}
+
+.section-subtitle {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: #64748b;
+}
+
 .quick-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
-  margin-bottom: 40rpx;
+  gap: 18rpx;
 }
 
 .xhs-tag-chip {
   display: inline-flex;
   align-items: center;
-  height: 56rpx;
-  padding: 0 24rpx;
-  border-radius: 28rpx;
-  background-color: #f5f5f5;
-  transition: all 0.2s;
+  gap: 6rpx;
+  padding: 16rpx 22rpx;
+  border-radius: 999rpx;
+  background: #f8fafc;
+  border: 1rpx solid #e2e8f0;
 }
 
 .xhs-tag-chip.is-selected {
-  background-color: var(--xhs-red-light);
+  background: var(--xhs-red-light);
+  border-color: rgba(255, 36, 66, 0.25);
 }
 
-.hash-mark {
-  color: var(--xhs-red);
-  font-weight: bold;
-  font-size: 26rpx;
-  margin-right: 6rpx;
-}
-
+.hash-mark,
 .tag-text {
-  font-size: 26rpx;
-  color: #555555;
+  font-size: 24rpx;
+  color: #475569;
 }
 
+.xhs-tag-chip.is-selected .hash-mark,
 .xhs-tag-chip.is-selected .tag-text {
   color: var(--xhs-red);
-  font-weight: 500;
 }
 
-/* 列表选项 (分区) */
-.xhs-cell {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10rpx 0; /* 调整间距 */
+.editor-tips {
+  margin-top: 26rpx;
+  padding: 24rpx;
+  border-radius: 24rpx;
+  background: #f8fafc;
+  border: 1rpx solid #edf2f7;
 }
 
-.cell-left {
-  display: flex;
-  align-items: center;
+.tips-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #111827;
 }
 
-.cell-icon {
-  font-size: 32rpx;
-  margin-right: 12rpx;
-}
-
-.cell-title {
-  font-size: 30rpx;
-  color: var(--xhs-text);
-  font-weight: 500;
-}
-
-.partition-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20rpx;
-  padding-top: 10rpx;
-  padding-bottom: 40rpx;
-}
-
-.partition-chip {
-  padding: 14rpx 36rpx;
-  background-color: #f8f8f8;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-  color: #666666;
-  border: 2rpx solid transparent;
-  transition: all 0.2s;
-}
-
-.partition-chip.active {
-  background-color: #ffffff;
-  color: var(--xhs-red);
-  border-color: var(--xhs-red);
-  font-weight: 600;
+.tips-line {
+  display: block;
+  margin-top: 10rpx;
+  font-size: 24rpx;
+  line-height: 1.7;
+  color: #64748b;
 }
 
 .safe-bottom {
-  height: calc(40rpx + env(safe-area-inset-bottom));
+  height: calc(env(safe-area-inset-bottom) + 24rpx);
 }
 </style>

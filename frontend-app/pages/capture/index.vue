@@ -96,8 +96,6 @@
           <button class="search-button" @click="searchFoods">搜索</button>
         </view>
         
-        <text v-if="hasRecognitionResults" class="recognition-mode">引擎: {{ recognitionModeLabel }}</text>
-
         <view v-if="recognizedConcept" class="concept-card">
           <view class="concept-head">
             <text class="concept-title">识别概念</text>
@@ -267,15 +265,6 @@ const showQuantityPopup = ref(false) // 绗簩灞傦細纭鍒嗛噺
 const currentMealLabel = computed(() => {
   const meal = mealTypes.find(m => m.value === mealType.value)
   return meal ? meal.label : '今日记录'
-})
-
-const recognitionModeLabel = computed(() => {
-  const mode = String(recognitionMode.value || '').toLowerCase()
-  if (!mode) return '本地识别'
-  if (mode.includes('onnx')) return '本地 ONNX 模型'
-  if (mode.includes('clip')) return 'CLIP 视觉检索'
-  if (mode.includes('python')) return '云端 AI 推理'
-  return recognitionMode.value
 })
 
 const recognizedConceptKeywords = computed(() => {

@@ -1,24 +1,25 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { adminApi } from '@/lib/api'
-import { foodItems } from '@/lib/mock'
 
 const loading = ref(false)
 const metadataLoading = ref(false)
 const keyword = ref('')
 const categoryFilter = ref('全部')
 const saveMessage = ref('')
-const items = ref(foodItems.map(normalizeFood))
+const items = ref([])
 const categoryOptions = ref([])
-const selectedFoodId = ref(foodItems[0]?.id || null)
-const metadata = ref(createEmptyMetadata())
+const selectedFoodId = ref(null)
 const recognitionLogs = ref([])
+const metadata = ref(createEmptyMetadata())
 const form = ref(createEmptyForm())
+const currentPage = ref(1)
+const pageSize = 10
 
 function createEmptyForm() {
   return {
     name: '',
-    category: '高蛋白',
+    category: '',
     unit: '100g',
     calories: '',
     protein: '',
@@ -61,7 +62,7 @@ function normalizeFood(item) {
 function toPayload() {
   return {
     name: form.value.name.trim(),
-    category: form.value.category.trim(),
+    category: form.value.category.trim() || '未分类',
     unit: form.value.unit.trim() || '100g',
     calories: Number(form.value.calories || 0),
     protein: Number(form.value.protein || 0),
@@ -86,15 +87,12 @@ function fillForm(food) {
   }
 }
 
-function applySelection(foodId) {
-  selectedFoodId.value = foodId
-  const current = items.value.find((item) => item.id === foodId)
-  if (current) {
-    fillForm(current)
-  } else {
-    form.value = createEmptyForm()
-  }
-}
+const filterCategories = computed(() => {
+  const merged = new Set(['全部'])
+  categoryOptions.value.forEach((item) => merged.add(item.name))
+  items.value.forEach((item) => merged.add(item.category))
+  return [...merged]
+})
 
 const visibleFoods = computed(() => {
   const query = keyword.value.trim().toLowerCase()
@@ -105,60 +103,31 @@ const visibleFoods = computed(() => {
   })
 })
 
-const filterCategories = computed(() => {
-  const merged = new Set(['全部'])
-  categoryOptions.value.forEach((item) => merged.add(item.name))
-  items.value.forEach((item) => merged.add(item.category))
-  return [...merged]
+const totalPages = computed(() => Math.max(1, Math.ceil(visibleFoods.value.length / pageSize)))
+
+const pagedFoods = computed(() => {
+  const start = (currentPage.value - 1) * pageSize
+  return visibleFoods.value.slice(start, start + pageSize)
 })
 
 const selectedFood = computed(() => items.value.find((item) => item.id === selectedFoodId.value) || null)
 
-function mockMetadataFor(food) {
-  if (!food) {
-    return createEmptyMetadata()
-  }
-  return {
-    categoryId: food.id + 1000,
-    categoryName: food.category,
-    conceptId: food.id + 2000,
-    conceptCode: `concept_${food.id}`,
-    conceptName: food.name,
-    conceptNameEn: '',
-    aliases: [food.name],
-    conceptAliases: [food.category, food.name],
-    imageSamples: []
+function selectFood(foodId) {
+  selectedFoodId.value = foodId
+  const current = items.value.find((item) => item.id === foodId)
+  if (current) {
+    fillForm(current)
+  } else {
+    form.value = createEmptyForm()
   }
 }
 
-function mockRecognitionLogsFor(food) {
-  if (!food) {
-    return []
-  }
-  return [
-    {
-      id: `${food.id}-1`,
-      recognizedLabel: food.name,
-      recognizedCanonicalLabel: food.name,
-      matchedFoodName: food.name,
-      confidence: 0.91,
-      recognitionMode: 'mock_fallback',
-      searchTerms: `${food.name}, ${food.category}`,
-      manualConfirmationRequired: true,
-      createdAt: '2026-04-09 10:20:00'
-    },
-    {
-      id: `${food.id}-2`,
-      recognizedLabel: food.category,
-      recognizedCanonicalLabel: food.category,
-      matchedFoodName: food.name,
-      confidence: 0.74,
-      recognitionMode: 'concept_recall',
-      searchTerms: `${food.category}, ${food.name}`,
-      manualConfirmationRequired: true,
-      createdAt: '2026-04-08 18:15:00'
-    }
-  ]
+function createFood() {
+  selectedFoodId.value = null
+  form.value = createEmptyForm()
+  metadata.value = createEmptyMetadata()
+  recognitionLogs.value = []
+  saveMessage.value = ''
 }
 
 async function loadCategories() {
@@ -176,22 +145,24 @@ async function loadFoods() {
   try {
     const data = await adminApi.get('/foods', { current: 1, size: 200 })
     items.value = Array.isArray(data?.records) ? data.records.map(normalizeFood) : []
-    if (items.value.length && !items.value.find((item) => item.id === selectedFoodId.value)) {
-      applySelection(items.value[0].id)
+    if (items.value.length) {
+      if (!items.value.find((item) => item.id === selectedFoodId.value)) {
+        selectFood(items.value[0].id)
+      }
+    } else {
+      createFood()
     }
   } catch (error) {
-    items.value = foodItems.map(normalizeFood)
-    if (items.value.length && !items.value.find((item) => item.id === selectedFoodId.value)) {
-      applySelection(items.value[0].id)
-    }
-    saveMessage.value = `未连接到真实食物库，当前显示演示数据：${error.message}`
+    items.value = []
+    createFood()
+    saveMessage.value = `食物库连接失败：${error.message}`
   } finally {
     loading.value = false
   }
 }
 
 async function loadFoodDetails(foodId) {
-  const current = items.value.find((item) => item.id === foodId)
+  if (!foodId) return
   metadataLoading.value = true
   try {
     const [detail, logs] = await Promise.all([
@@ -207,9 +178,9 @@ async function loadFoodDetails(foodId) {
     }
     recognitionLogs.value = Array.isArray(logs) ? logs : []
   } catch (error) {
-    metadata.value = mockMetadataFor(current)
-    recognitionLogs.value = mockRecognitionLogsFor(current)
-    saveMessage.value = `后端元数据暂不可用，当前显示演示信息：${error.message}`
+    metadata.value = createEmptyMetadata()
+    recognitionLogs.value = []
+    saveMessage.value = `读取食物详情失败：${error.message}`
   } finally {
     metadataLoading.value = false
   }
@@ -223,60 +194,45 @@ async function saveFood() {
 
   const payload = toPayload()
   const editingId = selectedFoodId.value
+
   try {
     const saved = editingId
       ? await adminApi.put(`/foods/${editingId}`, payload)
       : await adminApi.post('/foods', payload)
+
     const normalized = normalizeFood(saved)
     const nextItems = items.value.filter((item) => item.id !== normalized.id)
     items.value = [normalized, ...nextItems]
-    applySelection(normalized.id)
+    selectFood(normalized.id)
     await loadFoodDetails(normalized.id)
     saveMessage.value = editingId ? '食物条目已更新。' : '食物条目已创建。'
   } catch (error) {
-    if (editingId) {
-      items.value = items.value.map((item) => item.id === editingId ? { ...item, ...normalizeFood({ id: editingId, ...payload }) } : item)
-      saveMessage.value = `后端暂不可用，已在当前页模拟更新：${error.message}`
-      applySelection(editingId)
-    } else {
-      const localId = Date.now()
-      items.value = [normalizeFood({ id: localId, ...payload }), ...items.value]
-      applySelection(localId)
-      saveMessage.value = `后端暂不可用，已在当前页模拟创建：${error.message}`
-    }
+    saveMessage.value = `保存失败：${error.message}`
   }
 }
 
 async function removeFood(foodId) {
   try {
     await adminApi.delete(`/foods/${foodId}`)
-  } catch (error) {
-    saveMessage.value = `后端删除失败，已在当前页模拟移除：${error.message}`
-  }
-
-  items.value = items.value.filter((item) => item.id !== foodId)
-  if (selectedFoodId.value === foodId) {
-    if (items.value.length) {
-      applySelection(items.value[0].id)
-      await loadFoodDetails(items.value[0].id)
-    } else {
-      selectedFoodId.value = null
-      form.value = createEmptyForm()
-      metadata.value = createEmptyMetadata()
-      recognitionLogs.value = []
-    }
-  }
-  if (!saveMessage.value) {
+    items.value = items.value.filter((item) => item.id !== foodId)
     saveMessage.value = '食物条目已删除。'
+    if (selectedFoodId.value === foodId) {
+      if (items.value.length) {
+        const next = items.value[0]
+        selectFood(next.id)
+        await loadFoodDetails(next.id)
+      } else {
+        createFood()
+      }
+    }
+  } catch (error) {
+    saveMessage.value = `删除失败：${error.message}`
   }
 }
 
-function createFood() {
-  selectedFoodId.value = null
-  form.value = createEmptyForm()
-  metadata.value = createEmptyMetadata()
-  recognitionLogs.value = []
-  saveMessage.value = ''
+function changePage(nextPage) {
+  if (nextPage < 1 || nextPage > totalPages.value) return
+  currentPage.value = nextPage
 }
 
 function formatConfidence(value) {
@@ -285,16 +241,25 @@ function formatConfidence(value) {
 }
 
 function formatTime(value) {
-  if (!value) {
-    return '-'
-  }
+  if (!value) return '-'
   return String(value).replace('T', ' ')
 }
 
-watch(selectedFoodId, async (foodId) => {
-  if (!foodId) {
-    return
+watch([keyword, categoryFilter], () => {
+  currentPage.value = 1
+})
+
+watch(visibleFoods, (list) => {
+  if (currentPage.value > totalPages.value) {
+    currentPage.value = totalPages.value
   }
+  if (!selectedFoodId.value && list.length) {
+    selectFood(list[0].id)
+  }
+})
+
+watch(selectedFoodId, async (foodId) => {
+  if (!foodId) return
   const current = items.value.find((item) => item.id === foodId)
   if (current) {
     fillForm(current)
@@ -306,9 +271,6 @@ onMounted(async () => {
   await Promise.all([loadCategories(), loadFoods()])
   if (selectedFoodId.value) {
     await loadFoodDetails(selectedFoodId.value)
-  } else if (items.value.length) {
-    applySelection(items.value[0].id)
-    await loadFoodDetails(items.value[0].id)
   }
 })
 </script>
@@ -327,7 +289,7 @@ onMounted(async () => {
           <button class="primary-button" @click="saveFood">{{ selectedFoodId ? '保存修改' : '创建食物' }}</button>
         </div>
       </div>
-      <p class="panel-desc">维护食物基础营养信息，并查看概念层、概念别名、图片样本和最近识别日志。</p>
+      <p class="panel-desc">连接云端食物库，维护基础营养信息，并查看概念、样本和识别日志。</p>
 
       <div class="toolbar-row top-gap">
         <input v-model="keyword" class="toolbar-input" placeholder="搜索食物名称或分类" />
@@ -335,55 +297,49 @@ onMounted(async () => {
           <option v-for="item in filterCategories" :key="item" :value="item">{{ item }}</option>
         </select>
         <span class="status-pill">{{ loading ? '同步中...' : `共 ${visibleFoods.length} 条` }}</span>
-        <span v-if="metadataLoading" class="status-pill online">正在读取概念与日志</span>
+        <span v-if="metadataLoading" class="status-pill online">正在读取详情</span>
       </div>
       <p v-if="saveMessage" class="metric-hint top-gap">{{ saveMessage }}</p>
     </div>
 
-    <div class="split-grid-wide">
-      <div class="panel-card">
+    <div class="food-admin-grid">
+      <div class="panel-card list-panel">
         <div class="panel-head compact-head">
           <div>
             <p class="panel-kicker">Library</p>
             <h3 class="panel-title">食物条目</h3>
           </div>
-          <p class="metric-hint">支持基础条目搜索与编辑</p>
+          <p class="metric-hint">每页 {{ pageSize }} 条</p>
         </div>
-        <div class="table-shell top-gap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>食物名称</th>
-                <th>分类</th>
-                <th>热量</th>
-                <th>蛋白质</th>
-                <th>状态</th>
-                <th>操作</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="food in visibleFoods"
-                :key="food.id"
-                class="clickable-row"
-                :class="{ selected: food.id === selectedFoodId }"
-                @click="applySelection(food.id)"
-              >
-                <td>
-                  <p class="food-title">{{ food.name }}</p>
-                  <p class="cell-subtitle">单位：{{ food.unit }}</p>
-                </td>
-                <td>{{ food.category }}</td>
-                <td>{{ food.calories }} kcal</td>
-                <td>{{ food.protein }} g</td>
-                <td><span class="status-pill" :class="food.status === '启用' ? 'online' : 'warning'">{{ food.status }}</span></td>
-                <td class="table-actions" @click.stop>
-                  <button class="link-button" @click="applySelection(food.id)">查看</button>
-                  <button class="link-button danger" @click="removeFood(food.id)">删除</button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+        <div class="food-list top-gap">
+          <button
+            v-for="food in pagedFoods"
+            :key="food.id"
+            class="food-list-item"
+            :class="{ active: food.id === selectedFoodId }"
+            @click="selectFood(food.id)"
+          >
+            <div class="food-list-copy">
+              <p class="food-list-name">{{ food.name }}</p>
+              <p class="cell-subtitle">{{ food.category }} · {{ food.unit }}</p>
+            </div>
+            <div class="food-list-side">
+              <span class="status-pill" :class="food.status === '启用' ? 'online' : 'warning'">{{ food.status }}</span>
+              <strong>{{ food.calories }} kcal</strong>
+            </div>
+          </button>
+
+          <div v-if="!pagedFoods.length" class="list-empty">
+            <p class="food-list-name">暂无食物条目</p>
+            <p class="cell-subtitle">请检查云端接口或尝试新建食物。</p>
+          </div>
+        </div>
+
+        <div class="list-footer">
+          <button class="secondary-button" :disabled="currentPage === 1" @click="changePage(currentPage - 1)">上一页</button>
+          <span class="status-pill">第 {{ currentPage }} / {{ totalPages }} 页</span>
+          <button class="secondary-button" :disabled="currentPage >= totalPages" @click="changePage(currentPage + 1)">下一页</button>
         </div>
       </div>
 
@@ -539,3 +495,92 @@ onMounted(async () => {
     </div>
   </section>
 </template>
+
+<style scoped>
+.food-admin-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 18px;
+}
+
+.list-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 760px;
+}
+
+.food-list {
+  display: grid;
+  gap: 10px;
+  max-height: 640px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.food-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.food-list-item.active {
+  border-color: #ccefdc;
+  background: linear-gradient(180deg, #f4fcf8 0%, #ecf9f1 100%);
+}
+
+.food-list-copy {
+  min-width: 0;
+}
+
+.food-list-name,
+.food-title {
+  margin: 0;
+  font-weight: 700;
+  color: #111827;
+}
+
+.food-list-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.list-empty {
+  padding: 32px 18px;
+  border: 1px dashed var(--line);
+  background: var(--panel-soft);
+}
+
+.list-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 14px;
+}
+
+@media (max-width: 1180px) {
+  .food-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .list-panel {
+    min-height: auto;
+  }
+
+  .food-list {
+    max-height: 420px;
+  }
+}
+</style>

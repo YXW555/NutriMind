@@ -1,7 +1,7 @@
 {
     "name" : "知食分子",
     "appid" : "__UNI__B83C034",
-    "description" : "",
+    "description" : "知食分子是一款面向健康饮食管理场景的智能营养助手，融合图像识别、GraphRAG检索增强与多Agent智能决策技术，为用户提供拍照识别记餐、营养问答、个性化膳食计划生成、健康数据分析与社区互动等功能。系统通过用户画像、饮食记录和权威营养知识的协同建模，帮助用户降低饮食记录成本，提升营养建议的专业性、可信性和个性化水平，实现从饮食记录、分析到决策支持的完整闭环，适用于大学生、健身人群及普通健康关注用户的日常饮食管理。",
     "versionName" : "1.0.0",
     "versionCode" : "100",
     "transformPx" : false,
@@ -15,7 +15,9 @@
             "autoclose" : true,
             "delay" : 0
         },
-        "modules" : {},
+        "modules" : {
+            "Camera" : {}
+        },
         "distribute" : {
             "android" : {
                 "permissions" : [
@@ -39,7 +41,20 @@
             "ios" : {
                 "dSYMs" : false
             },
-            "sdkConfigs" : {}
+            "sdkConfigs" : {
+                "maps" : {}
+            },
+            "splashscreen" : {
+                "androidStyle" : "default",
+                "android" : {
+                    "hdpi" : "D:/桌面/启动页.png"
+                }
+            },
+            "icons" : {
+                "android" : {
+                    "hdpi" : "D:/桌面/图标.png"
+                }
+            }
         }
     },
     "quickapp" : {},

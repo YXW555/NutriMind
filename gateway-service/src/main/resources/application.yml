@@ -17,7 +17,7 @@ spring:
             allowedOriginPatterns:
               - "http://localhost:*"
               - "http://127.0.0.1:*"
-              - "http://39.106.9.9:*"
+              - "http://39.105.13.79:*"
             allowedMethods:
               - GET
               - POST

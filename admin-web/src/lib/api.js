@@ -1,9 +1,18 @@
 ﻿const API_BASE_KEY = 'nutrimind_admin_api_base'
 const TOKEN_KEY = 'nutrimind_admin_token'
-const DEFAULT_API_BASE = 'http://localhost:8080/api'
+const DEFAULT_API_BASE = 'http://39.105.13.79:8080/api'
 
 export function getApiBaseUrl() {
-  return localStorage.getItem(API_BASE_KEY) || DEFAULT_API_BASE
+  const cached = localStorage.getItem(API_BASE_KEY) || ''
+  const normalized = String(cached).trim().replace(/\/+$/, '')
+  if (!normalized) {
+    return DEFAULT_API_BASE
+  }
+  if (/localhost|127\.0\.0\.1/i.test(normalized)) {
+    localStorage.setItem(API_BASE_KEY, DEFAULT_API_BASE)
+    return DEFAULT_API_BASE
+  }
+  return normalized.endsWith('/api') ? normalized : `${normalized}/api`
 }
 
 export function setApiBaseUrl(value) {

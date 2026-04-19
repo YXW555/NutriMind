@@ -1,7 +1,7 @@
 const API_BASE_KEY = 'nutrimind_api_base'
-const DEFAULT_API_BASE = 'http://39.106.9.9:8080/api'
-const DEFAULT_NATIVE_PROXY_API_BASE = 'http://39.106.9.9:8080/api'
-const DEFAULT_NATIVE_LAN_API_BASE = 'http://39.106.9.9:8080/api'
+const DEFAULT_API_BASE = 'http://39.105.13.79:8080/api'
+const DEFAULT_NATIVE_PROXY_API_BASE = 'http://39.105.13.79:8080/api'
+const DEFAULT_NATIVE_LAN_API_BASE = 'http://39.105.13.79:8080/api'
 const DEFAULT_NATIVE_API_BASE = DEFAULT_NATIVE_LAN_API_BASE
 
 function isH5Runtime() {
@@ -59,7 +59,7 @@ function getH5DefaultApiBaseUrl() {
     return DEFAULT_API_BASE
   }
 
-  if (hostname === '39.106.9.9') {
+  if (hostname === '39.105.13.79') {
     return `${String(origin || '').replace(/\/+$/, '')}/api`
   }
 
@@ -182,5 +182,5 @@ export function resolveApiAssetUrl(value) {
 }
 
 export function getApiBaseHint() {
-  return '当前默认连接云服务器 39.106.9.9:8080，本地预览、真机调试和打包后的应用都会优先使用这个地址；如果仍然连接到旧地址，请清理应用缓存。'
+  return '当前默认连接云服务器 39.105.13.79:8080，本地预览、真机调试和打包后的应用都会优先使用这个地址；如果仍然连接到旧地址，请清理应用缓存。'
 }
